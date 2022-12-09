@@ -8,7 +8,7 @@ push!(LOAD_PATH,   joinpath(pwd(), "MIC/")   )
 
 # %%
 using Revise
-using mesh
+using ParticleMesh
 # Tolerance for comparison of real numbers: set it here!
 
 # Set parameters
@@ -41,6 +41,10 @@ function get_i_and_w(zp_normed::Float64)
     return [ip_floor , ip_floor+1] , [dxp_floor, dxp_ceil]
 end
 
+"""
+compute_weights_and_index_2d(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
+returns indexes and weights for in 2D for single x,y point
+"""
 function compute_weights_and_index_2d(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
     """
     2d wrapper for 1d function
@@ -57,8 +61,28 @@ function compute_weights_and_index_2d(g_pars::TwoDGrid, xp::Float64, yp:: Float6
 
     return idx, wtx
 end
+
+"""
+compute_weights_and_index_2d(g_pars::OneDGrid, xp::Float64 )
+returns indexes and weights for in 2D for single x point
+"""
+function compute_weights_and_index_2d(g_pars::OneDGrid, xp::Float64 )
+
+    xp_normed = (xp - g_pars.xmin) / g_pars.dx # multiples of grid spacing
+    xi, xw = get_i_and_w(xp_normed)
+
+    idx  = [ (xi[1]) , (xi[2]) ]
+    wtx  = [ (xw[1]) , (xw[2]) ]
+
+    return idx, wtx
+end
+
 #indexes, weights = compute_weights_and_index_2d(grid2d, 10.0, 9.9 )
 
+"""
+compute_weights_and_index_2d(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
+returns indexes and weights for in 2D for vectors
+"""
 function compute_weights_and_index_2d(grid::TwoDGrid, xp::Vector{Float64}, yp:: Vector{Float64} )
     """
     returns:
@@ -76,6 +100,29 @@ function compute_weights_and_index_2d(grid::TwoDGrid, xp::Vector{Float64}, yp:: 
     return index_list, weight_list
 end
 
+
+
+
+"""
+compute_weights_and_index_2d(g_pars::TwoDGrid, xp::Float64 )
+returns indexes and weights for in 1D for vectors
+"""
+function compute_weights_and_index_2d(grid::OneDGrid, xp::Vector{Float64})
+    """
+    returns:
+    weight list        2 N X 1 vector of tuples with indices and weights
+    """
+    #return reduce(vcat,[compute_weights_and_index_1d(g_pars, xi) for xi in xp])
+    index_list, weight_list  = [], []
+    for xi in xp
+        dd, ff = compute_weights_and_index_2d(grid, xi)
+        push!(index_list, dd)
+        push!(weight_list,ff)
+    end
+
+    #return reduce(vcat, index_list ), reduce(vcat, weight_list)
+    return index_list, weight_list
+end
 
 
 #index_positions, weights = compute_weights_and_index_2d(grid2d, [0.1, 11.1, 0.1, 5.234, -4.3], [0.1, 0.5, 2.9, 9.99, -3.2])
@@ -149,19 +196,78 @@ end
 
 #push_to_2d_grid!(charges_grid, 1.0 , index_positions[3], weights[3] , grid2d.Nx , grid2d.Ny )
 
-function push_to_2d_grid!(grid::Matrix{Float64},
+function push_to_2d_grid!(grid::SharedMatrix{Float64},
                             charge::Vector{Float64},
                             index_pos::Vector{Any},
                             weights::Vector{Any} ,
-                            Nx::Int,  Ny::Int )
+                            Nx::Int )
     for (im, wm, c) in zip(index_pos, weights, charge)
         for (i, w) in zip(im, wm)
-            push_to_2d_grid!(grid, c , i, w , Nx, Ny)
+            push_to_2d_grid!(grid, c , i, w , Nx)
         end
     end
 end
 
+## 1D versions
+
+
+function push_to_2d_grid!(grid::SharedMatrix{Float64},
+                            charge::Vector{Float64},
+                            index_pos::Vector{Int},
+                            weights::Vector{Float64} ,
+                            Nx::Int,
+                            periodic::Bool = true)
+    if periodic
+        for (im, wm) in zip(index_pos, weights)
+            grid[ wrap_index!(im, Nx), : ] += wm * charge
+        end
+    else
+        for (im, wm) in zip(index_pos, weights)
+            if (im <= Nx) & (im > 0)
+                grid[im, : ] += wm * charge
+            end
+        end
+    end
+end
+
+
+
+function push_to_2d_grid!(grid::Matrix{Float64},
+                            charge::Float64,
+                            index_pos::Int,
+                            weights::Float64,
+                            Nx::Int,
+                            periodic::Bool = true)
+        if periodic
+            grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
+            #grid[ index_pos[1] , index_pos[2] ] += weights[1] * weights[2] * charge
+        else
+            if (im <= Nx) & (im > 0)
+                grid[im, : ] += wm * charge
+            end
+        end
+end
+
+
+function push_to_2d_grid!(grid::SharedMatrix{Float64},
+                            charge::Float64,
+                            index_pos::Int,
+                            weights::Float64,
+                            Nx::Int,
+                            periodic::Bool = true)
+        if periodic
+            grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
+        else
+            if (im <= Nx) & (im > 0)
+                grid[im, : ] += wm * charge
+            end
+        end
+end
+
 export push_to_2d_grid!
+
+
+
 
 end
 # %%

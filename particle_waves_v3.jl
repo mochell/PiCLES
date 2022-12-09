@@ -52,7 +52,7 @@ end
 function D̃_eval_lne(lne::Number, kₚ::Number, e_T::Float64 , n::Float64 )
         # non-dimensional Wind energy input
         # eq sec. 1.3 in the manual
-        exp(n * lne) .* (kₚ ./ e_T ).^(2*n)
+        exp(n .* lne) .* (kₚ ./ e_T ).^(2*n)
 end
 
 function Ĩ_eval(alpha::Number, Hₚ::Number, C_e::Number)
@@ -66,6 +66,13 @@ function init_vars()
         @variables x(t), y(t), c̄_x(t), c̄_y(t), lne(t), Δn(t), Δφ_p(t)
         @parameters r_g C_α C_φ g C_e
         return t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e
+end
+
+function init_vars_1D()
+        @variables t
+        @variables x(t), c̄_x(t), lne(t)
+        @parameters r_g C_α g C_e
+        return t, x, c̄_x, lne, r_g, C_α, g, C_e
 end
 
 #normal_vector(uui::Vector) = [- uui[2], uui[1]] / norm(uui)
@@ -104,7 +111,10 @@ end
 # C_α is negative in Kudravtec definition, here its a positive value, so we introduce a minus sign
 ξ_shift(lne::Number, Δₚ::Number, kₚ::Number, C_α::Number, r_g::Number, g::Number) = - 0.5 * r_g^2 * C_α * Δₚ * g * kₚ.^4  * exp(2 * lne)
 
-
+"""
+particle_equations(u , v, u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0, dir_enhancement::Bool=true, delta_x_0::Number=10e3 )
+Particle wave equations in 2D
+"""
 function particle_equations(u, v , u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0, dir_enhancement::Bool=true, delta_x_0::Number=10e3 )
         t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e =  init_vars()
 
@@ -177,6 +187,53 @@ function particle_equations(u, v , u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0,
                 # ray convergence
                 D(Δn)  ~  Δφ_p * c̄,
                 D(Δφ_p)~  0#Δφ_p_RHS(tΔφ_w, tΔφ_p , T_inv)
+                ]
+
+        return particle_equations
+end
+
+"""
+particle_equations(u , u_x, ; γ::Number=0.88, q::Number=-1/4.0)
+Particle wave equations in 1D
+"""
+function particle_equations(u , u_x; γ::Number=0.88, q::Number=-1/4.0 )
+        t, x, c̄_x, lne, r_g, C_α, g, C_e =  init_vars_1D()
+
+        p, q , n =  magic_fractions()
+        e_T      =  e_T_eval(γ, p, q, n)
+        D        = Differential(t)
+
+        # forcing fields
+        u = u(x,t)
+        u_x = u_x(x,t)
+
+        # trig-values # we only use scalers, not vectors
+
+        c̄       = c̄_x
+        u_speed = u
+
+        # peak parameters
+        c_gp, kₚ, ωₚ =  c_g_conversions(c̄)
+
+        # direction equations
+        α       =  α_func(u_speed, c_gp)
+        Hₚ      =  H_β(  α , p )
+        Δₚ      =  Δ_β(  α )
+
+        # wave growth equation
+        D̃       =  D̃_eval_lne( lne, kₚ, e_T, n)
+        Ĩ       =  Ĩ_eval( α, Hₚ, C_e)
+
+        particle_equations = [
+                # propagation
+                D(x)   ~ c̄_x ,
+
+                # peak group velocity vector
+                D(c̄_x) ~   ξ_shift(lne, Δₚ, kₚ, C_α,r_g, g),
+
+                # energy
+                D(lne) ~ - ξ_shift(lne, Δₚ, kₚ, C_α,r_g, g) / c̄  + ωₚ .* (Ĩ -  D̃),
+                #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
                 ]
 
         return particle_equations
