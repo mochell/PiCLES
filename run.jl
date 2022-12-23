@@ -21,7 +21,7 @@ advance_workers = WorkerPool([2, 3])
 @everywhere using SharedArrays
 
 #include("./particle_waves_v1.jl")
-@everywhere import PIC_2d_v0
+@everywhere import PIC
 @everywhere import particle_waves_v3
 @everywhere using Callbacks
 @everywhere using Printf
@@ -182,10 +182,10 @@ State.pids # check which cores can see state
 # end
 
 
-#index_positions, weights = PIC_2d_v0.compute_weights_and_index_2d(grid2d, 12.34e3, 13.4e3)
-#PIC_2d_v0.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions[1], weights[1], grid2d.Nx, grid2d.Ny )
+#index_positions, weights = PIC.compute_weights_and_index_2d(grid2d, 12.34e3, 13.4e3)
+#PIC.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions[1], weights[1], grid2d.Nx, grid2d.Ny )
 
-# PIC_2d_v0.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions, weights, grid2d.Nx, grid2d.Ny )
+# PIC.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions, weights, grid2d.Nx, grid2d.Ny )
 
 # %%
 
@@ -527,12 +527,12 @@ end
         """
         function ParticleToNode!(PI::ParticleInstance, S::SharedArray, G::TwoDGrid)
 
-                index_positions, weights = PIC_2d_v0.compute_weights_and_index_2d(G, PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2])
+                index_positions, weights = PIC.compute_weights_and_index_2d(G, PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2])
                 #ui[1:2] .= PI.position_xy
                 #@show index_positions
                 u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
                 #@show u_state
-                PIC_2d_v0.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny )
+                PIC.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny )
                 nothing
         end
 

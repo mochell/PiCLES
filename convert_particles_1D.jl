@@ -7,31 +7,18 @@ import Base: filter!
 using ModelingToolkit, DifferentialEquations, Statistics
 
 # %% IO - fine the right path and read input arguments
-using ArgParse
+
+using InputOutput: Argsettings, parse_args
+
 #https://argparsejl.readthedocs.io/en/latest/argparse.html
-Argsettings = ArgParseSettings()
-@add_arg_table Argsettings begin
-    # "--opt1"
-    #     help = "an option with an argument"
-    "--ID"
-        help = "ID (or folder) of the model output"
-        arg_type = String
-        default = "dx1655_dt2400"
-    # "--flag1"
-    #     help = "an option without argument, i.e. a flag"
-    #     action = :store_true
-    # "arg1"
-    #     help = "a positional argument"
-end
+parset = "1D_static/"
 
-@printf "convert particles to .h5"
+arg_test = ["--ID", "dx1655_dt2400", "--parset", "1D_static"]
+passed_argument = parse_args(arg_test, Argsettings)
+@unpack ID, parset = passed_argument
 
-arg_test = ["--ID", "dx1655_dt2400"]
-parsed_args = parse_args(ARGS, Argsettings)
-
-
-save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
-
+#save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
+save_path = save_path_base*parset*"/"*ID*"/"
 
 # %%
 
@@ -42,7 +29,6 @@ mutable struct ParticleInstance
         position_xy :: Tuple
         ODEIntegrator::OrdinaryDiffEq.ODEIntegrator
 end
-
 
 
 ParticleCollection = load_object( joinpath(save_path , "particles.jld2")  )

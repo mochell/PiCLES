@@ -40,16 +40,16 @@ H_β(α::Number, p::Number; α_thresh = 0.85) = 0.5 .* (1.0 + tanh.(  p .*(α .-
 
 sin2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  4 * sb * cb * (sa^2 -0.5) - 4 * sa * ca * (sb^2 -0.5)
 cos2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  (1 - 2 .* (sa .* cb - ca .* cb).^2 )
-e_T_eval( γ::Float64, p::Float64,q::Float64, n::Float64)     = sqrt( 1.3e-6 * 11.8^(-p/q) / (γ * 2.16e-4)^(1/n) )
+e_T_eval( γ::Float64, p::Float64,q::Float64, n::Float64; C_e::Number=2.16e-4)     = sqrt( 1.3e-6 * 11.8^(-p/q) / (γ * C_e)^(1/n) )
 
 
-function D̃_eval_lne(e::Number, kₚ::Number, e_T::Float64 , n::Float64 )
+function D̃_eval_e(e::Number, kₚ::Number, e_T::Number , n::Float64 )
         # non-dimensional Wind energy input
         # eq sec. 1.3 in the manual
         e.^n .* (kₚ ./ e_T ).^(2*n)
 end
 
-function D̃_eval_lne(lne::Number, kₚ::Number, e_T::Float64 , n::Float64 )
+function D̃_eval_lne(lne::Number, kₚ::Number, e_T::Number , n::Float64 )
         # non-dimensional Wind energy input
         # eq sec. 1.3 in the manual
         exp(n .* lne) .* (kₚ ./ e_T ).^(2*n)
@@ -119,7 +119,7 @@ function particle_equations(u, v , u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0,
         t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e =  init_vars()
 
         p, q , n =  magic_fractions()
-        e_T      =  e_T_eval(γ, p, q, n)
+        e_T      =  e_T_eval(γ, p, q, n, C_e=C_e)
         D        = Differential(t)
 
         # forcing fields
@@ -150,7 +150,7 @@ function particle_equations(u, v , u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0,
         #Δφ_w = Δφ_w_func( cos(φ_p) , sin(φ_p) , u_x(x,y,t), v_y(x,y,t) )
 
         # peak parameters
-        c_gp, kₚ, ωₚ =  c_g_conversions(c̄)
+        c_gp, kₚ, ωₚ =  c_g_conversions(c̄, r_g = r_g)
 
         # direction equations
         α       =  α_func(u_speed, c_gp)
@@ -200,7 +200,7 @@ function particle_equations(u , u_x; γ::Number=0.88, q::Number=-1/4.0 )
         t, x, c̄_x, lne, r_g, C_α, g, C_e =  init_vars_1D()
 
         p, q , n =  magic_fractions()
-        e_T      =  e_T_eval(γ, p, q, n)
+        e_T      =  e_T_eval(γ, p, q, n, C_e=C_e)
         D        = Differential(t)
 
         # forcing fields
@@ -213,7 +213,7 @@ function particle_equations(u , u_x; γ::Number=0.88, q::Number=-1/4.0 )
         u_speed = u
 
         # peak parameters
-        c_gp, kₚ, ωₚ =  c_g_conversions(c̄)
+        c_gp, kₚ, ωₚ =  c_g_conversions(c̄, r_g= r_g)
 
         # direction equations
         α       =  α_func(u_speed, c_gp)

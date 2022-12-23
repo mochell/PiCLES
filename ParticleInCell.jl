@@ -1,4 +1,4 @@
-module PIC_2d_v0
+module ParticleInCell
 
 using Statistics
 
