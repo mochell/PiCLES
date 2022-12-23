@@ -9,7 +9,7 @@ using ParticleMesh
 using particle_waves_v3: init_vars_1D
 t, x, c̄_x, lne, r_g, C_α, g, C_e = init_vars_1D()
 
-using PIC_2d_v0
+using ParticleInCell
 
 # initialize:
 export init_z0_to_State

@@ -1,177 +1,126 @@
 
-#@show localARGS
-
 using Plots
 using BenchmarkTools
 
-using Interpolations
-using IfElse
-using ModelingToolkit, DifferentialEquations, Statistics
+# CPU initialization
+using Distributed
+#addprocs(2)
+#advance_workers = WorkerPool([2, 3])
+
+@everywhere using Interpolations
+@everywhere using IfElse
+@everywhere using ModelingToolkit, DifferentialEquations, Statistics
 
 
 # Particle Model modules
-push!(LOAD_PATH,   joinpath(pwd(), "code/")       )
-using ParticleMesh: OneDGrid, OneDGridNotes
-using SharedArrays
+@everywhere push!(LOAD_PATH,   joinpath(pwd(), "code/")       )
+@everywhere using ParticleMesh: OneDGrid, OneDGridNotes
+@everywhere using SharedArrays
 
 #include("./particle_waves_v1.jl")
 using Revise
 
-#import ParticleInCell
+#@everywhere import ParticleInCell
 includet("ParticleInCell.jl")
 includet("FetchRelations.jl")
 
-import particle_waves_v3
-using Printf
+@everywhere import particle_waves_v3
+@everywhere using Printf
 
+# modules for saveing:
 using HDF5
 using JLD2
 
 """
-This load a parameter file, executes a 1D run, saves the data and run statistics.
 
 """
 # %%
 using core_1D: init_z0_to_State!, wrap_pos!, periodic_BD_single_PI!, show_pos!, periodic_condition_x
 using core_1D: ParticleInstance
 using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
-
-using InputOutput: Argsettings, parse_args
-
-Revise.retry()
-# %%
-# Default values
-save_path_base= "data/"
-parset = "1D_static/"
-
-T           = 24 *3
-Lx          = 50
-
-DT          = 30 #60*30 # remeshing time stepping
-dt_ODE_save = 10 # 3 min
-
-Nx          = 30
-
-### Boundary Conditions
-peridic_boundary = false
-
-# parametric wind forcing
-U10         = 2
-
-# model parameters
-r_g0 = 0.9
-c_β  = 4e-2 # 4e-2 # default value from Kudr.
-γ    = 0.88
-
-
-@printf "Load passed arguments\n"
-
-# arg_test = [    "--ID", "test1",
-#                 "--Lx", "20",
-#                 "--T",  "24",
-#                 "--DT", "30"]
-
-# localARGS = ["--ID", "Nx30_DT30_U15", "--Nx", "30", "--DT", "30", "--U10", "15", "--parset", "1D_static"]ß
-#localARGS = ["--ID", "Nx50_DT2_U1", "--Nx", "50", "--c_beta", "2.000000", "--U10", "1", "--parset", "U10-c_beta", "--periodic"]
-@show localARGS
-passed_argument = parse_args(localARGS, Argsettings)
-
-# change here if more argument shuold be allowed to pass
-@unpack ID, Nx, U10, parset, periodic, c_beta = passed_argument
-peridic_boundary = periodic
-c_β = c_beta *1e-2
-C_e0 = (2.35 / r_g0) * 2e-3 * c_β
-
-if ~isnothing(ID)
-        #ID = "Nx"*@sprintf("%i",Nx)*"_dt"*@sprintf("%i",DT)*"_U"*@sprintf("%i",U10)
-        ID = "Nx"*@sprintf("%i",Nx)*"_cbeta"*@sprintf("%.1f",c_beta)*"_U"*@sprintf("%i",U10)
-end
-
-#  rescale parameters for the right units.
-T       = T  * 60*60 # seconds
-Lx      = Lx * 10e3  # km
-DT      = Float64(DT * 60) # seconds
-
-#~isnothing(Name) &
-
-
-# create ID and save name
-#save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
-save_path = save_path_base*parset*"/"*ID*"/"
-
 # %%
 @printf "Init Forcing Field\n"
-# create wind test fucntion
 
-@register_symbolic u(x, t)
-@register_symbolic u_x(x, t)
+save_path_base= "data/1D_static/"
 
-#u_func(x, y, t) = y * 0 .+ 3 * exp(- ( ( x-25e3 + 20e3* t/T )./10e3).^2) #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
-#u_func(x, t) = 3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
-u_func(x, t) = x.*0+U10 + t *0 #3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
-#u_func(x, y, t) = y *0 .- x .*2/50e3 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
-#u_func(x, y, t) = y *0 .- x .*0 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+@everywhere begin
 
-#u_func(x, t) = x *0 .+ IfElse.ifelse.( x .< Lx*2.0/3.0, 3, 0.1)
+        @register_symbolic u(x, t)
+        @register_symbolic u_x(x, t)
 
-# u_func(x, y, t) = y *0 .+ IfElse.ifelse.(    x .< Lx/2.0,
-#                                 2 .+ 1, *sin.(x *π/Lx/2),
-#                                 0 .* x + 0.1
-#                                 )
+        # create fake wind data and its gradients
+        T       = 60*60*24 *3
+        Lx      = 50e3
+        xi      = range(0,Lx,step=5e3)  # note ': this is a row vector
+        ti      = range(0,T ,step=60*60)
 
-# %% Define Grid, boundaries, and forcing field grid:
+        DT          = 60 * 20 #60*30 # remeshing time stepping
+        dt_ODE_save = 60 * 10 # 3 min
 
-### Define grid
-grid1d      = OneDGrid(1e3, Lx-1e3, Nx)
-grid1dnotes = OneDGridNotes(grid1d)
-dx          = grid1d.dx
+        U10     = 2
+        peridic_boundary = true
 
-### storing matrix
-Nstate      = 3
-Nparticle = grid1d.Nx
-State     = SharedMatrix{Float64}(grid1d.Nx, Nstate)
+        #u_func(x, y, t) = y * 0 .+ 3 * exp(- ( ( x-25e3 + 20e3* t/T )./10e3).^2) #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 
-if ~peridic_boundary  # if false, define boundary points here:
-        boundary = [1 , Nx]
+        #u_func(x, t) = 3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
+        u_func(x, t) = x.*0+U10 + t *0 #3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
+
+        #@everywhere u_func(x, y, t) = y *0 .- x .*2/50e3 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+        #@everywhere u_func(x, y, t) = y *0 .- x .*0 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+
+        #u_func(x, t) = x *0 .+ IfElse.ifelse.( x .< Lx*2.0/3.0, 3, 0.1)
+
+        # @everywhere u_func(x, y, t) = y *0 .+ IfElse.ifelse.(    x .< Lx/2.0,
+        #                                 2 .+ 1, *sin.(x *π/Lx/2),
+        #                                 0 .* x + 0.1
+        #                                 )
+
+        # % define wind forcing globally as interp functions
+        nodes = (xi, ti)
+
+        u_func_gridded = [ u_func(xii, tii) for xii in xi, tii in ti]
+        u_grid = LinearInterpolation( nodes , u_func_gridded ,extrapolation_bc=Periodic())
+        #u_grid = CubicSplineInterpolation( nodes, u_func_gridded; bc=Line(OnGrid()), extrapolation_bc=Flat())
+        #u_grid = interpolate(nodes, u_func_gridded, Gridded(Linear()))
+        u(x, t) = u_grid(x, t)
+        # only x gradient
+        u_x(x, t) = Interpolations.gradient(u_grid, x )[1]
+
+        particle_equations0 = particle_waves_v3.particle_equations(u, u_x)
+
+        @named particle_system0 = ODESystem(particle_equations0)
+
+        # define variables based on particle equations
+        t, x, c̄_x, lne, r_g, C_α, g, C_e = particle_waves_v3.init_vars_1D()
 end
-
-# provide winds in the right format
-xi      = range(0,Lx,step=5e3)  # note ': this is a row vector
-ti      = range(0,T ,step=60*60)
-
-# % define wind forcing globally as interp functions
-u_func_gridded = [ u_func(xii, tii) for xii in xi, tii in ti]
-u_grid = LinearInterpolation( (xi, ti) , u_func_gridded ,extrapolation_bc=Periodic())
-#u_grid = CubicSplineInterpolation( (xi, ti), u_func_gridded; bc=Line(OnGrid()), extrapolation_bc=Flat())
-#u_grid = interpolate((xi, ti), u_func_gridded, Gridded(Linear()))
-u(x, t) = u_grid(x, t)
-# x gradient
-u_x(x, t) = Interpolations.gradient(u_grid, x )[1]
-
-# %% Load Particle equations and derive ODE system
-
-particle_equations0 = particle_waves_v3.particle_equations(u, u_x, γ= γ)
-@named particle_system0 = ODESystem(particle_equations0)
-
-# define variables based on particle equations
-t, x, c̄_x, lne, r_g, C_α, g, C_e = particle_waves_v3.init_vars_1D()
-
-
 # %% define storing stucture and populate inital conditions
 
+@everywhere Nx          = 15
+@everywhere grid1d      = OneDGrid(1e3, Lx-1e3, Nx)
+@everywhere grid1dnotes = OneDGridNotes(grid1d)
+@everywhere dx          = grid1d.dx
+@everywhere Nstate      = 3
 
+
+Nparticle = grid1d.Nx
+State     = SharedMatrix{Float64}(grid1d.Nx, Nstate)
+State.pids # check which cores can see state
+
+# parameters
 params0 = Dict(
-        r_g => 1/r_g0,
+        r_g => 0.9,
         C_α => -1.41 ,
         g   => 9.81 ,
-        C_e => C_e0,
+        C_e => 2.16e-4
         )
 
-# define mininum energy threshold
-e_0 = log(FetchRelations.Eⱼ( 0.5 , DT ))
-# Default values for particle
-z0  = Dict( x => 0.0 , c̄_x=> 1e-2, lne => e_0)
+@everywhere begin
 
+        # define mininum energy threshold
+        e_0 = log(FetchRelations.Eⱼ( 0.5 , float(DT) ))
+        z0  = Dict( x => 0.0 , c̄_x=> 1e-2, lne => e_0)
+
+end
 # %%%% Define callbacks
 
 # terminate    = PeriodicCallback(terminate_check!, 60*12   )
@@ -194,8 +143,8 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 #
 # ## seed particle given fetch relations
 # u_init    = u(z_i[x], 0)
-# z_i[c̄_x] = FetchRelations.c_g_U_tau( u_init , DT )
-# z_i[lne] = log(FetchRelations.Eⱼ( u_init , DT ))
+# z_i[c̄_x] = FetchRelations.c_g_U_tau( u_init , float(DT) )
+# z_i[lne] = log(FetchRelations.Eⱼ( u_init , float(DT) ))
 #
 # #z_i[lne] = log(0.01)
 #
@@ -228,7 +177,6 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 #
 # display(plt.gcf())
 # %% seeding particles with initial states
-
 @printf "Init Particles\n"
 
 """
@@ -258,7 +206,8 @@ function InitParticle(model, z_initials, pars,  ij, boundary_flag ; cbSets=nothi
         return ParticleInstance( ij , z_initials[x], integrator, boundary_flag )
 end
 
-
+# define boundaries
+boundary = [1 , Nx]
 
 ParticleCollection=[]
 local z_i
@@ -273,8 +222,8 @@ for i in range(1,length = Nx)
         u_init    = u(z_i[x], 0)
 
         # seed particle given fetch relations
-        z_i[c̄_x] = FetchRelations.c_g_U_tau( abs(u_init) , DT )
-        z_i[lne] = log(FetchRelations.Eⱼ( abs(u_init) , DT ))
+        z_i[c̄_x] = FetchRelations.c_g_U_tau( abs(u_init) , float(DT) )
+        z_i[lne] = log(FetchRelations.Eⱼ( abs(u_init) , float(DT) ))
 
         #@show e_0 > z_i[lne]
         #@show (z_i[x]-grid1d.xmin)/grid1d.dx, (z_i[y]-grid1d.ymin)/grid1d.dy
@@ -305,41 +254,43 @@ end
 
 
 ###### Debugging functions ############
+@everywhere begin
 
 
-"""
-        ResetParticle!(integrator)
-(debubugging function)
-Resets the integrator instance if the particle energy is nan or very high
-resets the particles position to the domain center
-resets the energy to a dfault value (e_0 is a global variable)
+        """
+                ResetParticle!(integrator)
+        (debubugging function)
+        Resets the integrator instance if the particle energy is nan or very high
+        resets the particles position to the domain center
+        resets the energy to a dfault value (e_0 is a global variable)
 
-"""
-function ResetParticle!(integrator)
-        if isnan(integrator.ODEIntegrator.u[3]) || exp(integrator.ODEIntegrator.u[3]) >= 1e-3
-                @show exp(integrator.ODEIntegrator.u[3])
-                integrator.ODEIntegrator.u[1] = integrator.ODEIntegrator.u[1] - Lx/2
-                #integrator.ODEIntegrator.u[2] = integrator.ODEIntegrator.u[2] - Ly/2
-                #integrator.ODEIntegrator.u[4] = 1e-2
-                integrator.ODEIntegrator.u[3] = e_0
-                u_modified!(integrator.ODEIntegrator,true)
-                @show "rest particle"
+        """
+        function ResetParticle!(integrator)
+                if isnan(integrator.ODEIntegrator.u[3]) || exp(integrator.ODEIntegrator.u[3]) >= 1e-3
+                        @show exp(integrator.ODEIntegrator.u[3])
+                        integrator.ODEIntegrator.u[1] = integrator.ODEIntegrator.u[1] - Lx/2
+                        #integrator.ODEIntegrator.u[2] = integrator.ODEIntegrator.u[2] - Ly/2
+                        #integrator.ODEIntegrator.u[4] = 1e-2
+                        integrator.ODEIntegrator.u[3] = e_0
+                        u_modified!(integrator.ODEIntegrator,true)
+                        @show "rest particle"
+                end
+                nothing
         end
-        nothing
-end
 
-Lx_terminate_limit = 1
+        Lx_terminate_limit = 1
 
 
-"""
-        TerminateCheckSingle!(integrator)
-(debubugging function)
+        """
+                TerminateCheckSingle!(integrator)
+        (debubugging function)
 
-"""
-function TerminateCheckSingle!(integrator)
-        if maximum(integrator.ODEIntegrator.u[1]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
-                terminate!(integrator.ODEIntegrator)
-                @show "terminate"
+        """
+        function TerminateCheckSingle!(integrator)
+                if maximum(integrator.ODEIntegrator.u[1]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
+                        terminate!(integrator.ODEIntegrator)
+                        @show "terminate"
+                end
         end
 end
 
@@ -388,7 +339,7 @@ function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, e_0:
         #      if particle is at the boundary
         if (u_state[1] < exp(e_0)) | PI.boundary # init new particle
 
-                #@show "re-init new particle"
+                @show "re-init new particle"
                 # @show PI.position_ij, u_state
                 # z_i = copy(z0)
                 # z_i[x] = PI.position_xy[1]
@@ -397,8 +348,8 @@ function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, e_0:
 
                 u_init       = u(PI.position_xy[1], ti)
                 # derive local wave speed and direction
-                cg_local     = FetchRelations.c_g_U_tau( abs(u_init) , DT )
-                lne_local    = log(FetchRelations.Eⱼ( abs(u_init) , DT ))
+                cg_local     = FetchRelations.c_g_U_tau( abs(u_init) , float(DT) )
+                lne_local    = log(FetchRelations.Eⱼ( abs(u_init) , float(DT) ))
 
                 ui= [ PI.position_xy[1], cg_local, lne_local ]
                 reinit!(PI.ODEIntegrator, ui , erase_sol=false, reset_dt=true)#, reinit_callbacks=true)
@@ -422,54 +373,55 @@ end
 
 # %%
 ######### Core routines for advancing and remeshing
+@everywhere begin
 
+        """
+                advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
+        """
+        function advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
+                #@show PI.position_ij
 
-"""
-        advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Float64)
-"""
-function advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Float64)
-        #@show PI.position_ij
+                add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t )
+                savevalues!(PI.ODEIntegrator)
 
-        add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t )
-        savevalues!(PI.ODEIntegrator)
+                step!(PI.ODEIntegrator, DT , true)
+                #@show PI.ODEIntegrator
 
-        step!(PI.ODEIntegrator, DT , true)
-        #@show PI.ODEIntegrator
+                # use this for periodic boundary conditions
+                #periodic_BD_single_PI!(PI, Lx) #### !!!! not sure if the boundary condition has to be set there, it might have beeen set somewhere else as well ..
 
-        # use this for periodic boundary conditions
-        #periodic_BD_single_PI!(PI, Lx) #### !!!! not sure if the boundary condition has to be set there, it might have beeen set somewhere else as well ..
+                # step!(PI.ODEIntegrator, DT/2 , true)
+                # PI = periodic_BD_single_PI!(PI )
+                if isnan(PI.ODEIntegrator.u[1])
+                        @show "position is nan"
+                        @show PI
+                        PI.ODEIntegrator.u = [0,0,0]
+                end
 
-        # step!(PI.ODEIntegrator, DT/2 , true)
-        # PI = periodic_BD_single_PI!(PI )
-        if isnan(PI.ODEIntegrator.u[1])
-                @show "position is nan"
-                @show PI
-                PI.ODEIntegrator.u = [0,0,0]
+                ParticleToNode!(PI, S, G)
+                return PI
         end
 
-        ParticleToNode!(PI, S, G)
-        return PI
-end
-
-"""
-        remesh!(PI::ParticleInstance, S::SharedMatrix{Float64, 3})
-        Wrapper function that does everything necessary to remesh the particles.
-        - pushes the Node State to particle instance
-"""
-function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, ti::Number)
-        NodeToParticle!(PI, S, ti, e_0)
-        return PI
-end
-
-
-""" shows total energy of the all particles """
-function ShowTotalEnergyChange(ParticleCollection, u_sum_m1)
-        u_sum = zeros(Nstate)
-        for a_particle in ParticleCollection
-                u_sum +=  GetParticleEnergyMomentum(a_particle.ODEIntegrator.u)
+        """
+                remesh!(PI::ParticleInstance, S::SharedMatrix{Float64, 3})
+                Wrapper function that does everything necessary to remesh the particles.
+                - pushes the Node State to particle instance
+        """
+        function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, ti::Number)
+                NodeToParticle!(PI, S, ti, e_0)
+                return PI
         end
-        @show u_sum_m1 - u_sum
-        return u_sum
+
+
+        """ shows total energy of the all particles """
+        function ShowTotalEnergyChange(ParticleCollection, u_sum_m1)
+                u_sum = zeros(Nstate)
+                for a_particle in ParticleCollection
+                        u_sum +=  GetParticleEnergyMomentum(a_particle.ODEIntegrator.u)
+                end
+                @show u_sum_m1 - u_sum
+                return u_sum
+        end
 end
 
 
@@ -483,9 +435,8 @@ push!(State_collect, copy(State) ) # push initial state to storage
 # main time stepping:
 t_range = range(0.0, DT*T/DT, step=DT)
 
-#@allocated ParticleCollection
 
-elapsed_time = @elapsed for t in t_range[2:end]
+for t in t_range[2:end]
         #t = t_range[2]
         @show t
 
@@ -495,8 +446,16 @@ elapsed_time = @elapsed for t in t_range[2:end]
 
         for a_particle in ParticleCollection
                 #@show a_particle.position_ij
+                #try
                 advance!(a_particle, State, grid1d, DT)
+                # catch err
+                #          @show "err", a_particle.ODEIntegrator.u
+                # end
 
+                # advance(a_particle, State)
+                # # check callback
+                #show_pos!(  a_particle)
+                # ResetParticle!(a_particle)
         end
 
         #u_sum_m1 = ShowTotalEnergyChange(ParticleCollection, u_sum_m1)
@@ -504,7 +463,13 @@ elapsed_time = @elapsed for t in t_range[2:end]
         #@show (State[:,:,1] .- grid1d.xmin)/grid1d.dx
         #@printf "re-mesh"
         for a_particle in ParticleCollection
+                #@show a_particle.position_ij
+                #@show "------------------------------------"
+                #show_pos!(  a_particle)#, grid1d)
                 remesh!(a_particle, State, t)
+                #show_pos!(  a_particle)#, grid1d)
+                #periodic_BD_single!(a_particle )
+                #show_pos!(  a_particle, grid1d)
         end
 
         @printf "push"
@@ -513,16 +478,28 @@ elapsed_time = @elapsed for t in t_range[2:end]
         #u_sum_m1 = ShowTotalEnergyChange(ParticleCollection, u_sum_m1)
         #@show (State[:,:,1] .- grid1d.xmin)/grid1d.dx
 end
-# %%
 
+# %% Parallel version
 
-
-energy  =  State_collect[end-1][:,1] #GP.sel(state= 0 ).T # energy
-m_x     =  State_collect[end-1][:,2] #GP.sel(state= 1 ).T # energy
-cg    = energy ./ m_x ./ 2 # c_g
-@printf "\n max wave age %s" U10 / (2 *  maximum( cg[.!isnan.(cg)] )  )
-
-
+# @everywhere carrier(f, y, g, d) = x -> f(x,y, g, d)
+# @everywhere carrier(f, y, t)    = x -> f(x,y, t)
+# global ParticleCollection
+#
+# @time for t in t_range[2:end]
+#
+#         @show t
+#
+#         @show "advance"
+#         @time ParticleCollection = fetch(pmap(carrier( advance!, State, grid1d, DT) ,advance_workers,  ParticleCollection));
+#
+#         @show "re-mesh"
+#         @time ParticleCollection = fetch(pmap(carrier( remesh!, State, t) ,advance_workers, ParticleCollection));
+#         #@show mean(State)
+#
+#         @show "push"
+#         push!(State_collect, State )
+#
+# end
 
 # %% Checks
 
@@ -530,10 +507,14 @@ cg    = energy ./ m_x ./ 2 # c_g
 @printf "\n size of each state  %s" size(State_collect[1])
 @printf "\n length of timerange  %s" size(t_range)
 
+
 # %% Saving Fields
+
 @printf "save data \n"
 
+save_path = save_path_base*"dx"* @sprintf("%i",dx)*"_dt"*@sprintf("%i",DT)*"_U"*@sprintf("%i",U10)*"/"
 mkpath(save_path)
+
 @printf "created model run folder %s" save_path
 
 rm(joinpath(save_path , "state.h5"), force=true)
@@ -549,6 +530,9 @@ for i in 1:length(State_collect)
         store_waves_data[i,:,:] = State_collect[i]
 end
 
+#State_collect[1]
+
+
 write_attribute(store_waves, "dims", ["time", "x", "state"])
 store_waves["time"]      = Array(t_range)
 store_waves["x"]         = grid1dnotes.x
@@ -562,12 +546,19 @@ store_winds_v = create_dataset(store_winds, "v", Float64, ( (length(xi)), (lengt
 store_winds_u[:,:] = u_func_gridded
 #store_winds_v[:,:,:] = v_func_gridded
 
+
 write_attribute(store_winds, "dims", ["x", "time"])
 store_winds["time"] = Array(ti)
 store_winds["x"]    = Array(xi)
 #store_winds["y"] = Array(yi)
 
+#attr = create_attribute(file, "dims", ["time", "x", "y", "state"])
+#HDF5.get_create_properties(state_store)
+
 close(file)
+
+# delete_object(parent, name)   # for groups, datasets, and datatypes
+# delete_attribute(parent, name)   # for attributes
 
 # %% Save Particles
 @printf "save particle \n"
@@ -577,10 +568,7 @@ save_object(joinpath(save_path , "particles.jld2"), ParticleCollection)
 # %%
 @printf "save parameters \n"
 using JSON3
-params = Dict("ID" => ID,
-        "parset" => parset,
-        "elapsed_time" => elapsed_time,
-        "grid" => Dict(
+params = Dict("grid" => Dict(
                 "Nx" => Nx,
                 "dx" => dx,
                 "Nstate" => Nstate,
@@ -591,8 +579,7 @@ params = Dict("ID" => ID,
                 "dt_ODE_save" => dt_ODE_save
         ),
         "forcing" => Dict(
-                "U10" => U10,
-                "max_alpha" => U10 / (2 *maximum( cg[.!isnan.(cg)] ))
+                "U10" => U10
         )
         )
 
@@ -601,5 +588,3 @@ open( joinpath(save_path , "parameters.json") , "w") do io
 end
 
 @printf "done.\n"
-
-# %%
