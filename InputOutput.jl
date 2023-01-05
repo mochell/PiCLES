@@ -33,6 +33,12 @@ Argsettings = ArgParseSettings()
         help = "grow parameters in 1e-2"
         arg_type = Float16
         default = Float16(4.0)
+    "--gamma"
+        help = "input dissipation coefficient"
+        arg_type = Float16
+    "--rg"
+        help = "input dissipation coefficient"
+        arg_type = Float16
     "--periodic"
         help = "flag for periodic boundary condition"
         arg_type = Bool

@@ -50,22 +50,21 @@ Lx          = 50
 DT          = 30 #60*30 # remeshing time stepping
 dt_ODE_save = 10 # 3 min
 
-Nx          = 30
+Nx          = 40
 
 ### Boundary Conditions
 peridic_boundary = false
 
 # parametric wind forcing
-U10         = 2
+U10         = 10
 
 # model parameters
 r_g0 = 0.9
-c_β  = 4e-2 # 4e-2 # default value from Kudr.
-γ    = 0.88
+c_β  = 4e-2 # 4e-2 Growth rate constant # default value from Kudr.
+γ    = 0.88 # dissipation wind energy input
 
 
 @printf "Load passed arguments\n"
-
 # arg_test = [    "--ID", "test1",
 #                 "--Lx", "20",
 #                 "--T",  "24",
@@ -73,19 +72,24 @@ c_β  = 4e-2 # 4e-2 # default value from Kudr.
 
 # localARGS = ["--ID", "Nx30_DT30_U15", "--Nx", "30", "--DT", "30", "--U10", "15", "--parset", "1D_static"]ß
 #localARGS = ["--ID", "Nx50_DT2_U1", "--Nx", "50", "--c_beta", "2.000000", "--U10", "1", "--parset", "U10-c_beta", "--periodic"]
+#localARGS = ["--ID", "Nx40_cbeta6.00_gamma1.32", "--c_beta", "6.00", "--Nx", "40", "--gamma", "1.32", "--parset", "gamma-c_beta"]
+#localARGS = ["--ID", "rg0.85_cbeta6.00_gamma1.32", "--c_beta", "6.00", "--gamma", "1.32", "--rg", "0.85", "--parset", "gamma-c_beta-rg0.85"]
+#localARGS = ["--ID", "rg1.25_gamma1.30_Nx40", "--Nx", "40", "--gamma", "1.32", "--rg", "1.25", "--parset", "gamma-rg0"]
 @show localARGS
 passed_argument = parse_args(localARGS, Argsettings)
 
 # change here if more argument shuold be allowed to pass
-@unpack ID, Nx, U10, parset, periodic, c_beta = passed_argument
+@unpack ID, parset, periodic, Nx, gamma, rg = passed_argument
 peridic_boundary = periodic
 c_β = c_beta *1e-2
 C_e0 = (2.35 / r_g0) * 2e-3 * c_β
-
-if ~isnothing(ID)
-        #ID = "Nx"*@sprintf("%i",Nx)*"_dt"*@sprintf("%i",DT)*"_U"*@sprintf("%i",U10)
-        ID = "Nx"*@sprintf("%i",Nx)*"_cbeta"*@sprintf("%.1f",c_beta)*"_U"*@sprintf("%i",U10)
-end
+γ = Float64(gamma)
+r_g0 = rg
+#
+# if ~isnothing(ID)
+#         #ID = "Nx"*@sprintf("%i",Nx)*"_dt"*@sprintf("%i",DT)*"_U"*@sprintf("%i",U10)
+#         ID = "Nx"*@sprintf("%i",Nx)*"_cbeta"*@sprintf("%.1f",c_beta)*"_U"*@sprintf("%i",U10)
+# end
 
 #  rescale parameters for the right units.
 T       = T  * 60*60 # seconds
@@ -144,8 +148,9 @@ u_func_gridded = [ u_func(xii, tii) for xii in xi, tii in ti]
 u_grid = LinearInterpolation( (xi, ti) , u_func_gridded ,extrapolation_bc=Periodic())
 #u_grid = CubicSplineInterpolation( (xi, ti), u_func_gridded; bc=Line(OnGrid()), extrapolation_bc=Flat())
 #u_grid = interpolate((xi, ti), u_func_gridded, Gridded(Linear()))
-u(x, t) = u_grid(x, t)
-# x gradient
+
+u(x, t)  = u_grid(x, t)
+# x gradient only
 u_x(x, t) = Interpolations.gradient(u_grid, x )[1]
 
 # %% Load Particle equations and derive ODE system
@@ -156,9 +161,7 @@ particle_equations0 = particle_waves_v3.particle_equations(u, u_x, γ= γ)
 # define variables based on particle equations
 t, x, c̄_x, lne, r_g, C_α, g, C_e = particle_waves_v3.init_vars_1D()
 
-
 # %% define storing stucture and populate inital conditions
-
 
 params0 = Dict(
         r_g => 1/r_g0,
@@ -168,7 +171,9 @@ params0 = Dict(
         )
 
 # define mininum energy threshold
-e_0 = log(FetchRelations.Eⱼ( 0.5 , DT ))
+e_0 = log(FetchRelations.Eⱼ( 0.1 , DT ))
+#e_0 = log(FetchRelations.Eⱼ( 0.1 , 60.0 ))
+
 # Default values for particle
 z0  = Dict( x => 0.0 , c̄_x=> 1e-2, lne => e_0)
 
@@ -245,16 +250,24 @@ function InitParticle(model, z_initials, pars,  ij, boundary_flag ; cbSets=nothi
 
         # create ODEProblem
         problem    = ODEProblem(model, z_initials, (0.0,  T) , pars)
+
         # inialize problem
         #solver_method = Rosenbrock23()
         #solver_method = AutoVern7(Rodas4())
         solver_method = AutoTsit5(Rosenbrock23())
         #solver_method =Tsit5()
-        integrator = init(problem, solver_method , saveat =dt_ODE_save , abstol = 1e-3, adaptive =true, maxiters=1e3)#, reltol=1e-1)
-        #abstol=1e-4)#, reltol=1e-1)
 
-        # callbacks= cbSets,
-        #save_everystep=false
+        integrator = init(
+                        problem,
+                        solver_method,
+                        saveat =dt_ODE_save,
+                        abstol = 1e-3,
+                        adaptive =true,
+                        maxiters=1e3)#,
+                        #reltol=1e-1)
+                        #abstol=1e-4)#,
+                        # callbacks= cbSets,
+                        #save_everystep=false
         return ParticleInstance( ij , z_initials[x], integrator, boundary_flag )
 end
 
@@ -293,13 +306,11 @@ for i in range(1,length = Nx)
 
         push!(  ParticleCollection,
                 InitParticle(
-                        particle_system0,
-                        z_i ,
-                        copy(params0) ,
-                        i ,
-                        boundary_points
-                        )
-                )
+                                particle_system0,
+                                z_i ,
+                                copy(params0) ,
+                                i ,
+                                boundary_points))
         #@show threadid()
 end
 
