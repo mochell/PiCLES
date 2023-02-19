@@ -403,7 +403,7 @@ end
 # %% seeding particles with initial states
 
 """
-InitParticle(model, z_initials, pars,  ij ; cbSets=nothing)
+InitParticleInstance(model, z_initials, pars,  ij ; cbSets=nothing)
 wrapper function to initalize a particle instance
         inputs:
         model           is an initlized ODESytem
@@ -412,7 +412,7 @@ wrapper function to initalize a particle instance
         ij              is the (i,j) tuple that of the initial position
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticle(model, z_initials, pars,  ij ; cbSets=nothing)
+function InitParticleInstance(model, z_initials, pars,  ij ; cbSets=nothing)
 
         # create ODEProblem
         problem    = ODEProblem(model, z_initials, (0.0,  T) , pars)
@@ -456,7 +456,7 @@ for i in range(1,length = Nx), j in range(1,length = Ny)
 
         # push z_i and params_i to particle system
         # particle_system0 is an initilized ODESystem
-        push!(ParticleCollection ,  InitParticle(particle_system0, z_i , params_i, (i,j)   ))
+        push!(ParticleCollection ,  InitParticleInstance(particle_system0, z_i , params_i, (i,j)   ))
         #@show threadid()
 end
 

@@ -36,7 +36,7 @@ Argsettings = ArgParseSettings()
     "--gamma"
         help = "input dissipation coefficient"
         arg_type = Float16
-    "--rg"
+    "--r_g0"
         help = "input dissipation coefficient"
         arg_type = Float16
     "--periodic"

@@ -11,6 +11,11 @@ t, x, c̄_x, lne, r_g, C_α, g, C_e = init_vars_1D()
 
 using ParticleInCell
 
+using ParticleMesh: OneDGrid, OneDGridNotes
+using ModelingToolkit: Num,  ODESystem
+
+using FetchRelations
+
 # initialize:
 export init_z0_to_State
 
@@ -22,6 +27,8 @@ export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
 export ParticleInstance
 
+export InitParticleState,check_boundary_point
+
 
 # ParticleInstance is the Stucture that carries each particle.
 mutable struct ParticleInstance
@@ -30,6 +37,17 @@ mutable struct ParticleInstance
         ODEIntegrator::OrdinaryDiffEq.ODEIntegrator
         boundary :: Bool
 end
+
+# Debugging ParticleInstance
+mutable struct MarkedParticleInstance
+        Particle :: ParticleInstance
+        time :: Float64
+        state :: Vector{Any}
+        errorReturnCode
+end
+
+
+Base.copy(s::ParticleInstance) = ParticleInstance(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary)
 
 
 
@@ -185,4 +203,91 @@ Get_u_FromShared(PI::ParticleInstance, S::SharedMatrix, ) = S[ PI.position_ij[1]
 
 
 
+
+
+
+###### seed particles #####
+
+
+"""
+InitParticleState(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
+
+Find initial conditions for particle. Used at the beginning of the experiment.
+        inputs:
+        defaults        Dict with variables of the state vector, these will be replaced in this function
+        i               index of the grid point
+        gridnote        grid to determine the position in the grid
+        u               interp. fucntion with wind values
+        DT              time step of model, used to determine fetch laws
+"""
+function InitParticleState(
+        defaults:: Dict{Num, Float64},
+        i::Int64,
+        gridnote::OneDGridNotes,
+        u, DT  )
+
+        # initalize state based on state vector
+        defaults[x] = gridnote.x[i]
+        # take in local wind velocities
+        u_init    = u(defaults[x], 0)
+
+        # seed particle given fetch relations
+        defaults[c̄_x] = FetchRelations.c_g_U_tau( abs(u_init) , DT )
+        defaults[lne] = log(FetchRelations.Eⱼ( abs(u_init) , DT ))
+        #@show defaults
+        return defaults
+end
+
+"""
+check_boundary_point(i, boundary, periodic_boundary)
+checks where ever or not point is a boundary point.
+returns Bool
+"""
+function check_boundary_point(i, boundary, periodic_boundary)
+    return periodic_boundary ? false : (i in boundary)
+end
+
+
+"""
+SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
+                particle_system::ODESystem, particle_defaults::Dict{Num, Float64}, ODE_defaults::Dict{Num, Float64},
+                GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
+
+Seed Pickles to ParticleColletion and State
+"""
+function SeedParticle!(
+        InitParticleInstance,
+        ParticleCollection ::Vector{Any},
+        State::SharedMatrix,
+        i::Int64,
+        particle_system::ODESystem,
+        particle_defaults::Dict{Num, Float64},
+        ODE_defaults::Dict{Num, Float64},
+        GridNotes, # ad type of grid note
+        winds,     # interp winds
+        DT:: Float64,
+        Nx:: Int,
+        boundary::Vector{Int},
+        periodic_boundary::Bool)
+
+        # define initial condition
+        z_i             = InitParticleState(particle_defaults, i, GridNotes, winds, DT)
+        # check if point is boundary point
+        boundary_point  =  check_boundary_point(i, boundary, periodic_boundary)
+
+        # add initial state to State vector
+        init_z0_to_State!(State, i,  GetParticleEnergyMomentum(z_i) )
+
+        # Push Inital condition to collection
+        push!(  ParticleCollection,
+                InitParticleInstance(
+                                particle_system,
+                                z_i ,
+                                ODE_defaults ,
+                                i ,
+                                boundary_point))
+        nothing
+end
+
+# end of module
 end
