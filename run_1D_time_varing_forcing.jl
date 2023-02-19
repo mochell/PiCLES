@@ -37,7 +37,7 @@ This load a parameter file, executes a 1D run, saves the data and run statistics
 using core_1D: init_z0_to_State!, wrap_pos!, periodic_BD_single_PI!, show_pos!, periodic_condition_x
 using core_1D: ParticleInstance, MarkedParticleInstance
 using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
-using core_1D: InitParticleState, check_boundary_point
+using core_1D: InitParticleState, check_boundary_point, SeedParticle!
 
 using InputOutput: Argsettings, parse_args
 
@@ -50,28 +50,30 @@ using Debugging
 Revise.retry()
 # %%
 # Default values
-save_path_base= "data/"
+save_path_base= "data/1D_gaussian/"
 plot_path_base= "plots/static/"
-parset = "1D_static/"
+parset = "1D_varying/"
 
-T           = 24 *3
-Lx          = 50
+T           = 24 *4
+Lx          = 300 # 10* km
 
-DT          = 30 #60*30 # remeshing time stepping
+
+
+DT          = 10 #60*30 # remeshing time stepping
 dt_ODE_save = 10 # 3 min
 
-Nx          = 40
+Nx          = 160
 
 ### Boundary Conditions
 periodic_boundary = false
 
 # parametric wind forcing
 U10         = 20
-
+V           = 5#m/s
 # model parameters
-r_g0    = 0.9
+r_g0    = 0.85
 c_beta  = 4#e-2 # 4e-2 Growth rate constant # default value from Kudr.
-gamma   = γ    = 0.88 # dissipation wind energy input
+gamma   = γ    = 0.7  #0.88 # dissipation wind energy input
 
 @printf "Load passed arguments\n"
 # arg_test = [    "--ID", "test1",
@@ -88,14 +90,13 @@ gamma   = γ    = 0.88 # dissipation wind energy input
 
 #localARGS = ["--ID", "U20_DT3_Nx40", "--U10", "20", "--Nx", "40", "--DT", "3", "--parset", "U10-DT"]
 #arg_case = ["--ID", "U25_DT60_Nx40", "--U10", "25", "--Nx", "40", "--DT", "60", "--parset", "U10-DT-periodic", "--periodic"]
-#localARGS = ["--ID", "U13_DT60_Nx40", "--U10", "13", "--Nx", "40", "--DT", "60", "--parset", "U10-DT"]
-#localARGS = ["--ID", "gamma1.32_rg1.20_Nx50", "--gamma", "1.32", "--r_g0", "1.25", "--Nx", "50", "--parset", "gamma-rg0_2"]
+
+localARGS = ["--ID", "Nx300_DT20",  "--DT", "20",   "--Nx", "300", "--parset", "Nx-DT"]
 @show localARGS
 passed_argument = parse_args(localARGS, Argsettings)
 
 # change here if more argument shuold be allowed to pass
-#@unpack ID, parset, periodic, U10, Nx, DT = passed_argument #"U10-DT"
-@unpack ID, parset, periodic, gamma, Nx, r_g0 = passed_argument #"gamma-rg_2"
+@unpack ID, parset, periodic, Nx, DT = passed_argument #"U10-DT"
 #@unpack ID, parset, periodic, gamma, Nx, c_beta = passed_argument #"gamma-c_beta"
 
 periodic_boundary = periodic
@@ -115,6 +116,8 @@ Lx      = Lx * 10e3  # km
 DT      = Float64(DT * 60) # seconds
 
 
+
+
 # create ID and save name
 #save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
 save_path = save_path_base*parset*"/"*ID*"/"
@@ -127,9 +130,14 @@ plot_path = plot_path_base*parset*"/"
 @register_symbolic u(x, t)
 @register_symbolic u_x(x, t)
 
-#u_func(x, y, t) = y * 0 .+ 3 * exp(- ( ( x-25e3 + 20e3* t/T )./10e3).^2) #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+
+x_scale = 600e3
+t_scale = (60*60*24*1.5)
+u_func(x, t) = 0.5+ U10 * ( exp(- ( ( x - (300e3 + t * V)  )./x_scale).^2) .*  exp(- ( ( t- (T/2)  )./  t_scale ).^2) )#.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+
+#u_func(x, t) = 3 * exp(- ( ( x-25e3 + 20e3* t/T )./10e3).^2) #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 #u_func(x, t) = 3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
-u_func(x, t) = x.*0+U10 + t *0 #3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
+#u_func(x, t) = x.*0+U10 + t *0 #3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5
 #u_func(x, y, t) = y *0 .- x .*2/50e3 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 #u_func(x, y, t) = y *0 .- x .*0 .+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 #u_func(x, t) = x *0 .+ IfElse.ifelse.( x .< Lx*2.0/3.0, 3, 0.1)
@@ -139,7 +147,7 @@ u_func(x, t) = x.*0+U10 + t *0 #3 * exp(- ( ( x-25e3  )./10e3).^2) .+ t *0 #.+ 3
 #                                 0 .* x + 0.1
 #                                 )
 
-# %% Define Grid, boundaries, and forcing field grid:
+# % Define Grid, boundaries, and forcing field grid:
 
 ### Define grid
 grid1d      = OneDGrid(1e3, Lx-1e3, Nx)
@@ -169,6 +177,13 @@ u_grid = linear_interpolation( (xi, ti) , u_func_gridded ,extrapolation_bc=Perio
 u(x, t)  = u_grid(x, t)
 # x gradient only
 u_x(x, t) = Interpolations.gradient(u_grid, x )[1]
+
+
+# %
+contourf(xi/dx, ti/DT,   transpose( u_func_gridded) )
+
+plot!(xlabel = "x", ylabel = "time") |> display
+
 
 # %% Load Particle equations and derive ODE system
 
@@ -204,7 +219,7 @@ periodic     = PeriodicCallback(periodic_BD_single_PI! ,  DT/2    )
 cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 
 # testing
-#GetParticleEnergyMomentum(z0)
+#GetParticleEnergyMomentum(particle_defaults)
 #ui_x, ui_c̄_x, ui_lne  = PI.ODEIntegrator.u
 #ie, imx, imy = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
 
@@ -213,7 +228,7 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 
 # %% TEST 1 ODE solution
 #
-# z_i = copy(z0)
+# z_i = copy(particle_defaults)
 # z_i[x] = 20e4#grid1dnotes.x[20]
 #
 # ## seed particle given fetch relations
@@ -223,7 +238,7 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 #
 # #z_i[lne] = log(0.01)
 #
-# params_i        = copy(params0)
+# params_i        = copy(default_ODE_parameters)
 # problem    = ODEProblem(particle_system, z_i, (0.0,  T) , params_i)
 # problem
 #
@@ -252,7 +267,7 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 #
 # display(plt.gcf())
 # %% seeding particles with initial states
-@printf "seed particles ... \n"
+@printf "seed Pickles ... \n"
 
 """
 InitParticleInstance(model, z_initials, pars,  ij ; cbSets=nothing)
@@ -291,7 +306,6 @@ function InitParticleInstance(model, z_initials, pars,  ij, boundary_flag ; cbSe
 end
 
 
-
 #seed particles
 ParticleCollection=[]
 for i in range(1,length = Nx)
@@ -300,48 +314,36 @@ for i in range(1,length = Nx)
                                 grid1dnotes, u, DT, Nx, boundary, periodic_boundary)
 end
 
-# # #seed particles
-# ParticleCollection=[]
-# local z_i
-# local u_init
-# for i in range(1,length = Nx)
-#         # there is SeedParticle! in the core module as alternative wrapper
-#
-#         # define initial condition
-#         z_i = InitParticleState(copy(z0), i, grid1dnotes, u, DT )
-#         # check if point is boundary point
-#         boundary_point  =  check_boundary_point(i, boundary, periodic_boundary)
-#
-#
-#         #@show z_i, boundary_point
-#
-#         # add initial state to State vector
-#         init_z0_to_State!(State, i,  GetParticleEnergyMomentum(z_i) )
-#
-#         # Push Inital condition to collection
-#         push!(  ParticleCollection,
-#                 InitParticleInstance(
-#                                 particle_system,
-#                                 z_i ,
-#                                 copy(params0),
-#                                 i ,
-#                                 boundary_point))
-#
-# end
+t_range = range(0.0, DT*T/DT, step=DT)
 
+# %% open storage
+
+rm(joinpath(save_path , "state.h5"), force=true)
+file = h5open( joinpath(save_path , "state.h5") , "w" )
+
+store_waves      = create_group(file, "waves")
+store_waves_data = create_dataset(
+                        store_waves, "data", Float64,
+                        (length(t_range),  (grid1d.Nx) ,  (length(particle_defaults)) )
+                        )#, chunk=(2,))
+
+#State_collect = []                 # storing array
+# reset current state # [ Energy, x momentum, not used]
+
+#push!(store_waves_data, State ) # push initial state to storage
+local store_count
+store_count = 1
+State[:,:] .= 0
+store_waves_data[store_count,:,:] = State
+# store_count                      += 1
 
 # %% single core
 @printf "Start itteration ... \n"
 # define state collector
-State_collect = []                 # storing array
-State[:,:,:] .= 0                  # reset current state # [ Energy, x momentum, not used]
-push!(State_collect, copy(State) ) # push initial state to storage
 
 # collecting failed particles
 FailedCollection = Vector{MarkedParticleInstance}([])
-
 # main time stepping:
-t_range = range(0.0, DT*T/DT, step=DT)
 
 elapsed_time = @elapsed for t in t_range[2:end]
 
@@ -361,8 +363,11 @@ elapsed_time = @elapsed for t in t_range[2:end]
                 mapping_1D.remesh!(a_particle, State, u, t, e_min_log, DT)
         end
 
-        #@printf "push"
-        push!(State_collect, copy(State) )
+        # save state to disk
+        store_waves_data[store_count,:,:] = copy(State)
+        store_count                      += 1
+        #@printf "push to State collect"
+        # push!(State_collect, copy(State) )
 
         #u_sum_m1 = mapping_1D.ShowTotalEnergyChange(ParticleCollection, u_sum_m1)
         #@show (State[:,:,1] .- grid1d.xmin)/grid1d.dx
@@ -372,8 +377,6 @@ end
 
 
 # %% plotting errors if applicaple
-
-
 if ~isempty(FailedCollection)
         @printf "plot failed particles\n"
         using ParticleTools
@@ -385,7 +388,7 @@ if ~isempty(FailedCollection)
         ParticleTools.plot_cg_version1(FailedCollection)
         savefig( joinpath(plot_path , "cg_failed_" * ID * ".png" ) )
 
-        ParticleTools.plot_cg_version2(State_collect)
+        ParticleTools.plot_cg_version2(store_waves_data[:,:,:])
         savefig( joinpath(plot_path , "cg_failed2_" * ID * ".png" ) )
 
 end
@@ -394,40 +397,29 @@ end
 PI = ParticleCollection[10]
 ParticleInCell.compute_weights_and_index_2d(grid1d, PI.ODEIntegrator.u[1])
 
-# ParticleCollection[10].ODEIntegrator.u
-#
-#
-energy  =  State_collect[end-1][:,1] #GP.sel(state= 0 ).T # energy
-m_x     =  State_collect[end-1][:,2] #GP.sel(state= 1 ).T # energy
-cg    = energy ./ m_x ./ 2 # c_g
+
+energy  = store_waves_data[end-1,:,1] # State_collect[end-1][:,1] #GP.sel(state= 0 ).T # energy
+m_x     = store_waves_data[end-1,:,2] # State_collect[end-1][:,2] #GP.sel(state= 1 ).T # energy
+cg      = energy ./ m_x ./ 2 # c_g
 # @printf "\n max wave age %s" U10 / (2 *  maximum( cg[.!isnan.(cg)] )  )
 #
 
 
 # %% Checks
 
-@printf "\n size of collected states %s" size(State_collect)
-@printf "\n size of each state  %s" size(State_collect[1])
+@printf "\n size of collected states %s" size(store_waves_data)
+@printf "\n size of each state  %s" size(store_waves_data[1,:,:])
 @printf "\n length of timerange  %s" size(t_range)
 
 # %% Saving Fields
-@printf "save data \n"
+@printf " write attributes to store and close \n"
 
 mkpath(save_path)
 @printf "created model run folder %s \n" save_path
 
-rm(joinpath(save_path , "state.h5"), force=true)
-file = h5open( joinpath(save_path , "state.h5") , "w" )
-
-store_waves      = create_group(file, "waves")
-store_waves_data = create_dataset(
-                        store_waves, "data", Float64,
-                        (length(State_collect),  (grid1dnotes.Nx) ,  (size(State_collect[1])[2]) )
-                        )#, chunk=(2,))
-
-for i in 1:length(State_collect)
-        store_waves_data[i,:,:] = State_collect[i]
-end
+# for i in 1:length(State_collect)
+#         store_waves_data[i,:,:] = State_collect[i]
+# end
 
 write_attribute(store_waves, "dims", ["time", "x", "state"])
 store_waves["time"]      = Array(t_range)
@@ -451,8 +443,8 @@ close(file)
 
 
 # %% Save Particles
-# @printf "save particle \n"
-# save_object(joinpath(save_path , "particles.jld2"), ParticleCollection)
+@printf "save particle \n"
+save_object(joinpath(save_path , "particles.jld2"), ParticleCollection)
 
 #PC2 = load_object(joinpath(save_path , "particles.jld2"))
 

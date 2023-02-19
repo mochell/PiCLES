@@ -58,7 +58,7 @@ save_path_base= "data/1D_static/"
         dt_ODE_save = 60 * 10 # 3 min
 
         U10     = 2
-        peridic_boundary = true
+        periodic_boundary = true
 
         #u_func(x, y, t) = y * 0 .+ 3 * exp(- ( ( x-25e3 + 20e3* t/T )./10e3).^2) #.+ 3 #.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 
@@ -180,7 +180,7 @@ cbs          = CallbackSet(periodic, show_mean )#,cb_terminate)
 @printf "Init Particles\n"
 
 """
-InitParticle(model, z_initials, pars,  ij ; cbSets=nothing)
+InitParticleInstance(model, z_initials, pars,  ij ; cbSets=nothing)
 wrapper function to initalize a particle instance
         inputs:
         model           is an initlized ODESytem
@@ -189,7 +189,7 @@ wrapper function to initalize a particle instance
         ij              is the (i,j) tuple that of the initial position
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticle(model, z_initials, pars,  ij, boundary_flag ; cbSets=nothing)
+function InitParticleInstance(model, z_initials, pars,  ij, boundary_flag ; cbSets=nothing)
 
         # create ODEProblem
         problem    = ODEProblem(model, z_initials, (0.0,  T) , pars)
@@ -234,14 +234,14 @@ for i in range(1,length = Nx)
         # push z_i and params_i to particle system
         # particle_system0 is an initilized ODESystem
 
-        if ~peridic_boundary
+        if ~periodic_boundary
                 boundary_points = (i in boundary)
         else
                 boundary_points = false
         end
 
         push!(  ParticleCollection,
-                InitParticle(
+                InitParticleInstance(
                         particle_system0,
                         z_i ,
                         copy(params0) ,
@@ -317,7 +317,7 @@ function ParticleToNode!(PI::ParticleInstance, S::SharedMatrix, G::OneDGrid)
         #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state, index_positions, weights
-        ParticleInCell.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx ,  peridic_boundary)
+        ParticleInCell.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx ,  periodic_boundary)
         nothing
 end
 

@@ -46,6 +46,18 @@ make_str
 # var3_list   = [50]#10, 20, 20]
 # periodic = false
 
+# parset_name = "U10-DT-periodic"
+# var1_list   = [1, 3, 5, 8, 10, 13, 15, 18, 20, 25] # U10
+# var2_list   = [3, 5, 8, 10, 15, 20, 30, 40, 60]   # dt
+# var3_list   = [40]#10, 20, 20]  # NZ
+# periodic = true
+
+parset_name = "U10-DT"
+var1_list   = [1, 3, 5, 8, 10, 13, 15, 18, 20, 25] # U10
+var2_list   = [3, 5, 8, 10, 15, 20, 30, 40, 45, 50, 60]   # dt
+var3_list   = [40]#10, 20, 20]  # NZ
+periodic = false
+
 # parset_name = "Nx-DT"
 # var1_list  = [10]
 # var2_list   = [3, 5, 10, 15, 20, 30, 60]
@@ -59,30 +71,27 @@ make_str
 # var3_list   = [5, 8, 10, 20, 30, 40, 50, 80]
 # periodic = true
 
+# parset_name = "gamma-c_beta"
+# var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma
+# var2_list  = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6] # c_beta_parameter
+# var3_list  = [40]#10, 20, 20]  # Nx
+# periodic   = false
 
-
-parset_name = "gamma-c_beta"
-var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma
-var2_list  = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6] # c_beta_parameter
-var3_list  = [40]#10, 20, 20]
-periodic   = false
-
-
-parset_name = "gamma-c_beta-rg0.85"
-var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma
-var2_list  = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6] # c_beta_parameter
-var3_list  = [0.85]#10, 20, 20]
-periodic   = false
-
-
-parset_name = "gamma-rg0"
-var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma\ # gamma
-
+#
+# parset_name = "gamma-c_beta-rg0.85"
+# var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma
+# var2_list  = [2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6] # c_beta_parameter
+# var3_list  = [0.85]#10, 20, 20]
+# periodic   = false
+#
+#
+parset_name = "gamma-rg0_2"
+var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 6), digits= 2) # gamma\ # gamma
+#var1_list  = round.(range(0.88* 0.2 , 0.88* 1.5; length= 10), digits= 2) # gamma\ # gamma
 sort!(push!(var1_list, 0.88))
-
 var2_list  = round.(range(0.80 , 1/0.80; length= 10), digits= 2)
 #[2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6] # c_beta_parameter
-var3_list  = [40]#10, 20, 20]
+var3_list  = [50]#10, 20, 20]
 periodic   = false
 
 str_list =[]
@@ -92,13 +101,18 @@ for var1 in var1_list
         for var3 in var3_list
             push!(str_list ,  )
 
-            ID = concat_str([ make_str("rg", var2, 2), make_str("gamma", var1, 2),make_str("Nx", var3)  ])
+            ID = concat_str([ make_str("U", var1), make_str("DT", var2),make_str("Nx", var3)  ])  # "U10-DT"
+            #ID = concat_str([ make_str("rg", var2, 2), make_str("gamma", var1, 2),make_str("Nx", var3)  ])
+
+            #ID = concat_str([ make_str("gamma", var1, 2), make_str("cbeta", var2, 1),make_str("Nx", var3)  ])  # "gamma-c_beta"
+            ID = concat_str([ make_str("gamma", var1, 2), make_str("rg", var2, 1),make_str("Nx", var3)  ])  # "gamma-rg_2"
+
             arg_case = [  "--ID", ID,
                         #"--U10",  @sprintf("%i",var1),
                         #"--c_beta",  @sprintf("%0.2f",var2),
-                        "--Nx",  @sprintf("%i",var3),
                         "--gamma",  @sprintf("%0.2f",var1),
-                        "--rg",  @sprintf("%0.2f",var2),
+                        "--r_g0",  @sprintf("%0.2f",var2),
+                        "--Nx",  @sprintf("%i",var3),
                         #"--DT",   @sprintf("%i",var2),
                         "--parset", parset_name]
             if periodic
@@ -126,7 +140,8 @@ end
 # %%
 localARGS = arg_list[3]
 
-completed_runs = readdir( pwd()* "/data/" * parset * "/" )
+#mkdir(pwd()* "/data/" * parset * "/" )
+completed_runs = readdir( pwd()* "/data/" * parset_name * "/" )
 
 
 @show completed_runs
@@ -135,35 +150,24 @@ completed_runs = readdir( pwd()* "/data/" * parset * "/" )
 # localARGS
 
 for args in arg_list
-    localARGS = args
+    global localARGS = args
     #push!(empty!(localARGS), args)
     @show localARGS
 
     if args[2] in completed_runs
-        @printf "case exist, obmitted "
+        @printf "runner : case exist, obmitted "
     else
-        @printf "case not exist, run: "
+        @printf "runner : run code: "
         #include( joinpath( pwd(), "parameter_test/") * "/run_fake.jl")
         include( joinpath( pwd(), "code/") * "/run_1D.jl")
     end
-    @printf "\n next"
+    @printf "\n runner : next\n"
 
 end
 
 #run(pipeline( `julia -e 'print("hello")' ` , `grep el`))
 #localARGS
 #run( `julia` )
-
-
-# %%
-
-if localARGS[2] in completed_runs
-    @printf "case exist, obmitted "
-else
-    @printf "case not exist, run: "
-    #include( joinpath( pwd(), "parameter_test/") * "/run_fake.jl")
-    #include( joinpath( pwd(), "code/") * "/run_1D.jl")
-end
 
 # %%
 # function do_run(args)
@@ -182,4 +186,3 @@ end
 # carrier( remesh!, State, t)
 #
 # ParticleCollection = fetch(pmap(carrier( remesh!, State, t) ,advance_workers, arg_list ));
-""
