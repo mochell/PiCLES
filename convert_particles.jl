@@ -6,10 +6,6 @@ import Base: filter!
 using ModelingToolkit, DifferentialEquations, Statistics
 
 
-# %%
-
-
-
 mutable struct ParticleInstance
         position_ij :: Tuple
         position_xy :: Tuple

@@ -13,7 +13,7 @@ using core_1D: ParticleInstance, MarkedParticleInstance
 using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
 using ModelingToolkit, DifferentialEquations
-
+using particle_waves_v3: ODESettings
 ###### remeshing routines ############
 
 """
@@ -101,7 +101,7 @@ function advance!(      PI::ParticleInstance,
                         Failed::Vector{MarkedParticleInstance},
                         G::OneDGrid,
                         u,
-                        DT::Float64, e_min_log::Number,  e_max_log::Number,  periodic_boundary :: Bool)
+                        DT::Float64, ODEs:: ODESettings,  periodic_boundary :: Bool)
         #@show PI.position_ij
 
         t_start  = copy(PI.ODEIntegrator.t)
@@ -127,7 +127,7 @@ function advance!(      PI::ParticleInstance,
                 u_start = u(PI.position_xy[1], t_start)
 
                 @show " time after fail",  PI.ODEIntegrator.t
-                NodeToParticle!(PI, S, t_start, u_start, e_min_log, DT)
+                NodeToParticle!(PI, S, t_start, u_start, ODEs.log_energy_minimum, DT)
                 reinit!(PI.ODEIntegrator, PI.ODEIntegrator.u , erase_sol=false, reset_dt=true, reinit_cache=true)
 
                 #set_t!(PI.ODEIntegrator, time)
@@ -167,7 +167,7 @@ function advance!(      PI::ParticleInstance,
                 set_u!(PI.ODEIntegrator, [0,0,0] )
                 u_modified!(PI.ODEIntegrator,true)
 
-        elseif PI.ODEIntegrator.u[3] > e_max_log
+        elseif PI.ODEIntegrator.u[3] > ODEs.log_energy_maximum
                 @show "e_max_log is reached"
                 @show PI
                 set_u!(PI.ODEIntegrator, [0,0,0] )
@@ -183,9 +183,9 @@ end
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, u, ti::Number, e_min_log::Float64, DT::Float64)
+function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, u, ti::Number, ODEs:: ODESettings, DT::Float64)
         ui = u(PI.position_xy[1], ti)
-        NodeToParticle!(PI, S, ti, ui, e_min_log, DT)
+        NodeToParticle!(PI, S, ti, ui, ODEs.log_energy_minimum, DT)
         return PI
 end
 
