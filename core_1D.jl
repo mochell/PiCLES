@@ -3,6 +3,8 @@ module core_1D
 using SharedArrays
 using DifferentialEquations
 
+using DocStringExtensions
+
 #push!(LOAD_PATH,   joinpath(pwd(), "code/")       )
 using ParticleMesh
 
@@ -25,7 +27,7 @@ export wrap_pos!, periodic_BD_single_PI!, show_pos!, periodic_condition_x
 # Particle Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
-export ParticleInstance
+export ParticleInstance, MarkedParticleInstance, ParticleDefaults
 
 export InitParticleState,check_boundary_point
 
@@ -46,8 +48,25 @@ mutable struct MarkedParticleInstance
         errorReturnCode
 end
 
-
 Base.copy(s::ParticleInstance) = ParticleInstance(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary)
+
+
+"""
+ParticleDefaults
+Structure holds default particles
+# Fields  
+$(DocStringExtensions.FIELDS)
+"""
+struct ParticleDefaults
+        "x Position"
+        x::Float64
+        "horizontal velocity"
+        c̄_x::Float64
+        "log energy"
+        lne::Float64
+end
+
+Base.copy(s::ParticleDefaults) = Dict( x => s.x  , c̄_x=> s.c̄_x, lne => s.lne)
 
 
 
@@ -169,6 +188,11 @@ function GetParticleEnergyMomentum(zi::Dict)
         return GetParticleEnergyMomentum([ zi[x], zi[c̄_x], zi[lne]  ])
 end
 
+function GetParticleEnergyMomentum(zi::ParticleDefaults)
+        return GetParticleEnergyMomentum([ zi.x, zi.c̄_x, zi.lne  ])
+end
+
+
 """
 GetParticleEnergyMomentum(PI)
 
@@ -249,6 +273,39 @@ end
 
 
 """
+Init(model, z_initials, pars,  ij ; cbSets=nothing)
+wrapper function to initalize a particle instance
+        inputs:
+        model           is an initlized ODESytem
+        z_initials      is the initial state of the ODESystem
+        pars            are the parameters of the ODESystem
+        ij              is the (i,j) tuple that of the initial position
+        chSet           (optional) is the set of callbacks the ODE can have
+"""
+function InitParticleInstance(model, z_initials, ODE_settings,  ij, boundary_flag ; cbSets= Nothing)
+
+        # create ODEProblem
+        problem    = ODEProblem(model, z_initials, (0.0,  ODE_settings.total_time), ODE_settings.Parameters)
+        # inialize problem
+        # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
+        integrator = init(
+                        problem,
+                        ODE_settings.solver,
+                        saveat = ODE_settings.saving_step,
+                        abstol = ODE_settings.abstol,
+                        adaptive =ODE_settings.adaptive,
+                        maxiters= ODE_settings.maxiters,
+                        reltol=   ODE_settings.reltol
+                        )
+                        # callbacks= cbSets,
+                        #save_everystep=false
+        return ParticleInstance( ij , z_initials[x], integrator, boundary_flag )
+end
+
+
+
+
+"""
 SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
                 particle_system::ODESystem, particle_defaults::Dict{Num, Float64}, ODE_defaults::Dict{Num, Float64},
                 GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
@@ -256,13 +313,12 @@ SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
 Seed Pickles to ParticleColletion and State
 """
 function SeedParticle!(
-        InitParticleInstance,
         ParticleCollection ::Vector{Any},
         State::SharedMatrix,
         i::Int64,
         particle_system::ODESystem,
         particle_defaults::Dict{Num, Float64},
-        ODE_defaults::Dict{Num, Float64},
+        ODE_settings, #particle_waves_v3.ODESettings type
         GridNotes, # ad type of grid note
         winds,     # interp winds
         DT:: Float64,
@@ -283,7 +339,7 @@ function SeedParticle!(
                 InitParticleInstance(
                                 particle_system,
                                 z_i ,
-                                ODE_defaults ,
+                                ODE_settings,
                                 i ,
                                 boundary_point))
         nothing

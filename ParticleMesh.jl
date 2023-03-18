@@ -2,7 +2,7 @@ module ParticleMesh
 
 abstract type AbstractGrid end
 
-export OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
+export AbstractGrid, OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 
 """
@@ -88,35 +88,38 @@ struct TwoDGridNotes <: AbstractGrid
     end
 end
 
-struct OneDGrid <: AbstractGrid
-    Nx::Int # number grid points
-    Ndx::Int # number cells
-    xmin::Float64
-    xmax::Float64
-    dimx::Float64
-    dx::Float64
 
-    function OneDGrid(xmin, xmax, Nx::Int)
+struct OneDGrid{I, T <:Number} <: AbstractGrid
+    Nx::I # number grid points
+    Ndx::I # number cells
+    xmin::T
+    xmax::T
+    dimx::T
+    dx::T
+    #FT      = Flaot64
+    function OneDGrid(xmin, xmax, Nx)
         dimx = xmax - xmin
-        Ndx = Nx -1
-        dx = dimx / Ndx
-
-        return new(Nx, Ndx, xmin, xmax, dimx, dx)#, x)
+        Ndx  = Nx -1
+        dx   = dimx / Ndx
+        IT   = typeof(Nx)
+        FT   = typeof(dx)
+        return new{IT, FT}( Nx, Ndx, xmin, xmax, dimx, dx )#, x)
     end
 end
 
-struct OneDGridNotes <: AbstractGrid
-    Nx::Int # number grid points
-    Ndx::Int # number of cells
-    xmin::Float64
-    xmax::Float64
-    dimx::Float64
-    dx::Float64
-    x::Vector{Float64}
+
+struct OneDGridNotes{I, FT <:Number}  <: AbstractGrid
+    Nx::I # number grid points
+    Ndx::I # number of cells
+    xmin::FT
+    xmax::FT
+    dimx::FT
+    dx::FT
+    x::Vector{FT}
 
     function OneDGridNotes(grid::OneDGrid )
         x = collect(LinRange(0, grid.dimx, grid.Nx))
-        return new(grid.Nx, grid.Ndx, grid.xmin, grid.xmax, grid.dimx, grid.dx, x)
+        return new{typeof(grid.Nx), typeof(grid.dx)}(grid.Nx, grid.Ndx, grid.xmin, grid.xmax, grid.dimx, grid.dx, x)
     end
 end
 

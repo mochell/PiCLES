@@ -2,8 +2,11 @@ module particle_waves_v3
 
 using ModelingToolkit, DifferentialEquations
 
-export D̃_eval, Ĩ_eval, e_T_eval, particle_equations
+export D̃_eval, Ĩ_eval, e_T_eval, particle_equations, ODESettings
 using LinearAlgebra
+
+using Parameters
+using DocStringExtensions
 #export t, x, y, e, c̄, φ_p, dist, Gₙ, u_10
 
 #using ModelingToolkit, DifferentialEquations
@@ -24,6 +27,48 @@ using LinearAlgebra
 # @register_symbolic u_10(x,y,t)
 # @register_symbolic φ_w(x,y,t)
 ######
+
+
+
+
+"""
+ODESettings
+Structure to hold all information about the ODE system
+# Fields  
+$(DocStringExtensions.FIELDS)
+"""
+@with_kw struct ODESettings
+        "ODE parameters (Dict)"
+        Parameters::Dict{Num, Float64}
+        "minimum allowed log energy on particle "
+        log_energy_minimum::Float64
+        "maximum allowed log energy on particle "
+        log_energy_maximum::Float64 = log(17)
+        
+        "solver method for ODE system"
+        #alternatives
+        #Rosenbrock23(), AutoVern7(Rodas4()) ,AutoTsit5(Rosenbrock23()) , Tsit5()
+        solver::Any = AutoTsit5(Rosenbrock23())
+        "Internal saving timestep of the ODEs"
+        saving_step :: Float64
+        "remeshing time step, i.e. timestep of the model"
+        timestep:: Float64
+
+        "Absolute allowed error"
+        abstol::Float64 = 1e-4
+        "relative allowed error"
+        reltol::Float64  = 1e-3
+        "max iteration for ODE solver (1e4)"
+        maxiters::Int   = 1e4
+        "Adaptive timestepping for ODE (true)"
+        adaptive:: Bool =true
+        
+
+        "Total time of the ODE integration, should not be needed, this is problematic .. "
+        total_time ::Float64
+end
+
+
 
 function magic_fractions(q::Number=-1/4.0)
         # returns universal exponent relations
