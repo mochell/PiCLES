@@ -1,8 +1,8 @@
 module ParticleMesh
 
-abstract type AbstractGrid end
+using Architectures: AbstractGrid, AbstractODESettings
 
-export AbstractGrid, OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
+export OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 
 """

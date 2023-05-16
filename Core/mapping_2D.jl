@@ -1,23 +1,22 @@
-module mapping_1D
+module mapping_2D
 
-# includet("ParticleInCell.jl")
-# includet("FetchRelations.jl")
 using SharedArrays
-using ParticleMesh: OneDGrid, OneDGridNotes
+using ParticleMesh: TwoDGrid, TwoDGridNotes
 using Printf
 
-import ParticleInCell
+import ParticleInCell as PIC
 import FetchRelations
 
-using core_1D: ParticleInstance, MarkedParticleInstance
-using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
+using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
+using core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
-using ModelingToolkit, DifferentialEquations
+using DifferentialEquations
 using particle_waves_v3: ODESettings
+using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
 ###### remeshing routines ############
 
 """
-        ParticleToNode!(PI::ParticleInstance, S::SharedMatrix, G::TwoDGrid)
+        ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, G::TwoDGrid)
 Pushes particle values to the neighboring nodes following the ParticleInCell rules.
 1.) get weights and indexes of the neighboring notes,
 2.) convert the particle state to nodestate
@@ -29,27 +28,27 @@ PI      Particle instance
 S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
-function ParticleToNode!(PI::ParticleInstance, S::SharedMatrix, G::OneDGrid,  periodic_boundary :: Bool)
 
+function ParticleToNode!(PI::AbstractParticleInstance, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
 
-        index_positions, weights = ParticleInCell.compute_weights_and_index_2d(G, PI.ODEIntegrator.u[1])
+        #u[4], u[5] are the x and y positions of the particle
+        index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
         #ui[1:2] .= PI.position_xy
         #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
-        #@show u_state, index_positions, weights
-        ParticleInCell.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx ,  periodic_boundary)
+        #@show u_state
+        PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
         nothing
 end
 
-
 """
-        NodeToParticle!(PI::ParticleInstance, S::SharedMatrix)
+        NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix)
 Pushes node value to particle:
 - If Node value is smaller than a minimal value, the particle is renintialized
 - If Node value is okey, it is converted to state variable and pushed to particle.
 - The particle position is set to the node positions
 """
-function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, u_init::Number, e_min_log::Number, DT::Float64)
+function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray, ti::Number, wind_tuple::Tuple{Number,Number}, e_min_log::Number, DT::Float64)
         u_state = Get_u_FromShared( PI, S)
 
 
@@ -65,12 +64,17 @@ function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, u_in
                 # z_i[y] = PI.position_xy[2]
                 # ui = z_i
 
-                #u_init       = u(PI.position_xy[1], ti)
                 # derive local wave speed and direction
-                cg_local     = FetchRelations.c_g_U_tau( abs(u_init) , DT )
-                lne_local    = log(FetchRelations.Eⱼ( abs(u_init) , DT ))
+                u_init, v_init = wind_tuple
+                u_abs          = sqrt(u_init .^ 2 + v_init .^ 2) # absolute value of u
 
-                ui= [ PI.position_xy[1], cg_local, lne_local ]
+
+                # define new particle state
+                cg_x_local     = FetchRelations.c_g_U_tau( abs(u_init) , DT )
+                cg_y_local     = FetchRelations.c_g_U_tau(abs(v_init), DT)
+                lne_local      = log(FetchRelations.Eⱼ(abs(u_abs), DT))
+
+                ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
                 reinit!(PI.ODEIntegrator, ui , erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
                 #set_t!(PI.ODEIntegrator, last_t )
                 u_modified!(PI.ODEIntegrator,true)
@@ -79,9 +83,12 @@ function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, u_in
 
                 #@show "get vertex variable"
                 #@show "u_state", u_state
-                ui= GetVariablesAtVertex( u_state, PI.position_xy[1] )
+                ui = GetVariablesAtVertex( u_state, PI.position_xy[1], PI.position_xy[2] )
                 #@show ui
-                set_u!(PI.ODEIntegrator, ui )
+
+                # this method is more robust than the set_u! method
+                reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
+                #set_u!(PI.ODEIntegrator, ui )
                 #set_t!(PI.ODEIntegrator, last_t )
                 u_modified!(PI.ODEIntegrator,true)
         end
@@ -94,26 +101,29 @@ end
 ######### Core routines for advancing and remeshing
 
 """
-        advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Float64)
+        advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::TwoDGrid, DT::Float64)
 """
-function advance!(      PI::ParticleInstance,
-                        S::SharedMatrix{Float64},
-                        Failed::Vector{MarkedParticleInstance},
-                        G::OneDGrid,
-                        u,
-                        DT::Float64, ODEs:: ODESettings,  periodic_boundary :: Bool)
+function advance!(PI::AbstractParticleInstance,
+                        S::SharedArray,
+                        Failed::Vector{AbstractMarkedParticleInstance},
+                        G::TwoDGrid,
+                        winds,
+                        DT::Float64, ODEs:: AbstractODESettings,  periodic_boundary :: Bool)
         #@show PI.position_ij
 
         t_start  = copy(PI.ODEIntegrator.t)
         add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t )
         savevalues!(PI.ODEIntegrator)
-
+        
+        # advance particle
         step!(PI.ODEIntegrator, DT , true)
 
+        # check if integration was successful
         if check_error(PI.ODEIntegrator) != :Success
-                @printf "no Success on advancing ODE, adjust reltol and retry:\n"
+                @printf "no Success on advancing ODE:\n"
+                print("- time after fail $(PI.ODEIntegrator.t)\n ")
 
-                @printf "push to failed\n"
+                @printf "- push to failed\n"
                 push!(Failed,
                         MarkedParticleInstance(
                                         copy(PI),
@@ -123,19 +133,19 @@ function advance!(      PI::ParticleInstance,
                                                 ))
 
                 # reinitialize from grid
+                @printf "- adjust reltol and retry:\n"
+                winds_start = winds.u(PI.position_xy[1], PI.position_xy[2], t_start), winds.v(PI.position_xy[1], PI.position_xy[2], t_start)
 
-                u_start = u(PI.position_xy[1], t_start)
-
-                @show " time after fail",  PI.ODEIntegrator.t
-                NodeToParticle!(PI, S, t_start, u_start, ODEs.log_energy_minimum, DT)
+                NodeToParticle!(PI, S, t_start, winds_start, ODEs.log_energy_minimum, DT)
                 reinit!(PI.ODEIntegrator, PI.ODEIntegrator.u , erase_sol=false, reset_dt=true, reinit_cache=true)
 
                 #set_t!(PI.ODEIntegrator, time)
                 # # change relative tolerance
                 # u_modified!(PI.ODEIntegrator,true)
                 # auto_dt_reset!(PI.ODEIntegrator)
-                # # u_modified!(PI.ODEIntegrator,true)
+                u_modified!(PI.ODEIntegrator, true)
                 #
+
                 PI.ODEIntegrator.opts.reltol = PI.ODEIntegrator.opts.reltol/10
 
                 # try integration again
@@ -145,6 +155,7 @@ function advance!(      PI::ParticleInstance,
                 PI.ODEIntegrator.opts.reltol = PI.ODEIntegrator.opts.reltol * 10
                 #@show PI.ODEIntegrator.opts.reltol
                 #@show "  final time ", PI.ODEIntegrator.t
+                print("- 2nd try success? ", check_error(PI.ODEIntegrator) != :Success, "\n" )
                 @printf "--- \n"
         end
 
@@ -158,19 +169,19 @@ function advance!(      PI::ParticleInstance,
         if isnan(PI.ODEIntegrator.u[1]) | isnan(PI.ODEIntegrator.u[2]) | isnan(PI.ODEIntegrator.u[3])
                 @show "position or Energy is nan"
                 @show PI
-                set_u!(PI.ODEIntegrator, [0,0,0] )
+                set_u!(PI.ODEIntegrator, [0,0,0, 0,0] )
                 u_modified!(PI.ODEIntegrator,true)
 
         elseif isinf(PI.ODEIntegrator.u[1]) | isinf(PI.ODEIntegrator.u[2]) | isinf(PI.ODEIntegrator.u[3])
                 @show "position or Energy is inf"
                 @show PI
-                set_u!(PI.ODEIntegrator, [0,0,0] )
+                set_u!(PI.ODEIntegrator, [0,0,0, 0, 0] )
                 u_modified!(PI.ODEIntegrator,true)
 
-        elseif PI.ODEIntegrator.u[3] > ODEs.log_energy_maximum
+        elseif PI.ODEIntegrator.u[1] > ODEs.log_energy_maximum
                 @show "e_max_log is reached"
-                @show PI
-                set_u!(PI.ODEIntegrator, [0,0,0] )
+                #@show PI
+                set_u!(PI.ODEIntegrator, [0,0,0, 0, 0] )
                 u_modified!(PI.ODEIntegrator,true)
         end
 
@@ -179,15 +190,17 @@ function advance!(      PI::ParticleInstance,
 end
 
 """
-        remesh!(PI::ParticleInstance, S::SharedMatrix{Float64, 3})
+        remesh!(PI::ParticleInstance2D, S::SharedMatrix{Float64, 3})
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, u, ti::Number, ODEs:: ODESettings, DT::Float64)
-        ui = u(PI.position_xy[1], ti)
-        NodeToParticle!(PI, S, ti, ui, ODEs.log_energy_minimum, DT)
+function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64}, winds, ti::Number, ODEs::AbstractODESettings, DT::Float64)        #ui = u(PI.position_xy[1], ti)
+        winds_i = winds.u(PI.position_xy[1], PI.position_xy[2], ti), winds.v(PI.position_xy[1], PI.position_xy[2], ti)
+        NodeToParticle!(PI, S, ti, winds_i, ODEs.log_energy_minimum, DT)
         return PI
 end
+
+
 
 
 """ shows total energy of the all particles """

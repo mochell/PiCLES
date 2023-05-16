@@ -1,4 +1,4 @@
-module particle_waves_v3
+module particle_waves_v3beta
 
 using ModelingToolkit, DifferentialEquations
 
@@ -64,7 +64,12 @@ $(DocStringExtensions.FIELDS)
         maxiters::Int = 1e4
         "Adaptive timestepping for ODE (true)"
         adaptive::Bool = true
-
+        dt::Float64 = 60 * 6 # seconds
+        "min timestep (if adaptive is true)"
+        dtmin::Float64 = 60 * 5 # seconds
+        "force min timestep (if adaptive is true)"
+        force_dtmin::Bool = false
+        
         "Total time of the ODE integration, should not be needed, this is problematic .. "
         total_time::Float64
 
@@ -118,6 +123,15 @@ function init_vars()
         @parameters r_g C_α C_φ g C_e
         return t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e
 end
+
+function init_vars_vec5()
+        @variables t
+        @variables x(t), y(t), c̄_x(t), c̄_y(t), lne(t)
+        @parameters r_g C_α C_φ g C_e
+        return t, x, y, c̄_x, c̄_y, lne, r_g, C_α, C_φ, g, C_e
+end
+
+
 
 function init_vars_1D()
         @variables t
@@ -223,17 +237,19 @@ function particle_equations(u, v, u_x, v_y; γ::Number=0.88, q::Number=-1 / 4.0,
         #G_n    = Δφ_w /  delta_x  delta_x_0
 
         particle_equations = [
+                # energy
+                D(lne) ~ -c̄ .* G_n - ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g) / c̄ + ωₚ .* (Ĩ - D̃),
+                #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
+
+                # peak group velocity vector
+                D(c̄_x) ~ +c̄_y * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) + cφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
+                D(c̄_y) ~ -c̄_x * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) + sφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
+
+
                 # propagation
                 D(x) ~ c̄_x,
                 D(y) ~ c̄_y,
 
-                # peak group velocity vector
-                D(c̄_x) ~ +c̄_y * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) - cφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
-                D(c̄_y) ~ -c̄_x * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) - sφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
-
-                # energy
-                D(lne) ~ -c̄ .* G_n + ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g) / c̄ + ωₚ .* (Ĩ - D̃),
-                #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
 
                 # ray convergence
                 D(Δn) ~ Δφ_p * c̄,
@@ -242,6 +258,92 @@ function particle_equations(u, v, u_x, v_y; γ::Number=0.88, q::Number=-1 / 4.0,
 
         return particle_equations
 end
+
+"""
+particle_equations(u , v, u_x, v_y ; γ::Number=0.88, q::Number=-1/4.0, dir_enhancement::Bool=true, delta_x_0::Number=10e3 )
+Particle wave equations in 2D
+"""
+function particle_equations_vec5(u, v, u_x, v_y; γ::Number=0.88, q::Number=-1 / 4.0, dir_enhancement::Bool=true, delta_x_0::Number=10e3)
+        t, x, y, c̄_x, c̄_y, lne, r_g, C_α, C_φ, g, C_e = init_vars_vec5()
+
+        # Δn, Δφ_p - not used
+
+        p, q, n = magic_fractions()
+        e_T = e_T_eval(γ, p, q, n, C_e=C_e)
+        D = Differential(t)
+
+        # forcing fields
+        u = u(x, y, t)
+        v = v(x, y, t)
+        u_x = u_x(x, y, t)
+        v_y = v_y(x, y, t)
+
+        # trig-values # we only use scalers, not vectors
+        c̄, cφ_p, sφ_p = speed_and_angles(c̄_x, c̄_y)
+        u_speed, cφ_w, sφ_w = speed_and_angles(u, v)
+
+        #tΔφ_p = tan(Δφ_p)
+        #tΔφ_w = (c̄_x .* v_y(x,y,t) - c̄_y .* u_x(x,y,t) ) / ( c̄_x .* u_x(x,y,t) + c̄_y .* v_y(x,y,t) )
+
+        tΔφ_w = tΔφ_w_func(u, v, u + u_x, v + v_y)
+        #tΔφ_w =  tΔφ_w_func(c̄_x, c̄_y, c̄_x +  u_x(x,y,t), c̄_y + v_y(x,y,t) )
+
+        #tΔφ_w =  ( c̄_x .* u_x(x,y,t) + c̄_y .* v_y(x,y,t) ) /  ( c̄ .* u_speed  )
+        #tΔφ_w =  u_x(x,y,t) + v_y(x,y,t) #( c̄_x .* u_x(x,y,t) + c̄_y .* v_y(x,y,t) ) /  ( c̄ .* u_speed  ) #
+
+        #tΔφ_w =  ( sign(sφ_p) * sφ_p * u_x(x,y,t) + sign(cφ_p) * cφ_p * v_y(x,y,t) ) #/ u_speed # sqrt( v_y(x,y,t)^2 + u_x(x,y,t)^2 )   #  dot product with the normal vector of direction, not normalized
+
+
+        #φ_w  = atan( v(x,y,t), u(x,y,t)  ) # y , x
+        #Δφ_w =  pi./ 4
+        #Δφ_w = atan( v_y(x,y, t) ./ u_x(x, y, t))
+        #Δφ_w = Δφ_w_func( cos(φ_p) , sin(φ_p) , u_x(x,y,t), v_y(x,y,t) )
+
+        # peak parameters
+        c_gp, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
+
+        # direction equations
+        α = α_func(u_speed, c_gp)
+        Hₚ = H_β(αₚ(α, cφ_p, sφ_p, cφ_w, sφ_w), p)
+        Δₚ = Δ_β(αₚ(α, cφ_p, sφ_p, cφ_w, sφ_w))
+        #AB      = C_φ * α^2 * ωₚ * Hₚ *  sin2_a_min_b(cφ_p, sφ_p, cφ_w, sφ_w)  #sin( 2.0 * (φ_p - φ_w) )
+
+        # wave growth equation
+        T_inv_angle = cos2_a_min_b(cφ_p, sφ_p, cφ_w, sφ_w)
+        T_inv = 2 * C_φ * Hₚ * α .^ 2 * ωₚ * sign(T_inv_angle) * T_inv_angle # eq. 1.23
+        D̃ = D̃_eval_lne(lne, kₚ, e_T, n)
+        Ĩ = Ĩ_eval(α, Hₚ, C_e)
+
+        # peak downshift
+        # C_α is negative in Kudravtec definition, here its a positive value, so we introduce a minus sign
+
+        # ray convergene
+        #G_n = Gₙ(Δφ_p, Δn, delta_x_0)
+        #G_n    = Δφ_w /  delta_x  delta_x_0
+
+        particle_equations = [
+                # energy
+                D(lne) ~ ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g) / c̄ + ωₚ .* (Ĩ - D̃),
+                #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
+
+                # peak group velocity vector
+                D(c̄_x) ~ +c̄_y * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) - cφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
+                D(c̄_y) ~ -c̄_x * ξ_cross(C_φ, α, ωₚ, Hₚ, [cφ_p, sφ_p, cφ_w, sφ_w]) - sφ_w .* ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
+
+
+                # propagation
+                D(x) ~ c̄_x,
+                D(y) ~ c̄_y,
+
+
+                # ray convergence
+                #D(Δn) ~ Δφ_p * c̄,
+                #D(Δφ_p) ~ 0#Δφ_p_RHS(tΔφ_w, tΔφ_p , T_inv)
+        ]
+
+        return particle_equations
+end
+
 
 """
 particle_equations(u , u_x, ; γ::Number=0.88, q::Number=-1/4.0)
@@ -276,15 +378,16 @@ function particle_equations(u, u_x; γ::Number=0.88, q::Number=-1 / 4.0)
         Ĩ = Ĩ_eval(α, Hₚ, C_e)
 
         particle_equations = [
-                # propagation
-                D(x) ~ c̄_x,
-
-                # peak group velocity vector
-                D(c̄_x) ~ - ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
-
                 # energy
                 D(lne) ~ ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g) / c̄ + ωₚ .* (Ĩ - D̃),
                 #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
+
+
+                # peak group velocity vector
+                D(c̄_x) ~ -ξ_shift(lne, Δₚ, kₚ, C_α, r_g, g),
+
+                # propagation
+                D(x) ~ c̄_x,
         ]
 
         return particle_equations

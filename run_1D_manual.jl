@@ -34,11 +34,15 @@ using JLD2
 """
 
 """
-# %%
+push!(LOAD_PATH, joinpath(pwd(), "code/"))
+push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 using core_1D: init_z0_to_State!, wrap_pos!, periodic_BD_single_PI!, show_pos!, periodic_condition_x
-using core_1D: ParticleInstance
-using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
+using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex
+using core_1D: Get_u_FromShared, ParticleDefaults
+using custom_structures: AbstractParticleInstance, ParticleInstance1D, MarkedParticleInstance
+
 # %%
+
 @printf "Init Forcing Field\n"
 
 save_path_base= "data/1D_static/"
@@ -203,7 +207,7 @@ function InitParticleInstance(model, z_initials, pars,  ij, boundary_flag ; cbSe
 
         # callbacks= cbSets,
         #save_everystep=false
-        return ParticleInstance( ij , z_initials[x], integrator, boundary_flag )
+        return ParticleInstance1D( ij , z_initials[x], integrator, boundary_flag )
 end
 
 # define boundaries
@@ -287,7 +291,7 @@ end
 
         """
         function TerminateCheckSingle!(integrator)
-                if maximum(integrator.ODEIntegrator.u[1]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
+                if maximum(integrator.ODEIntegrator.u[3]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
                         terminate!(integrator.ODEIntegrator)
                         @show "terminate"
                 end
@@ -298,7 +302,7 @@ end
 
 
 """
-        ParticleToNode!(PI::ParticleInstance, S::SharedMatrix, G::TwoDGrid)
+        ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, G::TwoDGrid)
 Pushes particle values to the neighboring nodes following the ParticleInCell rules.
 1.) get weights and indexes of the neighboring notes,
 2.) convert the particle state to nodestate
@@ -310,27 +314,27 @@ PI      Particle instance
 S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
-function ParticleToNode!(PI::ParticleInstance, S::SharedMatrix, G::OneDGrid)
+function ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, G::OneDGrid)
 
-        index_positions, weights = ParticleInCell.compute_weights_and_index_2d(G, PI.ODEIntegrator.u[1])
+        index_positions, weights = ParticleInCell.compute_weights_and_index(G, PI.ODEIntegrator.u[1])
         #ui[1:2] .= PI.position_xy
         #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state, index_positions, weights
-        ParticleInCell.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx ,  periodic_boundary)
+        ParticleInCell.push_to_grid!(S, u_state , index_positions,  weights, G.Nx ,  periodic_boundary)
         nothing
 end
 
 
 
 """
-        NodeToParticle!(PI::ParticleInstance, S::SharedMatrix)
+        NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix)
 Pushes node value to particle:
 - If Node value is smaller than a minimal value, the particle is renintialized
 - If Node value is okey, it is converted to state variable and pushed to particle.
 - The particle position is set to the node positions
 """
-function NodeToParticle!(PI::ParticleInstance, S::SharedMatrix, ti::Number, e_0::Number)
+function NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix, ti::Number, e_0::Number)
         u_state = Get_u_FromShared( PI, S)
 
 
@@ -376,9 +380,9 @@ end
 @everywhere begin
 
         """
-                advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
+                advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
         """
-        function advance!(PI::ParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
+        function advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Int)
                 #@show PI.position_ij
 
                 add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t )
@@ -392,7 +396,7 @@ end
 
                 # step!(PI.ODEIntegrator, DT/2 , true)
                 # PI = periodic_BD_single_PI!(PI )
-                if isnan(PI.ODEIntegrator.u[1])
+                if isnan(PI.ODEIntegrator.u[3])
                         @show "position is nan"
                         @show PI
                         PI.ODEIntegrator.u = [0,0,0]
@@ -403,11 +407,11 @@ end
         end
 
         """
-                remesh!(PI::ParticleInstance, S::SharedMatrix{Float64, 3})
+                remesh!(PI::AbstractParticleInstance, S::SharedMatrix{Float64, 3})
                 Wrapper function that does everything necessary to remesh the particles.
                 - pushes the Node State to particle instance
         """
-        function remesh!(PI::ParticleInstance, S::SharedMatrix{Float64}, ti::Number)
+        function remesh!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, ti::Number)
                 NodeToParticle!(PI, S, ti, e_0)
                 return PI
         end
