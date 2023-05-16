@@ -47,8 +47,8 @@ end
 
 abstract type WindEmulationFunction2 <: Function end
 
-function slopped_blob(x, t, U10, V, T , x_scale, t_scale)# <: WindEmulationFunction
-    return 0.5+ U10 * ( exp(- ( ( x - (300e3 + t * V)  )./x_scale).^2) .*  exp(- ( ( t- (T/2)  )./  t_scale ).^2) )#.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
+function slopped_blob(x, t, U10, V, T , x_scale, t_scale; x0=300e3)# <: WindEmulationFunction
+    return 0.5+ U10 * ( exp(- ( ( x - (x0 + t * V)  )./x_scale).^2) .*  exp(- ( ( t- (T/2)  )./  t_scale ).^2) )#.+ 3 * sin.(x *π/Ly/0.5 .+ y *π/Ly/0.5)
 end
 
 

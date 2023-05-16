@@ -2,7 +2,8 @@ module ParticleTools
 
 using DataFrames
 
-using core_1D: ParticleInstance, MarkedParticleInstance
+using Architectures: AbstractGrid, AbstractODESettings, AbstractParticleInstance
+using custom_structures: MarkedParticleInstance
 
 using Plots
 
@@ -20,7 +21,7 @@ function CreateIterationMask(time)
         return time_mask
 end
 
-function ParticleToDataframe(a_particle::ParticleInstance)
+function ParticleToDataframe(a_particle::AbstractParticleInstance)
         return DataFrame(Tables.columntable(a_particle.ODEIntegrator.sol))
 end
 
@@ -28,7 +29,7 @@ function ParticleToDataframe(a_particle::MarkedParticleInstance)
         return DataFrame(Tables.columntable(a_particle.Particle.ODEIntegrator.sol))
 end
 
-function ParticleToDataframe(Collection::Vector{ParticleInstance})
+function ParticleToDataframe(Collection::Vector{AbstractParticleInstance})
         DD = []
         for a_particle in Collection
                 D         = ParticleToDataframe(a_particle)
@@ -61,18 +62,23 @@ function PlotFailedParticles(Collection, ID, DT, dx)
                 di = ParticleTools.ParticleToDataframe(Fdi)
 
                 time_pos = di[:, 1]/DT
-                x_pos = di[:, 2]/dx
-                lne_pos = di[:, 4]
+                lne_pos = di[:, 2]
+                x_pos = di[:, 4]/dx
                 #Energy = @. exp.(di[:, 4])
                 cg = @. di[:, 3] + 0* time_pos
-                Energy = @. di[:, 4] + 0* time_pos
+                Energy = @. di[:, 2] + 0* time_pos
 
                 push!(cg_list, cg)
                 push!(energy_list, Energy)
                 push!(time_list, time_pos)
                 push!(x_list, x_pos)
 
-                push!(time_fail_list, Fdi.time/DT)
+                try
+                        push!(time_fail_list, Fdi.time / DT)
+                catch
+                        push!(time_fail_list, Fdi.ODEIntegrator.t / DT)
+                end
+
                 push!(x_fail_list, x_pos[1])
 
                 #scatter!(x, lne, marker=2) |> display
@@ -82,16 +88,55 @@ function PlotFailedParticles(Collection, ID, DT, dx)
 
         end
 
-        p1 = plot(x_list, time_list, title  = "Time") #|> display
-        p2 = plot(x_list, energy_list, marker=2, title  = "Energy") #|> display
-        p3 = plot(x_list, cg_list, marker=3, title  = "c_g") #|> display
+        p1 = plot(x_list, time_list, title  = "Time", ylabel= "time/DT" ) #|> display
+        p2 = plot(x_list, energy_list, marker=2, title  = "Energy", ylabel="energy") #|> display
+        p3 = plot(x_list, cg_list, marker=3, title  = "c_g", ylabel="group velocity") #|> display
 
-        plot(p1, p2, p3,  layout= (3, 1) , legend= false, size= (600,1200) , ylabel= "time/DT" )
+        plot(p1, p2, p3,  layout= (3, 1) , legend= false, size= (600,1200) )
         scatter!( x_fail_list ,time_fail_list, color = "red",marker = 4) #
 
-        plot!(xlabel ="position", plot_title=ID) |> display
+        plot!(xlabel ="position", plot_title=ID)
 
 end
+
+
+"""
+Plot Particles in FailedCollection
+inputs:
+FailedCollection: Array of FailedParticles
+store_wave_data: Array with the stored wave state
+ID: String with ID of simulation
+DT: timestep of simulation
+dx: grid spacing of simulation
+Npar: number of particles to plot
+savepath: path to save plot (default: false)
+"""
+function PlotFailedParticles_summary(FailedCollection, store_wave_data, ID,  DT, dx; savepath=false, Npar = 4)
+
+        if Npar == nothing
+                Npar = size(FailedCollection)[1]
+        end
+        #ParticleTools.PlotFailedParticles(FailedCollection, ID, DT, dx) |> display
+        ParticleTools.PlotFailedParticles(FailedCollection[1:Npar], ID, DT, dx) |> display
+        if savepath != false
+                mkpath(plot_path)
+                savefig( joinpath(plot_path , "failed_ov_" * ID * ".png" ) )
+        end
+
+        ParticleTools.plot_cg_version1(FailedCollection) |> display
+        if savepath != false
+                savefig( joinpath(plot_path , "cg_failed_" * ID * ".png" ) )
+        end
+
+        ParticleTools.plot_cg_version2(store_waves_data[:, :, :]) |> display
+        if savepath != false
+                savefig( joinpath(plot_path , "cg_failed2_" * ID * ".png" ) )
+        end
+
+end
+
+
+
 
 
 function plot_cg_version1(Collection)

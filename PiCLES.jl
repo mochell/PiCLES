@@ -8,7 +8,7 @@ export
     Simulations,
     
     # models
-    WaveGrowthModels,
+    WaveGrowthModels
 
     # Particle Systems
     #Particles,
@@ -19,11 +19,14 @@ export
     #Debugging,FetchRelations,ParticleTools
 
 
-using .Simulations
-#using .Models
 
 include("Simulations/Simulations.jl")
 #include("Models/Models.jl")
 #include("Grids/Grids.jl")
 #include("Particles/Particles.jl")
+
+
+
+using .Simulations
+#using .Models
 end

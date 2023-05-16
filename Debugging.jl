@@ -12,12 +12,12 @@ resets the particles position to the domain center
 resets the energy to a dfault value (e_min_log is a global variable)
 """
 function ResetParticle!(integrator)
-        if isnan(integrator.ODEIntegrator.u[3]) || exp(integrator.ODEIntegrator.u[3]) >= 1e-3
-                @show exp(integrator.ODEIntegrator.u[3])
-                integrator.ODEIntegrator.u[1] = integrator.ODEIntegrator.u[1] - Lx/2
+        if isnan(integrator.ODEIntegrator.u[1]) || exp(integrator.ODEIntegrator.u[1]) >= 1e-3
+                @show exp(integrator.ODEIntegrator.u[1])
+                integrator.ODEIntegrator.u[3] = integrator.ODEIntegrator.u[3] - Lx/2
                 #integrator.ODEIntegrator.u[2] = integrator.ODEIntegrator.u[2] - Ly/2
                 #integrator.ODEIntegrator.u[4] = 1e-2
-                integrator.ODEIntegrator.u[3] = e_min_log
+                integrator.ODEIntegrator.u[1] = e_min_log
                 u_modified!(integrator.ODEIntegrator,true)
                 @show "rest particle"
         end
@@ -33,7 +33,7 @@ Lx_terminate_limit = 1
 
 """
 function TerminateCheckSingle!(integrator)
-        if maximum(integrator.ODEIntegrator.u[1]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_min_log ) >= 5
+        if maximum(integrator.ODEIntegrator.u[3]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_min_log ) >= 5
                 terminate!(integrator.ODEIntegrator)
                 @show "terminate"
         end

@@ -182,10 +182,10 @@ State.pids # check which cores can see state
 # end
 
 
-#index_positions, weights = PIC.compute_weights_and_index_2d(grid2d, 12.34e3, 13.4e3)
-#PIC.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions[1], weights[1], grid2d.Nx, grid2d.Ny )
+#index_positions, weights = PIC.compute_weights_and_index(grid2d, 12.34e3, 13.4e3)
+#PIC.push_to_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions[1], weights[1], grid2d.Nx, grid2d.Ny )
 
-# PIC.push_to_2d_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions, weights, grid2d.Nx, grid2d.Ny )
+# PIC.push_to_grid!(State, [1.0, 1.0,1.0,1.0,1.0,1.0,1.0]  , index_positions, weights, grid2d.Nx, grid2d.Ny )
 
 # %%
 
@@ -269,14 +269,14 @@ function periodic_BD_single_PI!(PI::ParticleInstance)
 
         #@printf "PI periodic condition called"
         ui = copy(PI.ODEIntegrator.u)
-        ui[1], wrap_pos_PI1 = wrap_pos!(ui[1], Lx)
-        ui[2], wrap_pos_PI2 = wrap_pos!(ui[2], Ly)
+        ui[4], wrap_pos_PI1 = wrap_pos!(ui[4], Lx)
+        ui[5], wrap_pos_PI2 = wrap_pos!(ui[5], Ly)
 
         if wrap_pos_PI1 || wrap_pos_PI1
                 #@show wrap_pos_PI1 , wrap_pos_PI2
                 #@printf "wrap pos PI"
-                #@show PI.ODEIntegrator.u[1] - ui[1]
-                #@show PI.ODEIntegrator.u[2] - ui[2]
+                #@show PI.ODEIntegrator.u[4] - ui[4]
+                #@show PI.ODEIntegrator.u[5] - ui[5]
                 set_u!(PI.ODEIntegrator, ui )
                 u_modified!(PI.ODEIntegrator,true)
         end
@@ -297,17 +297,17 @@ end
 return the mean position
 """
 function show_pos!(PI)
-        @show "show current position" PI.position_xy, PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2]
+        @show "show current position" PI.position_xy, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5]
 end
 
 # the following function are another way to have wrapping boundary conditions.
 
 function periodic_condition_x(u,t,integrator)
-        u[1] > 0
+        u[4] > 0
 end
 
 function periodic_condition_y(u,t,integrator)
-        u[2] > Ly
+        u[5] > Ly
 end
 
 # function loop_x!(integrator)
@@ -359,7 +359,7 @@ cbs           = CallbackSet(periodic, show_mean )#,cb_terminate)
         end
 
         function GetParticleEnergyMomentum(zi::Dict)
-                return GetParticleEnergyMomentum([ zi[x],zi[y], zi[c̄_x],zi[c̄_y], zi[lne], zi[Δn],zi[Δφ_p]  ])
+                return GetParticleEnergyMomentum([zi[lne], zi[c̄_x], zi[c̄_y], zi[x], zi[y], zi[Δn], zi[Δφ_p]])
         end
 
         """
@@ -393,7 +393,7 @@ cbs           = CallbackSet(periodic, show_mean )#,cb_terminate)
                 c_x = m_x * e / (2  * m_amp^2)
                 c_y = m_y * e / (2  * m_amp^2)
 
-                return [x, y,   c_x, c_y,   log(e), Δn, Δφ_p ]
+                return [log(e), c_x, c_y, x, y, Δn, Δφ_p]
         end
 end
 # testing
@@ -465,7 +465,7 @@ end
 
         """ (debubugging function) returns the domains normalized position of the partivle  """
         function show_pos!(integrator , G)
-                @show (integrator.ODEIntegrator.u[1] .- G.xmin)/grid2d.dx,  (integrator.ODEIntegrator.u[2] .- G.ymin)/grid2d.dy
+                @show (integrator.ODEIntegrator.u[4] .- G.xmin)/grid2d.dx,  (integrator.ODEIntegrator.u[5] .- G.ymin)/grid2d.dy
         end
 
 
@@ -478,12 +478,12 @@ end
 
         """
         function ResetParticle!(integrator)
-                if isnan(integrator.ODEIntegrator.u[5]) || exp(integrator.ODEIntegrator.u[5]) >= 1e-3
-                        @show exp(integrator.ODEIntegrator.u[5])
-                        integrator.ODEIntegrator.u[1] = integrator.ODEIntegrator.u[1] - Lx/2
-                        integrator.ODEIntegrator.u[2] = integrator.ODEIntegrator.u[2] - Ly/2
+                if isnan(integrator.ODEIntegrator.u[1]) || exp(integrator.ODEIntegrator.u[1]) >= 1e-3
+                        @show exp(integrator.ODEIntegrator.u[1])
+                        integrator.ODEIntegrator.u[4] = integrator.ODEIntegrator.u[4] - Lx/2
+                        integrator.ODEIntegrator.u[5] = integrator.ODEIntegrator.u[5] - Ly/2
                         #integrator.ODEIntegrator.u[4] = 1e-2
-                        integrator.ODEIntegrator.u[5] = e_0
+                        integrator.ODEIntegrator.u[1] = e_0
                         u_modified!(integrator.ODEIntegrator,true)
                         @show "rest particle"
                 end
@@ -499,7 +499,7 @@ end
 
         """
         function TerminateCheckSingle!(integrator)
-                if maximum(integrator.ODEIntegrator.u[1]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
+                if maximum(integrator.ODEIntegrator.u[4]) - Lx * Lx_terminate_limit >= 0 #|| maximum(exp.(integrator.u[3:N_state:end]) / e_0 ) >= 5
                         terminate!(integrator.ODEIntegrator)
                         @show "terminate"
                 end
@@ -527,12 +527,12 @@ end
         """
         function ParticleToNode!(PI::ParticleInstance, S::SharedArray, G::TwoDGrid)
 
-                index_positions, weights = PIC.compute_weights_and_index_2d(G, PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2])
+                index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
                 #ui[1:2] .= PI.position_xy
                 #@show index_positions
                 u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
                 #@show u_state
-                PIC.push_to_2d_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny )
+                PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny )
                 nothing
         end
 

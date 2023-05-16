@@ -9,6 +9,14 @@ struct EmptyStore{Int} <: AbstractStore
 end
 
 
+
+mutable struct CashStore{HDFg,Int} <: AbstractStore
+    store::HDFg
+    iteration::Int
+end
+
+
+
 mutable struct StateStore{FL, HDFg, Int} <: AbstractStore
     file :: FL
     store :: HDFg
