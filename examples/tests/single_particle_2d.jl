@@ -1,4 +1,3 @@
-
 using ModelingToolkit, DifferentialEquations
 using Plots
 using Setfield
@@ -7,11 +6,10 @@ push!(LOAD_PATH, joinpath(pwd(), "code/"))
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
 
-import particle_waves_v4#: particle_equations, ODESettings
-PW4 = particle_waves_v4
+using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 
-import FetchRelations, ParticleTools
-using core_2D: ParticleDefaults, InitParticleInstance, InitParticleState
+import PiCLES.Utils: FetchRelations, ParticleTools
+using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleState, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 
 # %% Parameters
@@ -27,7 +25,6 @@ T = 24 * 24 * 60 * 60 # seconds
 
 # version 3
 r_g0 = 0.85
-
 # function to define constants for grouwth and dissipation
 Const_ID = PW4.get_I_D_constant()
 #@set Const_ID.γ = 0.88
@@ -134,7 +131,6 @@ end
 
 
 
-
 PID = ParticleTools.ParticleToDataframe(PI)
 
 gr(display_type=:inline)
@@ -150,7 +146,6 @@ p2 = plot(PID[tsub, 3], PID[tsub, 4], marker=3, markershape=:square, title="cg v
 
 
 # plot!(p1, PID[tsub, 1] / (60 * 60), u.(0, 0, PID[tsub, 1]), marker=2, title="e", xlabel="time", ylabel="e", label="Fetch relations") #|> display
-
 
 #plot!(p2, PID3[tsub3, 3], PID3[tsub3, 4], marker=2, title="cg vector", xlabel="x", ylabel="y", label="V3") #|> display
 

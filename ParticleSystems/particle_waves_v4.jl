@@ -361,7 +361,7 @@ function particle_equations(u; γ::Number=0.88, q::Number=-1 / 4.0,
                 #D(e)~  e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
 
                 # peak group velocity vector
-                D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde,
+                D(c̄_x) ~ - c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde,
 
                 # propagation
                 D(x) ~ c_group_x

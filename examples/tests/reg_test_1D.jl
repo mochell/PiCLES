@@ -116,9 +116,6 @@ initialize_simulation!(wave_simulation; defaults=copy(particle_defaults))
 # run simulation
 run!(wave_simulation, cash_store=true)
 
-
-# %%
-
 # %%
 #show_stored_data(wave_simulation)
 #store_waves_data = wave_simulation.store.store["data"]

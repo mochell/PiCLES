@@ -10,7 +10,7 @@ using ModelingToolkit: Num, get_states
 #using core_1D: MarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
-using core_2D: ParticleDefaults as ParticleDefaults2D
+using PiCLES.Operators.core_2D: ParticleDefaults as ParticleDefaults2D
 #using core_2D: SeedParticle! as SeedParticle2D!
 
 using SharedArrays
@@ -20,7 +20,7 @@ import Oceananigans: fields
 using Oceananigans.TimeSteppers: Clock
 
 
-using mapping_2D
+using PiCLES.Operators.mapping_2D
 #includet("mapping_1D.jl")
 
 function Base.show(io::IO, ow::AbstractModel)

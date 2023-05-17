@@ -6,14 +6,11 @@ using Setfield
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
-import particle_waves_v3beta#: particle_equations, ODESettings
-PW3 = particle_waves_v3beta
+using PiCLES.ParticleSystems: particle_waves_v4 as PW4
+using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 
-import particle_waves_v4#: particle_equations, ODESettings
-PW4 = particle_waves_v4
-
-import FetchRelations, ParticleTools
-using core_2D: ParticleDefaults, InitParticleInstance, InitParticleState
+import PiCLES.Utils: FetchRelations, ParticleTools
+using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleState, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 
 # % Parameters

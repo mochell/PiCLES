@@ -11,12 +11,13 @@ using DocStringExtensions
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults, InitParticleInstance
 export InitParticleState
 
+include("../Utils/FetchRelations.jl")
+using .FetchRelations
 
-using FetchRelations
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 
-using particle_waves_v3: init_vars
+using ..particle_waves_v3: init_vars
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance

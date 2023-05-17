@@ -2,21 +2,19 @@ import Plots
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 import particle_waves_v3beta#: particle_equations, ODESettings
-PW3 = particle_waves_v3beta
 
-import particle_waves_v4#: particle_equations, ODESettings
-PW4 = particle_waves_v4
+using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
+using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 
-import FetchRelations
+import PiCLES: FetchRelations
 
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-using core_1D: ParticleDefaults, InitParticleState, InitParticleInstance
+using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleState, InitParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
-
 
 using ModelingToolkit, DifferentialEquations
 
-using ParticleTools
+using PiCLES.Utils.ParticleTools 
 using Plots
 
 # % Parameters
@@ -79,7 +77,9 @@ ODE_settings = PW4.ODESettings(
     timestep=DT,
     total_time=T,
     callbacks=cb,
-    save_everystep=false
+    save_everystep=false, 
+    dt=1e-3, #60*10, 
+    dtmin=1e-9, #60*5, 
 )
 
 
@@ -107,7 +107,7 @@ end
 
 
 clock_time = 0
-NDT = 3
+NDT = 6
 for i in Base.Iterators.take(PI.ODEIntegrator, NDT)
     @info "x:", PI.ODEIntegrator.u[3]
 

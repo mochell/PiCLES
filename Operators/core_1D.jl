@@ -10,11 +10,13 @@ using DocStringExtensions
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
 export InitParticleState, ResetParticleState
 
-using FetchRelations
+include("../Utils/FetchRelations.jl")
+using .FetchRelations
+
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
 
-using particle_waves_v3: init_vars_1D
+using ..particle_waves_v3: init_vars_1D
 t, x, c̄_x, lne, r_g, C_α, g, C_e = init_vars_1D()
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
