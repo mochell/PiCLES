@@ -7,48 +7,26 @@ using Statistics
 
 using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 
-using HDF5
-using JLD2
+using HDF5, JLD2
 
 using DocStringExtensions
+using DifferentialEquations
 
-# Particle Model modules
+# %%
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 using ParticleMesh: OneDGrid, OneDGridNotes
+using PiCLES.Operators.core_1D: ParticleDefaults
+using PiCLES: Simulation, WindEmulator, WaveGrowthModels1D, FetchRelations
+using PiCLES.Simulations
 
-#using core_1D: periodic_BD_single_PI!, show_pos!, periodic_condition_x
-push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-using core_1D: ParticleDefaults
-using TimeSteppers
-
-import ParticleInCell
-import FetchRelations
-using WaveGrowthModels1D
-
-includet("../../ParticleMesh.jl")
-using Debugging
-using Printf
-
-import particle_waves_v4#: particle_equations, ODESettings
-PW = particle_waves_v4
+#using PiCLES.Debugging
+using PiCLES.ParticleSystems: particle_waves_v4 as PW
 
 using Oceananigans.TimeSteppers: Clock, tick!
 import Oceananigans: fields
 using Oceananigans.Units
 
-# for Callbacks
-push!(LOAD_PATH, joinpath(pwd(), "code/Simulations"))
-using Simulations
-
-using WindEmulator
-
-"""
-This load a parameter file, executes a 1D run, saves the data and run statistics.
-
-"""
-
-using InputOutput: Argsettings, parse_args
-
+using PiCLES.Operators.core_1D: GetParticleEnergyMomentum, init_z0_to_State! 
 # %%
 # Default values
 save_path_base = "data/1D_gaussian/"
@@ -56,17 +34,8 @@ plot_path_base = "plots/static/"
 
 parset = "1D_varying/"
 
-
-### Boundary Conditions
-periodic_boundary = false
-
 # parametric wind forcing
 U10, V = 10, 5 #m/s
-
-r_g0 = 0.85
-c_β = 4e-2
-C_e0 = (2.35 / r_g0) * 2e-3 * c_β
-γ = 0.7
 
 #  rescale parameters for the right units.
 T = 24 * 2 * 60 * 60 # seconds
@@ -74,6 +43,14 @@ Lx = 300 * 10e3  # km
 DT = Float64(20 * 60) # seconds
 Nx = 40
 dt_ODE_save = 10 # 3 min
+
+
+r_g0 = 0.85
+# function to define constants for grouwth and dissipation
+Const_ID = PW.get_I_D_constant()
+#@set Const_ID.γ = 0.88
+Const_Scg = PW.get_Scg_constants()
+
 
 grid1d = OneDGrid(1e3, Lx - 1e3, Nx)
 
@@ -85,7 +62,7 @@ plot_path = plot_path_base * parset * "/"
 
 mkpath(save_path)
 # %%
-@printf "Init Forcing Field\n"
+@info "Init Forcing Field\n"
 # create wind test fucntion
 
 @register_symbolic u(x, t)
@@ -96,10 +73,10 @@ dx = 5e3
 
 fake_winds(x, t) = U10 + x * 0 + t * 0# 
 
-wind_grid = IdealizedWindGrid(fake_winds, (Lx=Lx, T=T), (dx=dx, dt=DT))
+wind_grid = WindEmulator.IdealizedWindGrid(fake_winds, (Lx=Lx, T=T), (dx=dx, dt=DT))
 
 # % define wind forcing globally as interp functions
-interp_winds = wind_interpolator(wind_grid);
+interp_winds = WindEmulator.wind_interpolator(wind_grid);
 
 #convert to registered_symbolic need foir ODESystem
 u(x, t) = interp_winds.u(x, t)
@@ -116,15 +93,7 @@ particle_equations = PW.particle_rays()
 # define variables based on particle equation
 t, x, c̄_x, lne, r_g, C_α, g, C_e = PW.init_vars_1D()
 
-
-# %% define storing stucture and populate inital conditions
-default_ODE_parameters = Dict(
-    r_g => 1 / r_g0,
-    C_α => -1.41,
-    g => 9.81,
-    C_e => C_e0,
-)
-
+default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha, C_e => Const_ID.C_e)
 
 ODE_settings = PW.ODESettings(
     Parameters=default_ODE_parameters,
@@ -143,13 +112,14 @@ ODE_settings = PW.ODESettings(
 
 
 # Default values for particle
-particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
+hs = 0.2 # meter
+particle_defaults = ParticleDefaults(log((hs / 4)^2), 1, 0.0)
+#particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
 
-vars = PW.init_vars_1D()
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     winds=u,
     ODEsys=particle_system,
-    ODEvars=vars,
+    ODEvars=PW.init_vars_1D(),
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=particle_defaults,  # default_ODE_parameters
@@ -162,158 +132,97 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 #using Simulations: Simulation
 
 Revise.retry()
-# %% run simulation
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=2hours)
+
+# %% run simulations
+
+##### avection to the right #########
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
-# or init_particles!( wave_model, defaults= wave_model.ODEdefaults, verbose = wave_simulation.verbose )
-
-function set_u_and_t!(integrator, u_new, t_new)
-    integrator.u = u_new
-    integrator.t = t_new
-end
-
 
 hs = 1 # meter
 energy = (hs / 4)^2
-c_g = 5 # m/s
+c_g = 10 # m/s
 
-for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 2 / 3)), step=1)
-
+for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
     PII = wave_model.ParticleCollection[i].ODEIntegrator
     ui = [log(energy), c_g, PII.u[3]]
-    set_u_and_t!(PII, ui, PII.t)
+    PII.u = ui
     u_modified!(PII, true)
+    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
     @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
 end
 
-wave_simulation.model.State[5:15, 1]
-wave_simulation.model.State[5:15, 1] / wave_simulation.model.State[5:15, 2] / 2
+run!(wave_simulation, store=false, cash_store=true, debug=false)
 
-
-
-#### 
-# add flag if initial conditions are written to state vector and storage
-# make rountine that write particle initial conditions to state vector and storage
-# reset State vetor each time step!!
-####
-
-
-pp1 = [log(energy), c_g, 0.0]
-state1 = core_1D.GetParticleEnergyMomentum(pp1)
-state1
-# using core_1D
-# for i in 1:1e4
-#     state1 = core_1D.GetParticleEnergyMomentum(pp1)
-#     pp2 = core_1D.GetVariablesAtVertex(state1, 0.0)
-#     @info pp1 -  pp2
-#     pp1 = pp2
-# end
-# using DifferentialEquations
-# step!(wave_model.ParticleCollection[1].ODEIntegrator, DT, true)
-# wave_model.ParticleCollection[1].ODEIntegrator.u
-
-# wave_model.ParticleCollection[10].ODEIntegrator.u
-# step!(wave_model.ParticleCollection[10].ODEIntegrator, DT*10, true)
-# wave_model.ParticleCollection[10].ODEIntegrator.u
-
-#plot(wave_model.State[:, 2])
-
-#using storing: init_state_store!
-#init_state_store!(wave_simulation, save_path)
-
-run!(wave_simulation, store=false, cash_store=true, debug=true)
-
-#reset_simulation!(wave_simulation)
-# wave_simulation.stop_time = Inf
-# run!(wave_simulation, store=false)
-
-@info "... finished\n"
-
-# %% open wave_simulation.store and plot variables
-## when using cash store
-get_1d_data(store::Vector{Any}) = permutedims(cat(store..., dims=3), (3, 1, 2))
-store_waves_data = get_1d_data(wave_simulation.store.store);
-wave_x = OneDGridNotes(wave_model.grid).x;
-wave_time = collect(range(wave_simulation.Δt, wave_simulation.stop_time + wave_simulation.Δt, step=wave_simulation.Δt));
-
-# when using state store
-# convert HDF5 data to Array
-# store_waves_data = Array(wave_simulation.store.store["data"])
-# wave_x = wave_simulation.store.store["x"][:]
-# wave_time = wave_simulation.store.store["time"][:]
-
-
-store_waves_energy = store_waves_data[:, :, 1];
-store_waves_mx = store_waves_data[:, :, 2];
-store_waves_my = store_waves_data[:, :, 3];
-#print(wave_simulation.store.store["var_names"][:])
-
-cg = store_waves_energy ./ store_waves_mx ./ 2
-
-store_waves_energy[2, 9:12]
-#contourf(wave_x / dx, wave_time / DT, store_waves_my, levels=20, colormap=:blues)
-#contourf(wave_x / dx, wave_time / DT, store_waves_mx, levels=20, colormap=:blues)
-
-#heatmap(wave_x / dx, wave_time / DT, store_waves_energy, levels=20, colormap=:blues)
-
-heatmap(wave_x / dx, wave_time / DT, cg, levels=20, colormap=:blues)
-#heatmap(wave_x / dx, wave_time / DT, store_waves_energy, levels=20, colormap=:blues)
-#heatmap(wave_x / dx, wave_time / DT, store_waves_energy, levels=20, colormap=:blues)
-plot!(xlabel="x (dx)", ylabel="time (DT)", title="cg") |> display
-
-
-# %% plot failed particles, if there any
-using ParticleTools
-if ~isempty(wave_simulation.model.FailedCollection)
-    @printf "plot failed particles\n"
-    ParticleTools.PlotFailedParticles(wave_simulation.model.FailedCollection, Array(wave_simulation.store.store["data"]), ID, DT, dx,
-        savepath=false, Npar=4)
-
+function convert_state_store_to_array(store::Vector{Any})
+    store_data = cat(store..., dims=3)
+    store_waves_data = permutedims(store_data, (3, 1, 2))
+    wave_x = OneDGridNotes(wave_model.grid).x
+    wave_time = collect(range(0, wave_simulation.stop_time + wave_simulation.Δt, step=wave_simulation.Δt))
+    return (data=store_waves_data, x=wave_x, time=wave_time)
 end
 
+function plot_results(wave_simulation)
+    output = convert_state_store_to_array(wave_simulation.store.store)
 
-### ------------ up to here ----------------------
+    store_waves_energy = output.data[:, :, 1]
+    store_waves_mx = output.data[:, :, 2]
+    #store_waves_my = output.data[:, :, 3];
+    cg = store_waves_energy ./ store_waves_mx ./ 2
 
-# %% Statistics
-PI = wave_simulation.model.ParticleCollection[10]
-ParticleInCell.compute_weights_and_index(wave_model.grid, PI.ODEIntegrator.u[1])
+    # ## make a three panel plot for energy, mx, and cg 
+    plot(heatmap(output.x / dx, output.time / DT, store_waves_energy, levels=20, colormap=:blues),
+        heatmap(output.x / dx, output.time / DT, store_waves_mx, levels=20, colormap=:blues),
+        heatmap(output.x / dx, output.time / DT, cg, levels=40, colormap=:blues),
+        layout=(3, 1), size=(400, 800), title=["energy" "mx" "cg"], xlabel="x (dx)", ylabel="time (DT)") |> display
+end
 
-
-store_waves_data = wave_simulation.store.store["data"]
-
-energy = store_waves_data[end-1, :, 1] # State_collect[end-1][:,1] #GP.sel(state= 0 ).T # energy
-m_x = store_waves_data[end-1, :, 2] # State_collect[end-1][:,2] #GP.sel(state= 1 ).T # energy
-cg = energy ./ m_x ./ 2 # c_g
-
-
-# %% Checks
-@printf "\n size of collected states %s" size(store_waves_data)
-@printf "\n size of each state  %s" size(store_waves_data[1, :, :])
-@printf "\n length of timerange  %s" size(wave_simulation.store.store["time"])
-
-# %% Saving Fields
-@printf " write attributes to store and close \n"
-
-mkpath(save_path)
-@printf "created model run folder %s \n" save_path
-
-# for i in 1:length(State_collect)
-#         store_waves_data[i,:,:] = State_collect[i]
-# end
+plot_results(wave_simulation)
 
 
-# %% Save Winds
-forcing = (u=wind_grid.u, v=nothing)
-coords = (x=wind_grid.x, time=wind_grid.t)
+# %%
+##### avection to the left #########
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
+initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
-add_winds_forcing_to_store!(wave_simulation.store, forcing, coords)
-show_stored_data(wave_simulation)
-close_store!(wave_simulation)
+hs = 1 # meter
+energy = (hs / 4)^2
+c_g = -10 # m/s
+
+for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
+    PII = wave_model.ParticleCollection[i].ODEIntegrator
+    ui = [log(energy), c_g, PII.u[3]]
+    PII.u = ui
+    u_modified!(PII, true)
+    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
+    @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
+end
+
+run!(wave_simulation, store=false, cash_store=true, debug=false)
+plot_results(wave_simulation)
+
+# %%
+##### avection to the left #########
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
+initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+
+hs = 1 # meter
+energy = (hs / 4)^2
+c_g = 0.0001 # m/s
+
+for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
+    PII = wave_model.ParticleCollection[i].ODEIntegrator
+    ui = [log(energy), c_g, PII.u[3]]
+    PII.u = ui
+    u_modified!(PII, true)
+    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
+    @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
+end
+
+run!(wave_simulation, store=false, cash_store=true, debug=false)
+plot_results(wave_simulation)
 
 
-# %% Save Particles
-@printf "save particle \n"
-save_object(joinpath(save_path, "particles.jld2"), wave_simulation.model.ParticleCollection)
-
+@info "... finished\n"
 
 # %%

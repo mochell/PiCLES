@@ -6,20 +6,16 @@ import Plots as plt
 using Setfield
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
-push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-push!(LOAD_PATH, joinpath(pwd(), "code/Simulations"))
 
-import particle_waves_v4#: particle_equations, ODESettings
-PW4 = particle_waves_v4
+using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 
-import FetchRelations, ParticleTools
-using core_2D: ParticleDefaults, InitParticleInstance, InitParticleState
-using TimeSteppers
+import PiCLES.Utils: FetchRelations, ParticleTools
+using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, InitParticleState
+using PiCLES.Operators: TimeSteppers
+using PiCLES.Simulations
 
 using ParticleMesh: TwoDGrid, TwoDGridNotes
-using WaveGrowthModels2D
-
-using Simulations
+using PiCLES.Models.WaveGrowthModels2D
 
 using Oceananigans.TimeSteppers: Clock, tick!
 import Oceananigans: fields
@@ -66,7 +62,6 @@ particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=t
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = Dict(      r_g => r_g0, C_α => Const_Scg.C_alpha, 
                                     C_φ => Const_ID.c_β, C_e => Const_ID.C_e);
-
 
 # define setting and standard initial conditions
 cg_u_local                  = 0.1#FetchRelations.c_g_U_tau(U10, DT) / 1
@@ -124,18 +119,18 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D( ;grid = grid,
                                 ODEdefaults       = particle_defaults,  # default_ODE_parameters
                                 periodic_boundary = periodic_boundary)
 
-#Revise.retry()
+Revise.retry()
 
 ### build Simulation
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=3hours)
-initialize_simulation!(wave_simulation, defaults=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation, particle_initials= copy(wave_model.ODEdefaults) )
 
 #init_state_store!(wave_simulation, save_path)
 
 
 #reset_simulation!(wave_simulation)
 ## run simulation
-#run!(wave_simulation, store=false)
+run!(wave_simulation, store=false)
 
 #wave_simulation.stop_time += 1hour
 

@@ -10,7 +10,7 @@ using ModelingToolkit: get_states
 #using core_1D: MarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
-using core_1D: ParticleDefaults as ParticleDefaults1D
+using PiCLES.Operators.core_1D: ParticleDefaults as ParticleDefaults1D
 
 using SharedArrays
 using Printf
@@ -19,7 +19,7 @@ import Oceananigans: fields
 using Oceananigans.TimeSteppers: Clock, tick!
 
 
-using mapping_1D
+using PiCLES.Operators.mapping_1D
 #includet("mapping_1D.jl")
 
 function Base.show(io::IO, ow::AbstractModel)

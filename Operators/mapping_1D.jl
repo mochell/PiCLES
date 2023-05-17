@@ -5,14 +5,16 @@ using ParticleMesh: OneDGrid, OneDGridNotes
 using Printf
 
 import ParticleInCell
-import FetchRelations
+
+#include("../Utils/FetchRelations.jl")
+import .FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
 
-using core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleState
+using ..core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleState
 
 using DifferentialEquations
-using particle_waves_v3: ODESettings
+using ..particle_waves_v3: ODESettings
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
 
 
@@ -60,7 +62,8 @@ Pushes node value to particle:
 function NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix, ti::Number, u_init::Number, defaults::PP, e_min_log::Number, DT::Float64) where {PP<:Union{Dict,Nothing}}
         u_state = Get_u_FromShared(PI, S)
 
-        last_t = ti #PI.ODEIntegrator.t
+        #last_t = ti 
+        last_t = PI.ODEIntegrator.t
 
         # test if particle is below energy threshold, or
         #      if particle is at the boundary

@@ -2,8 +2,8 @@ module TimeSteppers
 
 export time_step!
 using Architectures
-using mapping_1D
-using mapping_2D
+using ..mapping_1D
+using ..mapping_2D
 
 using Oceananigans.TimeSteppers: tick!
 
@@ -35,7 +35,10 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
     if debug
             model.FailedCollection = FailedCollection
             @info "advanced: "
-            @info model.State[8:12, 1], model.State[8:12, 2]
+            #@info model.State[8:12, 1], model.State[8:12, 2]
+            @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
+            @info model.winds(model.ParticleCollection[10].ODEIntegrator.u[3], model.ParticleCollection[10].ODEIntegrator.t)
+
     end
 
     #@printf "re-mesh"
@@ -45,7 +48,9 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
 
     if debug
             @info "remeshed: "
-            @info model.State[8:12, 1], model.State[8:12, 2]
+            #@info model.State[8:12, 1], model.State[8:12, 2]
+            @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
+
     end
 
     tick!(model.clock, Δt)

@@ -1,19 +1,19 @@
 
 using ModelingToolkit: Num
-using core_1D: ParticleDefaults
+using PiCLES.Operators.core_1D: ParticleDefaults
 
-using core_1D: SeedParticle! as SeedParticle1D!
-using core_2D: SeedParticle! as SeedParticle2D!
+using PiCLES.Operators.core_1D: SeedParticle! as SeedParticle1D!
+using PiCLES.Operators.core_2D: SeedParticle! as SeedParticle2D!
 
 using Architectures: Abstract2DModel, Abstract1DModel
 using ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 #using WaveGrowthModels: init_particles!
 #using WaveGrowthModels2D: init_particles!
-using TimeSteppers
+using PiCLES.Operators.TimeSteppers
 
-using mapping_1D
-using mapping_2D
+using PiCLES.Operators.mapping_1D
+using PiCLES.Operators.mapping_2D
 using Statistics
 
 """
@@ -41,9 +41,27 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
 
         if cash_store
                 sim.store = CashStore([], 1)
+                sim.store.iteration += 1
+                push!(sim.store.store, copy(sim.model.State))
+                if sim.verbose
+                        @info "write inital state to cash store..."
+                end
         end
 
+        if store
+                push_state_to_storage!(sim)
+                sim.store.iteration += 1
+                if sim.verbose
+                        @info "write inital state to store..."
+                end
+        end
+
+
         while sim.running
+
+                #reset State
+                sim.model.State .= 0.0
+                # do time step
                 time_step!(sim.model, sim.Δt, debug=debug)
 
                 if debug & (length(sim.model.FailedCollection) > 0)

@@ -5,13 +5,14 @@ using ParticleMesh: TwoDGrid, TwoDGridNotes
 using Printf
 
 import ParticleInCell as PIC
-import FetchRelations
+import .FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
-using core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
+using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
 using DifferentialEquations
-using particle_waves_v3: ODESettings
+using ..particle_waves_v3: ODESettings
+
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
 ###### remeshing routines ############
 
