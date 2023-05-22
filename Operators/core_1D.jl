@@ -10,8 +10,8 @@ using DocStringExtensions
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
 export InitParticleState, ResetParticleState
 
-include("../Utils/FetchRelations.jl")
-using .FetchRelations
+
+using FetchRelations
 
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
@@ -191,13 +191,15 @@ function InitParticleState(
     # take in local wind velocities
 
     if defaults == nothing
+        #@info "init particles from fetch relations: $z_i"
         particle_defaults = Dict{Num,Float64}()
 
         u_init = u(gridnote.x[i], 0)
         # seed particle given fetch relations
-        particle_defaults[c̄_x] = sign(u_init) * FetchRelations.c_g_U_tau(abs(u_init), DT)
-        particle_defaults[lne] = log(FetchRelations.Eⱼ(abs(u_init), DT))
-        #@info "init particles from fetch relations: $z_i"
+        WindSeaMin = FetchRelations.get_initial_windsea(u_init, DT) # takes u_init just for the sign.
+        particle_defaults[lne] = log(WindSeaMin["E"])
+        particle_defaults[c̄_x] = WindSeaMin["cg_bar"]
+
     else
         particle_defaults = defaults#deepcopy(defaults)
     end
@@ -225,13 +227,13 @@ function ResetParticleState(
     u_rn::Number, DT; vector=true) where {PP<:Union{Dict,Nothing}}
     # take in local wind velocities
 
-    if defaults == nothing
+    if defaults == nothing # this is boundary_defaults = "wind_sea"
         particle_defaults = Dict{Num,Float64}()
-
-        # seed particle given fetch relations
-        particle_defaults[c̄_x] = sign(u_rn) * FetchRelations.c_g_U_tau(abs(u_rn), DT)
-        particle_defaults[lne] = log(FetchRelations.Eⱼ(abs(u_rn), DT))
         #@info "init particles from fetch relations: $z_i"
+        # seed particle given fetch relations
+        WindSeaMin = FetchRelations.get_initial_windsea(u_rn, DT) # takes u_init just for the sign.
+        particle_defaults[c̄_x] = WindSeaMin["cg_bar"]
+        particle_defaults[lne] = log(WindSeaMin["E"])
     else
         particle_defaults = defaults#deepcopy(defaults)
     end

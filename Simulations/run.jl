@@ -16,6 +16,14 @@ using PiCLES.Operators.mapping_1D
 using PiCLES.Operators.mapping_2D
 using Statistics
 
+function mean_of_state(model::Abstract2DModel)
+        return mean(model.State[:, :, 1])
+end
+
+function mean_of_state(model::Abstract1DModel)
+        return mean(model.State[:, 1])
+end
+
 """
 run!(sim::Simulation; store = false, pickup=false)
 main method to run the Simulation sim.
@@ -62,8 +70,9 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                 #reset State
                 sim.model.State .= 0.0
                 # do time step
+                
                 time_step!(sim.model, sim.Δt, debug=debug)
-
+                
                 if debug & (length(sim.model.FailedCollection) > 0)
                         @info "debug mode:"
                         @info "found failed particles"
@@ -89,7 +98,7 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                         sim.store.iteration += 1
                         if sim.verbose
                                 @info "write state to cash store..."
-                                print("mean energy ", mean(sim.store.store[end][:, 1]), "\n")
+                                print("mean energy ", mean_of_state(sim.model), "\n")
                         end
 
                 end
@@ -176,7 +185,7 @@ initialize the model.ParticleCollection based on the model.grid and the defaults
 If defaults is nothing, then the model.ODEdev is used.
 usually the initilization uses wind constitions to seed the particles.
 """
-function init_particles!(model::Abstract2DModel; defaults::T=copy(model.ODEdefaults), verbose::Bool=false) where {T<:Union{Dict,Nothing}}
+function init_particles!(model::Abstract2DModel; defaults::T=nothing, verbose::Bool=false) where {T<:Union{Dict,Nothing}}
         #defaults        = isnothing(defaults) ? model.ODEdev : defaults
         if verbose
                 @info "seed PiCLES ... \n"

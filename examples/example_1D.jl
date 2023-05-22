@@ -8,7 +8,6 @@ using Statistics
 using JLD2, Printf,IfElse
 using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 
-# %%
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 using ParticleMesh: OneDGrid, OneDGridNotes
 using PiCLES.Operators.core_1D: ParticleDefaults
@@ -23,9 +22,12 @@ using Oceananigans.TimeSteppers: Clock, tick!
 import Oceananigans: fields
 using Oceananigans.Units
 
+plot_path_base = "plots/examples/example_1D/"
+mkpath(plot_path_base)
+
 # %%
 # parametric wind forcing
-U10, V = 10, 5 #m/s
+U10, V = 15, 5 #m/s
 #  rescale parameters for the right units.
 T = 2days#24 * 2 * 60 * 60 # seconds
 Lx = 1500kilometer# * 10e3  # km
@@ -60,7 +62,7 @@ contourf(wind_grid.x / dx, wind_grid.t / DT, transpose(wind_grid.u))
 plot!(xlabel="x", ylabel="time") |> display
 
 # -------------- start model definition -------------------------
-
+Revise.retry()
 # %% Load Particle equations and derive ODE system
 particle_equations = PW.particle_equations(u, γ=Const_ID.γ, q=Const_ID.q)
 @named particle_system = ODESystem(particle_equations)
@@ -71,10 +73,12 @@ t, x, c̄_x, lne, r_g, C_α, g, C_e = PW.init_vars_1D()
 # %% define storing stucture and populate inital conditions
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha, C_e => Const_ID.C_e)
 
+WindSeaMin = FetchRelations.get_minimal_windsea(U10, DT)
+
 ODE_settings = PW.ODESettings(
         Parameters=default_ODE_parameters,
         # define mininum energy threshold
-        log_energy_minimum=log(FetchRelations.Eⱼ(0.1, DT)),
+        log_energy_minimum=log(WindSeaMin["E"]),
         #maximum energy threshold
         log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
         saving_step=dt_ODE_save,
@@ -86,8 +90,9 @@ ODE_settings = PW.ODESettings(
         force_dtmin=true,
 )
 
+
 # Default values for particle
-particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(1.0, DT)), 2e-1, 0.0)
+particle_defaults = ParticleDefaults(log(WindSeaMin["E"]), WindSeaMin["cg_bar"], 0.0)
 
 # Define wavemodel 
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
@@ -102,11 +107,12 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 )
 
 # %% initialize Simulation 
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=46hours)
-initialize_simulation!(wave_simulation, particle_initials=nothing)#wave_model.ODEdefaults)
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=4hours)
+initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
 # run simulation
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 @info "... finished\n"
 
 Plotting.plot_results(wave_simulation, wind_grid=wind_grid)
+savefig(joinpath([plot_path_base, "Example_1D_time_varying.png"]))

@@ -30,9 +30,9 @@ using PiCLES.Operators.core_1D: GetParticleEnergyMomentum, init_z0_to_State!
 # %%
 # Default values
 save_path_base = "data/1D_gaussian/"
-plot_path_base = "plots/static/"
-
-parset = "1D_varying/"
+plot_path_base = "plots/tests/T03_PIC_propagation-1d/"
+mkpath(plot_path_base)
+#savefig(joinpath(plot_path_base, "PW3_vs_PW4.png"))
 
 # parametric wind forcing
 U10, V = 10, 5 #m/s
@@ -57,10 +57,10 @@ grid1d = OneDGrid(1e3, Lx - 1e3, Nx)
 # create ID and save name
 ID = "empl_eq_v4"
 #save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
-save_path = save_path_base * parset * "/" * ID * "/"
-plot_path = plot_path_base * parset * "/"
+#save_path = save_path_base * parset * "/" * ID * "/"
+#plot_path = plot_path_base * parset * "/"
 
-mkpath(save_path)
+##mkpath(save_path)
 # %%
 @info "Init Forcing Field\n"
 # create wind test fucntion
@@ -71,15 +71,7 @@ x_scale = 600e3
 t_scale = (60 * 60 * 24 * 1.5)
 dx = 5e3
 
-fake_winds(x, t) = U10 + x * 0 + t * 0# 
-
-wind_grid = WindEmulator.IdealizedWindGrid(fake_winds, (Lx=Lx, T=T), (dx=dx, dt=DT))
-
-# % define wind forcing globally as interp functions
-interp_winds = WindEmulator.wind_interpolator(wind_grid);
-
-#convert to registered_symbolic need foir ODESystem
-u(x, t) = interp_winds.u(x, t)
+u(x, t) = U10 + x * 0 + t * 0# 
 
 # -------------- start model definition -------------------------
 # %% Load Particle equations and derive ODE system
@@ -89,16 +81,19 @@ u(x, t) = interp_winds.u(x, t)
 particle_equations = PW.particle_rays()
 @named particle_system = ODESystem(particle_equations)
 
-
 # define variables based on particle equation
 t, x, c̄_x, lne, r_g, C_α, g, C_e = PW.init_vars_1D()
 
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha, C_e => Const_ID.C_e)
 
+WindSeamin = FetchRelations.get_minimal_windsea(U10, DT)
+particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
+#particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
+
 ODE_settings = PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
-    log_energy_minimum=log(FetchRelations.Eⱼ(0.1, DT)),
+    log_energy_minimum=log(WindSeamin["E"]),
     #maximum energy threshold
     log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
     saving_step=dt_ODE_save,
@@ -110,11 +105,6 @@ ODE_settings = PW.ODESettings(
     force_dtmin=true,
 )
 
-
-# Default values for particle
-hs = 0.2 # meter
-particle_defaults = ParticleDefaults(log((hs / 4)^2), 1, 0.0)
-#particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
 
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     winds=u,
@@ -131,28 +121,8 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 #using storing: init_state_store!, push_state_to_storage!
 #using Simulations: Simulation
 
+# %
 Revise.retry()
-
-# %% run simulations
-
-##### avection to the right #########
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
-
-hs = 1 # meter
-energy = (hs / 4)^2
-c_g = 10 # m/s
-
-for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
-    PII = wave_model.ParticleCollection[i].ODEIntegrator
-    ui = [log(energy), c_g, PII.u[3]]
-    PII.u = ui
-    u_modified!(PII, true)
-    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
-    @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
-end
-
-run!(wave_simulation, store=false, cash_store=true, debug=false)
 
 function convert_state_store_to_array(store::Vector{Any})
     store_data = cat(store..., dims=3)
@@ -162,7 +132,7 @@ function convert_state_store_to_array(store::Vector{Any})
     return (data=store_waves_data, x=wave_x, time=wave_time)
 end
 
-function plot_results(wave_simulation)
+function plot_results(wave_simulation; title_m="title")
     output = convert_state_store_to_array(wave_simulation.store.store)
 
     store_waves_energy = output.data[:, :, 1]
@@ -174,24 +144,22 @@ function plot_results(wave_simulation)
     plot(heatmap(output.x / dx, output.time / DT, store_waves_energy, levels=20, colormap=:blues),
         heatmap(output.x / dx, output.time / DT, store_waves_mx, levels=20, colormap=:blues),
         heatmap(output.x / dx, output.time / DT, cg, levels=40, colormap=:blues),
-        layout=(3, 1), size=(400, 800), title=["energy" "mx" "cg"], xlabel="x (dx)", ylabel="time (DT)") |> display
+        layout=(3, 1), size=(400, 800), title=[title_m * "  | energy" "mx" "cg"], xlabel="x (dx)", ylabel="time (DT)") |> display
 end
 
-plot_results(wave_simulation)
+# % run simulations
 
-
-# %%
-##### avection to the left #########
+##### avection to the right #########
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
-hs = 1 # meter
-energy = (hs / 4)^2
-c_g = -10 # m/s
+WindSea2 = FetchRelations.get_initial_windsea(U10, 3hours)
+cg_bar = round(WindSea2["cg_bar"])
+cg_bar_min = sign(WindSeamin["cg_bar"])
 
 for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
     PII = wave_model.ParticleCollection[i].ODEIntegrator
-    ui = [log(energy), c_g, PII.u[3]]
+    ui = [WindSea2["E"], WindSea2["cg_bar"], PII.u[3]]
     PII.u = ui
     u_modified!(PII, true)
     init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
@@ -199,20 +167,23 @@ for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2))
 end
 
 run!(wave_simulation, store=false, cash_store=true, debug=false)
-plot_results(wave_simulation)
+
+#output = convert_state_store_to_array(wave_simulation.store.store)
+plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
+savefig(joinpath(plot_path_base, "test1_forward.png"))
 
 # %%
 ##### avection to the left #########
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
-hs = 1 # meter
-energy = (hs / 4)^2
-c_g = 0.0001 # m/s
+WindSea2 = FetchRelations.get_initial_windsea(-U10, 3hours)
+cg_bar = round(WindSea2["cg_bar"])
+cg_bar_min = sign(WindSeamin["cg_bar"])
 
 for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
     PII = wave_model.ParticleCollection[i].ODEIntegrator
-    ui = [log(energy), c_g, PII.u[3]]
+    ui = [WindSea2["E"], WindSea2["cg_bar"], PII.u[3]]
     PII.u = ui
     u_modified!(PII, true)
     init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
@@ -220,9 +191,73 @@ for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2))
 end
 
 run!(wave_simulation, store=false, cash_store=true, debug=false)
-plot_results(wave_simulation)
 
+plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
+savefig(joinpath(plot_path_base, "test1_negative.png"))
+# %%
+##### avection to the left #########
+
+# Default values for particle
+WindSeamin = FetchRelations.get_minimal_windsea(-U10, DT)
+particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
+
+#particle_defaults = ParticleDefaults(log((hs / 4)^2), 0.001, 0.0)
+#particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
+
+wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
+    winds=u,
+    ODEsys=particle_system,
+    ODEvars=PW.init_vars_1D(),
+    layers=1,
+    ODEsets=ODE_settings,  # ODE_settings
+    ODEdefaults=particle_defaults,  # default_ODE_parameters
+    periodic_boundary=false,
+    boundary_type="default"
+)
+
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
+initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+
+WindSea2 = FetchRelations.get_initial_windsea(U10, 3hours)
+cg_bar = round(WindSea2["cg_bar"])
+cg_bar_min = sign(WindSeamin["cg_bar"])
+
+for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
+    PII = wave_model.ParticleCollection[i].ODEIntegrator
+    ui = [WindSea2["E"], cg_bar, PII.u[3]]
+    #ui = [log(energy), c_g, PII.u[3]]
+    PII.u = ui
+    u_modified!(PII, true)
+    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
+    @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
+end
+
+run!(wave_simulation, store=false, cash_store=true, debug=false)
+#title!("cg=-2 m/s, env cg = 0.001")
+plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
+savefig(joinpath(plot_path_base, "test2_forward.png"))
+
+# %%
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
+initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+
+WindSea2 = FetchRelations.get_initial_windsea(-U10, 3hours)
+cg_bar = round(WindSea2["cg_bar"])
+cg_bar_min = sign(WindSeamin["cg_bar"])
+
+for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2)), step=1)
+    PII = wave_model.ParticleCollection[i].ODEIntegrator
+    ui = [WindSea2["E"], WindSea2["cg_bar"], PII.u[3]]
+    PII.u = ui
+    u_modified!(PII, true)
+    init_z0_to_State!(wave_model.State, i, GetParticleEnergyMomentum(ui))
+    @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
+end
+
+run!(wave_simulation, store=false, cash_store=true, debug=false)
+
+plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
+savefig(joinpath(plot_path_base, "test2_negative.png"))
 
 @info "... finished\n"
-
 # %%

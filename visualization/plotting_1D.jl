@@ -4,7 +4,7 @@ using Plots
 plot_results(wave_simulation::Simulation; wind_grid=nothing)
     plot the results of a simulation in a simple way
 """
-function plot_results(wave_simulation; wind_grid=nothing)
+function plot_results(wave_simulation; wind_grid=nothing, title="")
     output = convert_store_to_tuple(wave_simulation.store, wave_simulation)
 
     store_waves_energy = output.data[:, :, 1]
@@ -28,7 +28,7 @@ function plot_results(wave_simulation; wind_grid=nothing)
         contour!(p3, wind_grid.x / dx, wind_grid.t / DT, transpose(wind_grid.u) / 3, levels=5, colormap=:black)
     end
 
-    plot(p1, p2, p3, layout=(3, 1), size=(600, 1200), title=["energy" "mx" "cg"], xlabel="x (dx)", ylabel="time (DT)", left_margin=10 * Plots.mm) |> display
+    plot(p1, p2, p3, layout=(3, 1), size=(600, 1200), title=[title * "\nEnergy" "mx" "cg"], xlabel="x (dx)", ylabel="time (DT)", left_margin=10 * Plots.mm) |> display
 
 end
 

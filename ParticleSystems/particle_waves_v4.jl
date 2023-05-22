@@ -184,9 +184,13 @@ e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c
 H_β(α::Number, p::Number; α_thresh=0.85) = 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
 Δ_β(α::Number; α_thresh=0.85) = (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
 
-
+"""
 function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
-        c_gp = c̄ ./ r_g
+returns a vecotr with conversions between c̄, c_gp, kₚ, and ωₚ
+al returned values are positive
+"""
+function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
+        c_gp = abs(c̄) ./ r_g
         kₚ = g ./ (4.0 .* c_gp^2)
         ωₚ = g ./ (2.0 .* c_gp)
         [c_gp, kₚ, ωₚ]
@@ -329,7 +333,7 @@ function particle_equations(u; γ::Number=0.88, q::Number=-1 / 4.0,
 
         # trig-values # we only use scalers, not vectors
         c̄ = c̄_x
-        u_speed = u
+        u_speed = abs(u)
 
         # peak parameters
         c_gp, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)

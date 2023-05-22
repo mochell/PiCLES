@@ -147,7 +147,7 @@ function Gₙ(dphi_p::Number, dn::Number, dn_0::Number; dg_ratio::Float64=0.21)
 end
 
 function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
-        c_gp = c̄ ./ r_g
+        c_gp = abs(c̄) ./ r_g
         kₚ = g ./ (4.0 .* c_gp^2)
         ωₚ = g ./ (2.0 .* c_gp)
         [c_gp, kₚ, ωₚ]
@@ -363,7 +363,7 @@ function particle_equations(u, u_x; γ::Number=0.88, q::Number=-1 / 4.0)
         # trig-values # we only use scalers, not vectors
 
         c̄ = c̄_x
-        u_speed = u
+        u_speed = abs(u)
 
         # peak parameters
         c_gp, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)

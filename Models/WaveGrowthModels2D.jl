@@ -63,7 +63,8 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
                         bl_flag,
                         bl,
                         wnds,
-                        cur} <: Abstract2DModel
+                        cur,
+                        Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}}
     grid::Grid
     layers::Lay      # number of layers used in the model, 1 is eneough
     timestepper::Tim      # silly Oceananigans
@@ -84,6 +85,8 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
 
     winds::wnds     # u, v, if needed u_x, u_y
     currents::cur      # u, v, currents
+
+    MovieState::Mstat     # state of of the model. Only used for producing movieframes
 
 end
 
@@ -131,7 +134,8 @@ function WaveGrowth2D(; grid::TwoDGrid,
     ODEdefaults::ParticleDefaults2D=nothing,  # default_ODE_parameters
     currents=nothing,  # 
     periodic_boundary=true,
-    CBsets=nothing)
+    CBsets=nothing,
+    movie=false)
 
     # initialize state {SharedArray} given grid and layers
     # Number of state variables 
@@ -143,7 +147,11 @@ function WaveGrowth2D(; grid::TwoDGrid,
     end
 
     # initliaze boundary points (periodic_boundary)
-    boundary = mark_boundary(grid)
+    if ~periodic_boundary  # if false, define boundary points here:
+        boundary = boundary = mark_boundary(grid)
+    else
+        boundary = []
+    end
     ODEdev = copy(ODEdefaults)
 
     ParticleCollection = []
@@ -157,6 +165,11 @@ function WaveGrowth2D(; grid::TwoDGrid,
 
     # check dimensions of all components:
     # check Nstate ODEvars
+    if movie
+        Mstat = State
+    else
+        Mstat = nothing
+    end
 
     # return WaveGrowth1D structure
     return WaveGrowth2D(
@@ -172,7 +185,8 @@ function WaveGrowth2D(; grid::TwoDGrid,
         ODEsets,
         ODEdev, periodic_boundary,
         boundary, winds,
-        currents)
+        currents,
+        Mstat)
 end
 
 
