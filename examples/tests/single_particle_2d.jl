@@ -5,23 +5,22 @@ using Setfield
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
-
 using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 
-import PiCLES.Utils: FetchRelations, ParticleTools
+import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleState, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
+using Oceananigans.Units
 
 # %% Parameters
 @register_symbolic u(x, y, t)
 @register_symbolic v(x, y, t)
 
-U10, V10 = 8.0, 8.0
-dt_ODE_save = 60 * 20 # 3 min
-DT = Float64(60 * 60) * 12 # seconds
+U10, V10 =  + 5.0, + 5.0
+dt_ODE_save = 60 * 2 # 3 min
+DT = 60 *60 * 12 # seconds
 T = 24 * 24 * 60 * 60 # seconds
 
-#T/DT
 
 # version 3
 r_g0 = 0.85
@@ -34,8 +33,11 @@ Const_Scg = PW4.get_Scg_constants()
 #u(x, y, t) = 0.01 - U10 * sin(t / (6 * 60 * 60 * 2π))
 #v(x, y, t) = 0.01 - V10 * cos(t / (6 * 60 * 60 * 2π))
 
-u(x, y, t) =   (U10 * sin(t / (6 * 60 * 60 * 2π)) + 0.01)
-v(x, y, t) = - (V10 * cos(t / (6 * 60 * 60 * 2π)) + 0.01)
+u(x, y, t) = + U10 + 0.01 + x * 0 + y * 0 + t *0
+v(x, y, t) = + V10 + 0.01 + x * 0 + y * 0 + t *0
+
+# u(x, y, t) =   (U10 * sin(t / (6 * 60 * 60 * 2π)) + 0.01) + x *0 + y * 0
+# v(x, y, t) = - (V10 * cos(t / (6 * 60 * 60 * 2π)) + 0.01) + x * 0 + y * 0
 
 winds = (u=u, v=v)
 
@@ -58,17 +60,13 @@ affect!(integrator) = terminate!(integrator)
 cb = ContinuousCallback(condition, affect!)
 
 # define standard initial conditions
-
-cg_u_local = sign(u(0, 0, 0)) * FetchRelations.c_g_U_tau(abs(u(0, 0, 0)), DT) / 1
-cg_v_local = sign(v(0, 0, 0)) * FetchRelations.c_g_U_tau(abs(v(0, 0, 0)), DT) / 1
-lne_local = log(FetchRelations.Eⱼ(1 * sqrt(u(0, 0, 0)^2 + v(0, 0, 0)^2), DT))
-
-
+WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), 30minutes)
+#WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), 20minutes)
 
 ODE_settings = PW4.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
-    log_energy_minimum=lne_local,#log(FetchRelations.Eⱼ(0.1, DT)),
+    log_energy_minimum=log(WindSeamin["E"]),
     #maximum energy threshold
     log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
     saving_step=dt_ODE_save,
@@ -84,7 +82,7 @@ ODE_settings = PW4.ODESettings(
 )
 
 grid = TwoDGrid(3, 3, 3, 3)
-particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_u_local, cg_v_local, 0.0, 0.0)
+particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
 
 # initialize particle given the wind conditions:
 #ParticleState = InitParticleState(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
@@ -100,7 +98,7 @@ function set_u_and_t!(integrator, u_new, t_new)
 end
 
 #clock_time = 0.0
-for i in Base.Iterators.take(PI.ODEIntegrator, 20)
+for i in Base.Iterators.take(PI.ODEIntegrator, 2)
     #@info "t:", PI.ODEIntegrator.t
     #@info "u:", PI.ODEIntegrator.u
     #@info "i:", i
@@ -117,8 +115,8 @@ for i in Base.Iterators.take(PI.ODEIntegrator, 20)
     #ui = [log(exp(PI.ODEIntegrator.u[1]) * 0.5), PI.ODEIntegrator.u[2] / 2, PI.ODEIntegrator.u[3] / 2, 0.0, 0.0]
     #ui = [lne_local, cg_u_local, cg_v_local, 0.0, 0.0]
     #ui = PI.ODEIntegrator.u
-    #ui = [lne_local, cg_u_local*0.1, cg_v_local*0.1, PI.ODEIntegrator.u[4]/2, PI.ODEIntegrator.u[5]/2]
-    ui = [log(exp(PI.ODEIntegrator.u[1]) * 1), PI.ODEIntegrator.u[2], PI.ODEIntegrator.u[3], 0.0, 0.0]
+    ui = [log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0]
+    #ui = [PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2], PI.ODEIntegrator.u[3], 0.0, 0.0]
     set_u_and_t!(PI.ODEIntegrator, ui, last_t)
     # #set_u!(PI.ODEIntegrator, ui)
     #reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)
@@ -144,9 +142,7 @@ p2 = plot(PID[tsub, 3], PID[tsub, 4], marker=3, markershape=:square, title="cg v
 
 # plot!(p1, PID[tsub, 1] / (60 * 60), FetchRelations.Eⱼ.(0.3 * abs(U10), PID[tsub, 1]) , marker=2, title="e", xlabel="time", ylabel="e", label="Fetch relations") #|> display
 
-
 # plot!(p1, PID[tsub, 1] / (60 * 60), u.(0, 0, PID[tsub, 1]), marker=2, title="e", xlabel="time", ylabel="e", label="Fetch relations") #|> display
-
 #plot!(p2, PID3[tsub3, 3], PID3[tsub3, 4], marker=2, title="cg vector", xlabel="x", ylabel="y", label="V3") #|> display
 
 axlim = 15

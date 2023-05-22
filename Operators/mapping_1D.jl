@@ -7,7 +7,7 @@ using Printf
 import ParticleInCell
 
 #include("../Utils/FetchRelations.jl")
-import .FetchRelations
+import FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
 
@@ -78,12 +78,11 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix, ti::Numb
 
                 #u_init       = u(PI.position_xy[1], ti)
                 # derive local wave speed and direction
-                # cg_local = FetchRelations.c_g_U_tau(abs(u_init), DT)
-                # lne_local = log(FetchRelations.Eⱼ(abs(u_init), DT))
-
                 # ui = [lne_local, cg_local, PI.position_xy[1]]
+
+                # defaults = nothing: replace with wind sea
+                # defaults = dict : dict values
                 ui = ResetParticleState(defaults, PI, u_init, DT)
-                #@info ui
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
                 set_t!(PI.ODEIntegrator, last_t)
                 u_modified!(PI.ODEIntegrator, true)
@@ -198,6 +197,7 @@ function advance!(PI::AbstractParticleInstance,
                 u_modified!(PI.ODEIntegrator, true)
         end
 
+        # push particle to grid
         ParticleToNode!(PI, S, G, periodic_boundary)
         return PI
 end

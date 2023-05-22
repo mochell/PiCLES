@@ -17,7 +17,7 @@ using Printf
 
 import Oceananigans: fields
 using Oceananigans.TimeSteppers: Clock, tick!
-
+using FetchRelations 
 
 using PiCLES.Operators.mapping_1D
 #includet("mapping_1D.jl")
@@ -135,6 +135,7 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
     @info "use wind_sea boundary"
   elseif boundary_type == "zero"
     @info "use zero boundary"
+    #FetchRelations.get_minimal_windsea(u(0, 0), ODEsets.DT)
     boundary_defaults = copy(ParticleDefaults1D(-11.0, 1e-3, 0.0))
   elseif boundary_type == "default"
     @info "use default value boundary"

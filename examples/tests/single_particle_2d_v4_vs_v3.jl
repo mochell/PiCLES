@@ -9,7 +9,7 @@ push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 
-import PiCLES.Utils: FetchRelations, ParticleTools
+import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleState, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 

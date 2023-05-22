@@ -36,6 +36,9 @@ include("Architectures.jl")
 include("ParticleSystems/ParticleSystems.jl")
 using .ParticleSystems
 
+include("FetchRelations.jl")
+using .FetchRelations
+
 include("Operators/Operators.jl")
 include("Simulations/Simulations.jl")
 

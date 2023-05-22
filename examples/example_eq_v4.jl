@@ -47,9 +47,9 @@ Const_Scg = PW.get_Scg_constants()
 x_scale = 300kilometer
 t_scale = 0.6 * 1days #(60 * 60 * 24 * 0.6)
 dx = 5kilometer
-fake_winds(x, t) = U10 + x * 0 + t * 0# 
+#fake_winds(x, t) = U10 + x * 0 + t * 0# 
 #fake_winds(x, t) = 0.01 + t * 0 + U10 * IfElse.ifelse.((x .> Lx / 3.0) & (x .< Lx * 2 / 3.0), 1 + 0 .* x, 0 .* x) * IfElse.ifelse.((t .> T / 4.0), 1 + 0 .* t, 0 .* t)
-#fake_winds(x, t) = WindEmulator.slopped_blob(x, t, U10, V, T, x_scale, t_scale)# <: WindEmulationFunction2
+fake_winds(x, t) = WindEmulator.slopped_blob(x, t, U10, V, T, x_scale, t_scale)# <: WindEmulationFunction2
 
 wind_grid = WindEmulator.IdealizedWindGrid(fake_winds, (Lx=Lx, T=T), (dx=dx, dt=DT))
 # % define wind forcing globally as interp functions
@@ -103,7 +103,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 )
 
 # %% initialize Simulation 
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=6hours)
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=40hours)
 initialize_simulation!(wave_simulation, particle_initials=nothing)#wave_model.ODEdefaults)
 
 # run simulation
@@ -111,3 +111,8 @@ run!(wave_simulation, store=false, cash_store=true, debug=false)
 @info "... finished\n"
 
 Plotting.plot_results(wave_simulation)
+
+plot_path_base = "plots/PW4/1D/"
+mkpath(plot_path_base)
+savefig(joinpath(plot_path_base, "PW3_vs_PW4.png"))
+

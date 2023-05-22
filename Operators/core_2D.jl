@@ -11,8 +11,8 @@ using DocStringExtensions
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults, InitParticleInstance
 export InitParticleState
 
-include("../Utils/FetchRelations.jl")
-using .FetchRelations
+#include("../Utils/FetchRelations.jl")
+using FetchRelations
 
 using Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
@@ -176,24 +176,82 @@ function InitParticleState(
         DT)
 
         i,j = ij
-        # initalize state based on state vector
-        xx, yy = gridnote.x[i], gridnote.y[j]
-        # take in local wind velocities
-        u_init, v_init = winds.u(xx,yy, 0), winds.v(xx,yy, 0)
-        u_abs = sqrt(u_init .^ 2 + v_init .^ 2) # absolute value of u
 
-        # seed particle given fetch relations
-        defaults[lne] = log(FetchRelations.Eⱼ(abs(u_abs), DT))
-        defaults[c̄_x] = FetchRelations.c_g_U_tau(abs(u_init), DT)
-        defaults[c̄_y] = FetchRelations.c_g_U_tau(abs(v_init), DT)
-        defaults[x] = xx
-        defaults[y] = yy
+        if defaults == nothing
+
+                #@info "init particles from fetch relations: $z_i"
+                particle_defaults = Dict{Num,Float64}()
+                xx, yy = gridnote.x[i], gridnote.y[j]
+                # take in local wind velocities
+                u_init, v_init = winds.u(xx,yy, 0), winds.v(xx,yy, 0)
+
+                WindSeaMin = FetchRelations.get_initial_windsea(u_init, v_init, DT)
+                # seed particle given fetch relations
+                particle_defaults[lne] = log(WindSeaMin["E"])
+                particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
+                particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
+
+        else
+                particle_defaults = defaults
+        end
+        particle_defaults[x] = gridnote.x[i]
+        particle_defaults[y] = gridnote.y[j]
 
 
         #@show defaults
-        return defaults
+        return particle_defaults
 end
 
+"""
+ResetParticleState(PI::AbstractParticleInstance, particle_defaults::Dict{Num,Float64}, ODE_settings::ODESettings, gridnote::OneDGridNotes, winds, DT)
+
+Reset the state of a particle instance
+        inputs:
+        PI                      ParticleInstance
+        particle_defaults       Dict with variables of the state vector, these will be replaced in this function
+        ODE_settings            ODESettings type
+        gridnote                grid to determine the position in the grid
+        winds                   NamedTuple (u,v) with interp. functions for wind values
+        DT                      time step of model, used to determine fetch laws
+returns:
+        dict or vector
+"""
+function ResetParticleState(defaults::PP,
+        PI::AbstractParticleInstance,
+        wind_tuple,
+        DT, vector=true) where {PP<:Union{Dict,Nothing}}
+
+        if defaults == nothing
+
+                #@info "init particles from fetch relations: $z_i"
+                particle_defaults = Dict{Num,Float64}()
+                xx, yy = PI.position_xy[1], PI.position_xy[2]
+                # take in local wind velocities
+                u_init, v_init = wind_tuple[1], wind_tuple[2] 
+                #winds.u(xx, yy, 0), winds.v(xx, yy, 0)
+
+                WindSeaMin = FetchRelations.get_initial_windsea(u_init, v_init, DT)
+                # seed particle given fetch relations
+                particle_defaults[lne] = log(WindSeaMin["E"])
+                particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
+                particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
+
+        else
+                particle_defaults = defaults
+        end
+
+        # initalize state based on state vector
+        particle_defaults[x] = PI.position_xy[1]
+        particle_defaults[y] = PI.position_xy[2]
+
+        #@show defaults
+        if vector
+                return [particle_defaults[lne], particle_defaults[c̄_x], particle_defaults[c̄_y],  particle_defaults[x],  particle_defaults[y]]
+        else
+                return particle_defaults
+        end
+
+end
 """
 check_boundary_point(i, boundary, periodic_boundary)
 checks where ever or not point is a boundary point.
@@ -230,6 +288,7 @@ function SeedParticle!(
         z_i = InitParticleState(particle_defaults, ij, GridNotes, winds, DT)
         # check if point is boundary point
         boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
+        #@info "boundary?", boundary_point
 
         # @info z_i
         # @info ij

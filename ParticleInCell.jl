@@ -158,6 +158,7 @@ end
 
 #charges_grid = zeros(grid2d.Nx, grid2d.Ny)
 
+## 2D versions
 function push_to_grid!(grid::Matrix{Float64},
                             charge::Float64,
                             index_pos::Tuple{Int, Int},
@@ -226,8 +227,9 @@ function push_to_grid!(grid::SharedMatrix{Float64},
     end
 end
 
-## 1D versions
 
+
+###### 1D versions ####
 
 function push_to_grid!(grid::SharedMatrix{Float64},
                             charge::Vector{Float64},
@@ -250,12 +252,12 @@ end
 
 
 
-function push_to_grid!(grid::Matrix{Float64},
+function push_to_grid!(grid::MM,
                             charge::Float64,
                             index_pos::Int,
                             weights::Float64,
                             Nx::Int,
-                            periodic::Bool = true)
+                            periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
         if periodic
             grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
             #grid[ index_pos[1] , index_pos[2] ] += weights[1] * weights[2] * charge
@@ -267,26 +269,26 @@ function push_to_grid!(grid::Matrix{Float64},
 end
 
 
-function push_to_grid!(grid::SharedMatrix{Float64},
-                            charge::Float64,
-                            index_pos::Int,
-                            weights::Float64,
-                            Nx::Int,
-                            periodic::Bool = true)
-        if periodic
-            grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
-        else
-            if (im <= Nx) & (im > 0)
-                grid[im, : ] += wm * charge
-            end
-        end
-end
+# function push_to_grid!(grid::MM,
+#                             charge::Float64,
+#                             index_pos::Int,
+#                             weights::Float64,
+#                             Nx::Int,
+#                             periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
+#         if periodic
+#             grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
+#             #grid[ index_pos[1] , index_pos[2] ] += weights[1] * weights[2] * charge
+#         else
+#             if (im <= Nx) & (im > 0)
+#                 grid[im, : ] += wm * charge
+#             end
+#         end
+# end
 
 
 
 
-
-
+# end of module
 end
 # %%
 # charges_grid = zeros(grid2d.Nx, grid2d.Ny)

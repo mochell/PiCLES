@@ -70,7 +70,6 @@ lne_local =  log(FetchRelations.Eⱼ(0.5*abs(U10), DT))
 #lne_local =  log((0.5/4)^2)#log(FetchRelations.Eⱼ(0.1*abs(U10), DT))
 
 
-#log(2)
 
 ODE_settings    = PW4.ODESettings(
     Parameters=default_ODE_parameters,

@@ -1,7 +1,6 @@
 import Plots
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
-import particle_waves_v3beta#: particle_equations, ODESettings
 
 using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 using PiCLES.ParticleSystems: particle_waves_v4 as PW4
@@ -17,11 +16,15 @@ using ModelingToolkit, DifferentialEquations
 using PiCLES.Utils.ParticleTools 
 using Plots
 
+using Oceananigans.Units
+
 # % Parameters
 @register_symbolic u(x, t)
 @register_symbolic u_x(x, t)
 
-U10 = 10.0
+
+## only popstiive valules work in paricle waves v3!
+U10 = 3.5
 r_g0 = 0.85
 c_β = 4e-2
 C_e0 = (2.35 / r_g0) * 2e-3 * c_β
@@ -55,22 +58,19 @@ default_ODE_parameters = Dict(
 )
 
 
-
 condition(u, t, integrator) = 0.9 * u[1] > log(17)
 affect!(integrator) = terminate!(integrator)
 cb = ContinuousCallback(condition, affect!)
 
-cg_local = FetchRelations.c_g_U_tau(U10, DT) / 1
-lne_local = log( FetchRelations.Eⱼ(abs(U10), DT) / 1)
 
-# cg_local = 0.01
-# lne_local = log(FetchRelations.Eⱼ(0.5, DT) / 1)
+WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 10minutes)
+#WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), 20minutes)
 
 
 ODE_settings = PW4.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
-    log_energy_minimum=lne_local,#log(FetchRelations.Eⱼ(0.1, DT)),
+    log_energy_minimum=log(WindSeamin["E"]),#log(FetchRelations.Eⱼ(0.1, DT)),
     #maximum energy threshold
     log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
     saving_step=dt_ODE_save,
@@ -84,13 +84,14 @@ ODE_settings = PW4.ODESettings(
 
 
 grid1d = OneDGrid(1, 3, 3)
-particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
+particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
+#particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
 
 # initialize particle given the wind conditions:
 ParticleState = InitParticleState(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
 
-ParticleState
 
+Revise.retry()
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, 0, false)
 PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false)
 
@@ -116,6 +117,7 @@ for i in Base.Iterators.take(PI.ODEIntegrator, NDT)
     last_t = PI.ODEIntegrator.t
     clock_time = PI.ODEIntegrator.t
     ui = [log(exp(PI.ODEIntegrator.u[1]) * 1), PI.ODEIntegrator.u[2], PI.ODEIntegrator.u[3] * 0]
+    #ui = [log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0]
     #ui = [lne_local, cg_local, PI.ODEIntegrator.u[3]]
 
     #set_u!(PI.ODEIntegrator, ui)
@@ -137,6 +139,7 @@ for i in Base.Iterators.take(PI4.ODEIntegrator, NDT)
     clock_time += DT
     clock_time = PI4.ODEIntegrator.t
     ui = [log(exp(PI4.ODEIntegrator.u[1]) * 1), PI4.ODEIntegrator.u[2], PI4.ODEIntegrator.u[3]*0]
+    #ui = [log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0]
     #ui = [lne_local, cg_local, PI4.ODEIntegrator.u[3]]
 
     #set_u!(PI4.ODEIntegrator, ui)
@@ -170,3 +173,9 @@ p3 = plot(PID[:, 1] / 60 / 60, PID[:, 4] / 1e3, marker=3, title="Hofmoeller", xl
 plot!(p3, PID4[:, 1] / 60 / 60, PID4[:, 4] / 1e3, color=:red, marker=3, label="PW4") #|> display
 
 plot(p1, p2, p3, layout=(3, 1), legend=true, size=(600, 1200), left_margin=10*Plots.mm )
+
+# save figure
+plot_path_base = "plots/PW4/single_particle/"
+savefig("PW3_vs_PW4.png")
+
+
