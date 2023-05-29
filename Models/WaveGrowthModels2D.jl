@@ -131,7 +131,7 @@ This is the constructor for the WaveGrowth1D model. The inputs are:
     CBsets           : the callback settings (not implimented yet).
 """
 function WaveGrowth2D(; grid::TwoDGrid,
-    winds,#::NamedTuple{(:u, :v)}, 
+    winds::NamedTuple{(:u, :v)}, 
     ODEsys, ODEvars,
     layers::Int=1,
     clock=Clock{eltype(grid)}(0, 0, 1),

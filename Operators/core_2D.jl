@@ -235,7 +235,7 @@ returns:
 function ResetParticleState(defaults::PP,
         PI::AbstractParticleInstance,
         wind_tuple,
-        DT, vector=true) where {PP<:Union{Dict,Nothing}}
+        DT, vector=true) where {PP<:Union{Dict,Nothing,Vector{Float64}}}
 
         if defaults == nothing # this is boundary_defaults = "wind_sea"
                 #@info "init particles from fetch relations: $z_i"
@@ -251,6 +251,11 @@ function ResetParticleState(defaults::PP,
                 particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
                 particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
 
+        elseif typeof(defaults) == Vector{Float64} # this is for the case of minimal wind sea
+                particle_defaults = Dict{Num,Float64}()
+                particle_defaults[lne] = defaults[1]
+                particle_defaults[c̄_x] = defaults[2]
+                particle_defaults[c̄_y] = defaults[3]
         else
                 particle_defaults = defaults
         end

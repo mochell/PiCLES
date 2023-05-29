@@ -55,7 +55,7 @@ Pushes node value to particle:
 - If Node value is okey, it is converted to state variable and pushed to particle.
 - The particle position is set to the node positions
 """
-function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray, ti::Number, wind_tuple::Tuple{Number,Number}, minimal_particle::Vector{Float64}, default_particle::PP, e_min_log::Number, DT::Float64,) where {PP<:Union{Dict,Nothing}}
+function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray, ti::Number, wind_tuple::Tuple{Float64,Float64}, minimal_particle::Vector{Float64}, default_particle::PP, e_min_log::Number, DT::Float64,) where {PP<:Union{Dict,Nothing}}
         # load data from shared array
         u_state = Get_u_FromShared( PI, S)
 
@@ -76,13 +76,14 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray, ti::Numbe
 
                 #if winds are too small, reinit particle with default values
                 if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
+                        # winds are large eneough, reinit
                         ui = ResetParticleState(default_particle, PI, wind_tuple, DT)
                 else
-                        #if winds are ok, reinit particle with current values
+                        # winds are too small, reinit particle with minimal values
                         ui = ResetParticleState(minimal_particle, PI, wind_tuple, DT)
                 end
 
-                ui = ResetParticleState(default_particle, PI, wind_tuple, DT)
+                #ui = ResetParticleState(default_particle, PI, wind_tuple, DT)
 
                 # ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
                 reinit!(PI.ODEIntegrator, ui , erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
@@ -132,7 +133,7 @@ function advance!(PI::AbstractParticleInstance,
                         S::SharedArray,
                         Failed::Vector{AbstractMarkedParticleInstance},
                         G::TwoDGrid,
-                        winds, #::NamedTuple{(:u, :v)},
+                        winds::NamedTuple{(:u, :v)},
                         DT::Float64, ODEs:: AbstractODESettings, 
                         periodic_boundary::Bool, 
                         minimum_particle::Vector{Float64},
@@ -180,7 +181,7 @@ function advance!(PI::AbstractParticleInstance,
                                                 (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
                                                 winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
-                        NodeToParticle!(PI, S, t_start, winds_start, default_particle, minimum_particle, ODEs.log_energy_minimum, DT)
+                        NodeToParticle!(PI, S, t_start, winds_start, minimum_particle, default_particle, ODEs.log_energy_minimum, DT)
                         reinit!(PI.ODEIntegrator, PI.ODEIntegrator.u , erase_sol=false, reset_dt=true, reinit_cache=true)
 
                         #set_t!(PI.ODEIntegrator, time)
@@ -219,7 +220,7 @@ function advance!(PI::AbstractParticleInstance,
                 winds_start = convert(  Tuple{Float64,Float64},
                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
-
+                ui = ResetParticleState(default_particle, PI, winds_start, DT)
                 set_u!(PI.ODEIntegrator, ui)
                 @show PI.ODEIntegrator.u
                 u_modified!(PI.ODEIntegrator,true)
@@ -267,7 +268,7 @@ function advance!(PI::AbstractParticleInstance,
         #         @show PI
         end
 
-        return PI
+        #return PI
 end
 
 """
@@ -276,15 +277,15 @@ end
         - pushes the Node State to particle instance
 """
 function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64}, 
-                winds,#::NamedTuple{(:u, :v)}, 
+                winds::NamedTuple{(:u, :v)}, 
                 ti::Number, 
         ODEs::AbstractODESettings, DT::Float64, minimal_particle::Vector{Float64};
         default_particle::PP=nothing) where {PP<:Union{Dict,Nothing}}        #ui = u(PI.position_xy[1], ti)
-        #::Tuple{Float64,Float64}
-        winds_i = winds.u(PI.position_xy[1], PI.position_xy[2], ti), winds.v(PI.position_xy[1], PI.position_xy[2], ti)
+
+        winds_i::Tuple{Float64,Float64} = winds.u(PI.position_xy[1], PI.position_xy[2], ti), winds.v(PI.position_xy[1], PI.position_xy[2], ti)
         
         NodeToParticle!(PI, S, ti, winds_i, minimal_particle, default_particle, ODEs.log_energy_minimum, DT)
-        return PI
+        #return PI
 end
 
 

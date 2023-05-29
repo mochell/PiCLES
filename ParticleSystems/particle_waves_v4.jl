@@ -308,7 +308,7 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         S_cg_tilde = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
         S_dir_tilde = direction ? S_dir(u.u, u.v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
-        particle_equations = [ #::Vector{Equation}
+        particle_equations::Vector{Equation} = [
                 # energy
                 D(lne) ~ +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃), #- c̄ .* G_n,
 
