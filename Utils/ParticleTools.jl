@@ -39,7 +39,7 @@ function ParticleToDataframe(Collection::Vector{AbstractParticleInstance})
         return DD
 end
 
-function ParticleToDataframe(Collection::Vector{MarkedParticleInstance})
+function ParticleToDataframe(Collection)
         DD = []
         for a_particle in Collection
                 D         = ParticleToDataframe(a_particle.Particle)
@@ -49,7 +49,19 @@ function ParticleToDataframe(Collection::Vector{MarkedParticleInstance})
         return DD
 end
 
-function PlotFailedParticles(Collection, ID, DT, dx)
+
+function ParticleStatsToDataframe(Collection)
+        df = DataFrame()
+        df[!, "position_ij"] = [PF.Particle.position_ij for PF in Collection]
+        df[!, "position_xy"] = [PF.Particle.position_xy for PF in Collection]
+        df[!, "boundary"] = [PF.Particle.boundary for PF in Collection]
+        df[!, "time"] = [PF.time for PF in Collection]
+        df[!, "errorReturnCode"] = [PF.errorReturnCode for PF in Collection]
+        return df
+end
+
+
+function PlotFailedParticles(Collection, title, DT, dx)
         energy_list = []
         cg_list = []
         time_list = []
@@ -95,7 +107,7 @@ function PlotFailedParticles(Collection, ID, DT, dx)
         plot(p1, p2, p3,  layout= (3, 1) , legend= false, size= (600,1200) )
         scatter!( x_fail_list ,time_fail_list, color = "red",marker = 4) #
 
-        plot!(xlabel ="position", plot_title=ID)
+        plot!(xlabel ="position", plot_title=title)
 
 end
 

@@ -12,8 +12,8 @@ end
 using SharedArrays
 
 # %% define some functions 
-plot_path_base = "plots/tests/T01_PIC_1D/"
-mkdir(plot_path_base)
+plot_path_base = "plots/tests/T01_PIC_1D/with_merge_rule/"
+#mkdir(plot_path_base)
 
 function PIC_loop(grid1d, charges_1d, xp; N= 100, cg= 0.2, verbose=false)
     x_collect = []
@@ -31,7 +31,7 @@ function PIC_loop(grid1d, charges_1d, xp; N= 100, cg= 0.2, verbose=false)
         index_positions, weights = ParticleInCell.compute_weights_and_index(grid1d, xp)
         #index_positions          = wrap_indexpositons(index_positions, grid1d)
 
-        ParticleInCell.push_to_grid!(State, i_charges, index_positions, weights, grid1d.Nx)
+        ParticleInCell.push_to_grid!(State, i_charges, index_positions, weights, grid1d.Nx, true)
 
         if verbose
             @show ip_charges_sum - Float64(sum(State))
@@ -80,6 +80,7 @@ function convert_store_to_tuple(p_collect, grid1d)
 end
 
 # %%
+Revise.retry()
 n_particles = 101
 eta_min, eta_max =0, 20
 grid1d = OneDGrid(eta_min, eta_max, n_particles)
@@ -128,7 +129,10 @@ plot()
 heatmap(data.x, data.steps, data.data)
 #save figure
 savefig(joinpath(plot_path_base, "T01_PIC_1D_forward.png"))
+
 animate(x_collect, p_collect, grid1d, path = plot_path_base, name = "T01_PIC_1D_forward")
+
+
 
 # %%
 xp = grid1dnotes.x .+ grid1dnotes.dx * 1.5 #+ rand(n_particles)/5
@@ -157,3 +161,22 @@ data = convert_store_to_tuple(p_collect, grid1d)
 plot()
 heatmap(data.x, data.steps, data.data)
 savefig(joinpath(plot_path_base, "T01_PIC_1D_backward_sin.png"))
+animate(x_collect, p_collect, grid1d, path=plot_path_base, name="T01_PIC_1D_backward_sin")
+
+
+
+# %% diverging sin
+Revise.retry()
+xp = grid1dnotes.x .+ grid1dnotes.dx * 1.5 #+ rand(n_particles)/5
+#charges_1d = rand(n_particles)* 0 .+ 1
+charges_1d = sin.(xp) *0.4 .+0.2
+
+x_collect, p_collect = PIC_loop(grid1d, charges_1d, xp; cg =-0.3, N= 30, verbose=true);
+animate(x_collect, p_collect, grid1d, path=plot_path_base , name="T01_PIC_1D_backward_sin_div")
+
+data = convert_store_to_tuple(p_collect, grid1d)
+plot()
+heatmap(data.x, data.steps, data.data)
+savefig(joinpath(plot_path_base, "T01_PIC_1D_backward_sin_div.png"))
+
+animate(x_collect, p_collect, grid1d, path=plot_path_base, name="T01_PIC_1D_backward_sin_div")

@@ -12,12 +12,13 @@ using HDF5, JLD2
 using DocStringExtensions
 using DifferentialEquations
 
-# %%
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 using ParticleMesh: OneDGrid, OneDGridNotes
 using PiCLES.Operators.core_1D: ParticleDefaults
 using PiCLES: Simulation, WindEmulator, WaveGrowthModels1D, FetchRelations
 using PiCLES.Simulations
+
+using PiCLES: ParticleInCell
 
 #using PiCLES.Debugging
 using PiCLES.ParticleSystems: particle_waves_v4 as PW
@@ -27,10 +28,10 @@ import Oceananigans: fields
 using Oceananigans.Units
 
 using PiCLES.Operators.core_1D: GetParticleEnergyMomentum, init_z0_to_State! 
-# %%
+# %
 # Default values
 save_path_base = "data/1D_gaussian/"
-plot_path_base = "plots/tests/T03_PIC_propagation-1d/"
+plot_path_base = "plots/tests/T03_PIC_propagation-1d/with_merging_rules/"
 mkpath(plot_path_base)
 #savefig(joinpath(plot_path_base, "PW3_vs_PW4.png"))
 
@@ -44,7 +45,6 @@ DT = Float64(20 * 60) # seconds
 Nx = 40
 dt_ODE_save = 10 # 3 min
 
-
 r_g0 = 0.85
 # function to define constants for grouwth and dissipation
 Const_ID = PW.get_I_D_constant()
@@ -53,7 +53,6 @@ Const_Scg = PW.get_Scg_constants()
 
 
 grid1d = OneDGrid(1e3, Lx - 1e3, Nx)
-
 # create ID and save name
 ID = "empl_eq_v4"
 #save_path = joinpath( "data/1D_static/", parsed_args["ID"] )
@@ -61,7 +60,7 @@ ID = "empl_eq_v4"
 #plot_path = plot_path_base * parset * "/"
 
 ##mkpath(save_path)
-# %%
+# %
 @info "Init Forcing Field\n"
 # create wind test fucntion
 
@@ -75,7 +74,10 @@ u(x, t) = U10 + x * 0 + t * 0#
 
 # -------------- start model definition -------------------------
 # %% Load Particle equations and derive ODE system
+#using PiCLES.ParticleInCell: push_to_grid!
+Revise.revise(ParticleInCell)
 
+#Revise.retry()
 ############ try v3 again first and check ways to import module
 #particle_equations = PW.particle_equations(u, γ=γ,input=true, dissipation=true, peak_shift=true )
 particle_equations = PW.particle_rays()
@@ -118,11 +120,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 )
 
 
-#using storing: init_state_store!, push_state_to_storage!
-#using Simulations: Simulation
 
-# %
-Revise.retry()
 
 function convert_state_store_to_array(store::Vector{Any})
     store_data = cat(store..., dims=3)
@@ -166,14 +164,19 @@ for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2))
     @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
 end
 
+
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 
-#output = convert_state_store_to_array(wave_simulation.store.store)
+output = convert_state_store_to_array(wave_simulation.store.store)
+#output.data
 plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
 savefig(joinpath(plot_path_base, "test1_forward.png"))
 
+#ParticleInCell.merge!( wave_simulation.model.State[3, :] , [10.0, 3.0, 0], verbose=true)
+
 # %%
 ##### avection to the left #########
+
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
@@ -194,6 +197,9 @@ run!(wave_simulation, store=false, cash_store=true, debug=false)
 
 plot_results(wave_simulation, title_m="cg=$cg_bar m/s, env sign =$(cg_bar_min)\n")
 savefig(joinpath(plot_path_base, "test1_negative.png"))
+
+
+
 # %%
 ##### avection to the left #########
 

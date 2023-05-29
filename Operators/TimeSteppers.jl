@@ -55,7 +55,11 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
 
     #@printf "re-mesh"
     for a_particle in model.ParticleCollection
-            mapping_1D.remesh!(a_particle, model.State, model.winds, model.clock.time, model.ODEsettings, Δt, boundary_defaults=model.boundary_defaults)
+            mapping_1D.remesh!(     a_particle, model.State, 
+                                    model.winds, model.clock.time, 
+                                    model.ODEsettings, Δt,
+                                    default_particle=model.boundary_defaults,
+                                    )
     end
 
     if debug
@@ -89,27 +93,36 @@ function time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=false)
     FailedCollection = Vector{AbstractMarkedParticleInstance}([])
 
     #print("mean energy before advance ", mean_of_state(model), "\n")
+    if debug
+            model.FailedCollection = FailedCollection
+    end 
 
     for a_particle in model.ParticleCollection
         #@show a_particle.position_ij
         mapping_2D.advance!(    a_particle, model.State, FailedCollection,
                                 model.grid, model.winds, Δt,
-                                model.ODEsettings, model.periodic_boundary)
+                                model.ODEsettings, 
+                                model.periodic_boundary, 
+                                model.minimal_particle, 
+                                model.boundary_defaults)
     end
     
     print("mean energy after advance ", mean_of_state(model), "\n")
 
     if debug
-        model.FailedCollection = FailedCollection
         @info "advanced: "
         #@info model.State[8:12, 1], model.State[8:12, 2]
         @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
-        @info model.winds.u(model.ParticleCollection[10].ODEIntegrator.u[4], model.ParticleCollection[10].ODEIntegrator.u[5], model.ParticleCollection[10].ODEIntegrator.t)
+        @info "winds:", model.winds.u(model.ParticleCollection[10].ODEIntegrator.u[4], model.ParticleCollection[10].ODEIntegrator.u[5], model.ParticleCollection[10].ODEIntegrator.t)
     end
 
     #@printf "re-mesh"
     for a_particle in model.ParticleCollection
-        mapping_2D.remesh!(a_particle, model.State, model.winds, model.clock.time, model.ODEsettings, Δt)
+        mapping_2D.remesh!(a_particle, model.State, 
+                        model.winds, model.clock.time, 
+                        model.ODEsettings, Δt, 
+                        model.minimal_particle, 
+                        default_particle=model.ODEdefaults)
     end
 
     if debug
@@ -144,7 +157,10 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
         #@show a_particle.position_ij
         mapping_2D.advance!(a_particle, model.State, FailedCollection,
             model.grid, model.winds, Δt,
-            model.ODEsettings, model.periodic_boundary)
+            model.ODEsettings,
+            model.periodic_boundary, 
+            model.minimal_particle, 
+            model.boundary_defaults)
     end
 
     model.MovieState = copy(model.State)
@@ -155,7 +171,11 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
 
     #@printf "re-mesh"
     for a_particle in model.ParticleCollection
-        mapping_2D.remesh!(a_particle, model.State, model.winds, model.clock.time, model.ODEsettings, Δt)
+        mapping_2D.remesh!(a_particle, model.State,
+            model.winds, model.clock.time,
+            model.ODEsettings, Δt,
+            model.minimal_particle,
+            default_particle=model.ODEdefaults)
     end
 
     

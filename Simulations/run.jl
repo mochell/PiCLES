@@ -199,8 +199,6 @@ function init_particles!(model::Abstract2DModel; defaults::T=nothing, verbose::B
 
         gridnotes = TwoDGridNotes(model.grid)
 
-
-
         ParticleCollection = []
         SeedParticle_i = SeedParticle_mapper(SeedParticle2D!,
                 ParticleCollection, model.State,
@@ -259,7 +257,8 @@ function init_particles!(model::Abstract1DModel; defaults::T=nothing, verbose::B
         gridnotes = OneDGridNotes(model.grid)
 
         ParticleCollection = []
-        SeedParticle_i = SeedParticle_mapper(SeedParticle1D!, ParticleCollection, model.State,
+        SeedParticle_i = SeedParticle_mapper(SeedParticle1D!, 
+                ParticleCollection, model.State,
                 model.ODEsystem, defaults, model.ODEsettings,
                 gridnotes, model.winds, model.ODEsettings.timestep,
                 model.boundary, model.periodic_boundary)

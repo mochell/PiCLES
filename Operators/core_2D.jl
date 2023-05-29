@@ -120,6 +120,22 @@ end
 """ returns node state from shared array, given paritcle index """
 Get_u_FromShared(PI::AbstractParticleInstance, S::SharedArray,) = S[PI.position_ij[1], PI.position_ij[2], :]
 
+"""
+GetGroupVelocity(i_State::Vector{Float64})
+i_state: [e, m_x, m_y] state vector at node
+"""
+function GetGroupVelocity(i_State)
+        e = i_State[:,:,1]
+        m_x = i_State[:,:,2]
+        m_y = i_State[:,:,3]
+        m_amp = speed.(m_x, m_y)
+        c_x = m_x .* e ./ (2 .* m_amp.^2)
+        c_y = m_y .* e ./ (2 .* m_amp.^2)
+
+        return (c_x=c_x, c_y=c_y)
+end
+
+
 ###### seed particles #####
 
 
@@ -169,21 +185,21 @@ Find initial conditions for particle. Used at the beginning of the experiment.
         DT              time step of model, used to determine fetch laws
 """
 function InitParticleState(
-        defaults::Dict{Num,Float64},
+        defaults::PP,
         ij::Tuple{Int, Int},
-        gridnote::TwoDGridNotes,
-        winds, 
-        DT)
+        xy::Tuple{Float64, Float64},
+        uv::Tuple{Float64, Float64}, 
+        DT) where {PP<:Union{Dict,Nothing}}
 
         i,j = ij
-
+        xx, yy = xy
+ 
         if defaults == nothing
 
                 #@info "init particles from fetch relations: $z_i"
                 particle_defaults = Dict{Num,Float64}()
-                xx, yy = gridnote.x[i], gridnote.y[j]
                 # take in local wind velocities
-                u_init, v_init = winds.u(xx,yy, 0), winds.v(xx,yy, 0)
+                u_init, v_init = uv#winds.u(xx, yy, 0), winds.v(xx, yy, 0)
 
                 WindSeaMin = FetchRelations.get_initial_windsea(u_init, v_init, DT)
                 # seed particle given fetch relations
@@ -194,8 +210,8 @@ function InitParticleState(
         else
                 particle_defaults = defaults
         end
-        particle_defaults[x] = gridnote.x[i]
-        particle_defaults[y] = gridnote.y[j]
+        particle_defaults[x] = xx
+        particle_defaults[y] = yy
 
 
         #@show defaults
@@ -221,11 +237,10 @@ function ResetParticleState(defaults::PP,
         wind_tuple,
         DT, vector=true) where {PP<:Union{Dict,Nothing}}
 
-        if defaults == nothing
-
+        if defaults == nothing # this is boundary_defaults = "wind_sea"
                 #@info "init particles from fetch relations: $z_i"
                 particle_defaults = Dict{Num,Float64}()
-                xx, yy = PI.position_xy[1], PI.position_xy[2]
+                #xx, yy = PI.position_xy[1], PI.position_xy[2]
                 # take in local wind velocities
                 u_init, v_init = wind_tuple[1], wind_tuple[2] 
                 #winds.u(xx, yy, 0), winds.v(xx, yy, 0)
@@ -275,17 +290,24 @@ function SeedParticle!(
         ParticleCollection::Vector{Any},
         State::SharedArray,
         ij::Tuple{Int, Int},
+
         particle_system::ODESystem,
-        particle_defaults::Dict{Num,Float64},
+        particle_defaults::PP,
         ODE_settings, #particle_waves_v3.ODESettings type
+
         GridNotes, # ad type of grid note
         winds,     # interp winds
         DT::Float64,
+
         boundary::Vector{T},
-        periodic_boundary::Bool) where {T<:Union{Tuple{Int64,Int64},Nothing}}
+        periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
+
+        
+        xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
+        uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
 
         # define initial condition
-        z_i = InitParticleState(particle_defaults, ij, GridNotes, winds, DT)
+        z_i = InitParticleState(particle_defaults, ij, (xx,yy), uv, DT)
         # check if point is boundary point
         boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
         #@info "boundary?", boundary_point

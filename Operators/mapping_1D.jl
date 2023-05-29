@@ -4,7 +4,7 @@ using SharedArrays
 using ParticleMesh: OneDGrid, OneDGridNotes
 using Printf
 
-import ParticleInCell
+using ParticleInCell
 
 #include("../Utils/FetchRelations.jl")
 import FetchRelations
@@ -120,7 +120,8 @@ function advance!(PI::AbstractParticleInstance,
         G::OneDGrid,
         u,
         DT::Float64, ODEs::AbstractODESettings, 
-        periodic_boundary::Bool, boundary_defaults::PP=nothing) where {PP<:Union{Dict,Nothing}}
+        periodic_boundary::Bool, 
+        boundary_defaults::PP=nothing) where {PP<:Union{Dict,Nothing}}
         #@show PI.position_ij
 
         t_start = copy(PI.ODEIntegrator.t)
@@ -179,9 +180,11 @@ function advance!(PI::AbstractParticleInstance,
         # PI = periodic_BD_single_PI!(PI )
 
         if isnan(PI.ODEIntegrator.u[1]) | isnan(PI.ODEIntegrator.u[2]) | isnan(PI.ODEIntegrator.u[3])
-                @show "position or Energy is nan"
-                @show PI
-                set_u!(PI.ODEIntegrator, [0, 0, 0])
+                @info "position or Energy is nan, reset"
+                #@show PI
+                ui = ResetParticleState(boundary_defaults, PI, u(PI.position_xy[1], t_start) , DT)
+                #reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)
+                set_u!(PI.ODEIntegrator, ui)
                 u_modified!(PI.ODEIntegrator, true)
 
         elseif isinf(PI.ODEIntegrator.u[1]) | isinf(PI.ODEIntegrator.u[2]) | isinf(PI.ODEIntegrator.u[3])
@@ -207,7 +210,10 @@ end
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance1D, S::SharedMatrix{Float64}, u, ti::Number, ODEs::AbstractODESettings, DT::Float64; boundary_defaults::PP=nothing) where {PP<:Union{Dict,Nothing}}
+function remesh!(PI::ParticleInstance1D, S::SharedMatrix{Float64}, 
+                u, ti::Number, 
+                ODEs::AbstractODESettings, DT::Float64; 
+                boundary_defaults::PP=nothing) where {PP<:Union{Dict,Nothing}}
         ui = u(PI.position_xy[1], ti)
         NodeToParticle!(PI, S, ti, ui, boundary_defaults, ODEs.log_energy_minimum, DT)
         return PI

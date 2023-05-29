@@ -83,7 +83,7 @@ ODE_settings = PW.ODESettings(
         log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
         saving_step=dt_ODE_save,
         timestep=DT,
-        total_time=T,
+        total_time=3days,
         adaptive=true,
         dt=1e-3, #60*10, 
         dtmin=1e-9, #60*5, 
@@ -107,7 +107,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 )
 
 # %% initialize Simulation 
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=4hours)
+wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=52hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 
 # run simulation
@@ -115,4 +115,4 @@ run!(wave_simulation, store=false, cash_store=true, debug=false)
 @info "... finished\n"
 
 Plotting.plot_results(wave_simulation, wind_grid=wind_grid)
-savefig(joinpath([plot_path_base, "Example_1D_time_varying.png"]))
+savefig(joinpath([plot_path_base, "Example_1D_time_varying_with_merging_rules.png"]))
