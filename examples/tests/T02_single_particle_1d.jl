@@ -19,6 +19,9 @@ using Plots
 using Oceananigans.Units
 
 # % Parameters
+
+plot_path_base = "plots/tests/plot_path_base/"
+mkdir(plot_path_base)
 @register_symbolic u(x, t)
 @register_symbolic u_x(x, t)
 
@@ -137,8 +140,8 @@ plot(p1, p2, p3, layout=(3, 1), legend=true, size=(600, 1200), left_margin=10*Pl
 
 title!("PW4")
 # save figure
-plot_path_base = "plots/PW4/single_particle/"
-savefig("PW3_positive4.png")
+
+savefig(plot_path_base*"PW3_positive4.png")
 
 
 
@@ -189,8 +192,7 @@ plot(p1, p2, p3, layout=(3, 1), legend=true, size=(600, 1200), left_margin=10 * 
 
 title!("PW4")
 # save figure
-plot_path_base = "plots/PW4/single_particle/"
-savefig("PW3_negtive4.png")
+savefig(plot_path_base* "PW4_negtive4.png")
 
 
 # %% test with PIC remeshing algorithm ####
@@ -213,9 +215,12 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid= OneDGrid(0, 30e3, 50),
     periodic_boundary=false,
     boundary_type="wind_sea"#"wind_sea"  # "default" #
 )
-plot_path_base = "plots/PW4/growth_1D/"
+
 
 # %%
+
+plot_path_base = "plots/tests/T02_1D_fetch/with_merge_rule/"
+#mkdir(plot_path_base)
 Revise.retry()
 @info "experiment 1: positive winds, periodic \n"
 u10 = 10
@@ -232,7 +237,7 @@ initialize_simulation!(wave_simulation, particle_initials=nothing)#wave_model.OD
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 #title!("titlde")
-savefig("PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png")
+savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png") )
 
 
 @info "experiment 1: positive winds, non-periodic \n"
@@ -248,7 +253,7 @@ wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
-savefig("PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png")
+savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 @info "experiment 1: nagative winds, perodic \n"
 u10 = -10
@@ -263,7 +268,7 @@ wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
-savefig("PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png")
+savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 @info "experiment 1: nagative winds, non-perodic \n"
 u10 = -10
@@ -278,7 +283,7 @@ wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
 initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
-savefig("PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png")
+savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 @info "... finished\n"
 

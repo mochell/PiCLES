@@ -324,7 +324,26 @@ end
 Alias for default minimum Parameters takes wind just for the correct sign convention, then replaces with u_min values.
 """
 function get_minimal_windsea(U10::Number, V10::Number, time_scale::Number, type::String="JONSWAP")
-    return get_initial_windsea(sign(U10) * u_min, sign(V10) * u_min, time_scale, type)
+    Uamp = sqrt(U10^2 + V10^2)
+    return get_initial_windsea(u_min * U10 / Uamp, u_min * V10 / Uamp, time_scale, type)
+end
+
+"""
+    MinimalParticle(U10, timescale, type="JONSWAP")
+Alias for default minimum Parameters. Takes wind just for the correct sign convention, then replaces with u_min values.
+"""
+function MinimalParticle(U10::Number, time_scale::Number, type::String="JONSWAP")
+    WindSeamin=  get_minimal_windsea(U10, time_scale, type)
+    return [log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0, 0]
+end
+
+"""
+    MinimalParticle(U10, V10, timescale, type="JONSWAP")
+Alias for default minimum Parameters. Takes wind just for the correct sign convention, then replaces with u_min values.
+"""
+function MinimalParticle(U10::Number, V10::Number, time_scale::Number, type::String="JONSWAP")
+    WindSeamin=  get_minimal_windsea(U10, V10, time_scale, type)
+    return [log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0, 0]
 end
 
 

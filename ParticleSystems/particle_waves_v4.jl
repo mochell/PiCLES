@@ -148,7 +148,7 @@ cx = 1.0
 cy = 1.0
 
 
-speed(cx::Number, cy::Number) = sqrt(cx .^ 2 + cy .^ 2)
+speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
 
 """
         αₚ(α::Number, φ::Number, φ_w::Number)
@@ -159,16 +159,18 @@ speed(cx::Number, cy::Number) = sqrt(cx .^ 2 + cy .^ 2)
         returns angle between wave propagation direction and particle orientation.
         cg, cx, and cy are the peak wave directions (!), not the mean wave direction!
 """
-αₚ(α::Number, φ::Number, φ_w::Number) = cos.(φ .- φ_w) .* α
-αₚ(α::Number, cφ_p::Number, sφ_p::Number, cφ_w::Number, sφ_w::Number) = (cφ_p .* cφ_w - sφ_p .* sφ_w) .* α
-αₚ(u::NamedTuple, cg::NamedTuple) = (u.u .* cg.cx - u.v .* cg.cy) ./ (2 .* speed(cg.cx, cg.cy))
-αₚ(u::NamedTuple, cx::Number, cy::Number) = (u.u .* cx - u.v .* cy) ./ (2 .* speed(cx, cy))
+# αₚ(α::Number, φ::Number, φ_w::Number) = cos.(φ .- φ_w) .* α
+#αₚ(α::Number, cφ_p::Number, sφ_p::Number, cφ_w::Number, sφ_w::Number) = (cφ_p .* cφ_w + sφ_p .* sφ_w) .* α
+αₚ(u::NamedTuple, cg::NamedTuple)         = @. (u.u .* cg.cx + u.v .* cg.cy) ./ (2 .* speed(cg.cx, cg.cy)^2)
+αₚ(u::NamedTuple, cx::Number, cy::Number) = @. (u.u .* cx + u.v .* cy) ./ (2 .* speed(cx, cy)^2)
 
-α_func(u_speed::Number, c_gp::Number) = u_speed ./ (2.0 * c_gp)
+α_func(u_speed::Number, c_gp::Number) = @. u_speed / (2.0 * c_gp)
+
 
 
 #sin2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  4 * sb * cb * (sa^2 -0.5) - 4 * sa * ca * (sb^2 -0.5)
-sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) = (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
+# sign(cx) *
+sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
 function sin2_a_min_b(u::NamedTuple, cx::Number, cy::Number)
         sin2_a_min_b(u.u, u.v, cx, cy)
 end
@@ -176,29 +178,37 @@ function sin2_a_min_b(u::NamedTuple, c::NamedTuple)
         sin2_a_min_b(u.u, u.v, c.cx, c.cy)
 end
 
+sin2_a_plus_b(ux::Number, uy::Number, cx::Number, cy::Number) = (2 / (speed(ux, uy) * speed(cx, cy))^2) * (cx * uy + cy * ux) * (cx * ux - cy * uy)
+function sin2_a_plus_b(u::NamedTuple, cx::Number, cy::Number)
+        sin2_a_plus_b(u.u, u.v, cx, cy)
+end
+function sin2_a_plus_b(u::NamedTuple, c::NamedTuple)
+        sin2_a_plus_b(u.u, u.v, c.cx, c.cy)
+end
+
+
 
 #cos2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  (1 - 2 .* (sa .* cb - ca .* cb).^2 )
-e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Number=1.3e-6, c_α::Number=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = @. sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
 
 
-H_β(α::Number, p::Number; α_thresh=0.85) = 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
-Δ_β(α::Number; α_thresh=0.85) = (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
+H_β(α::Num, p::Float64; α_thresh::Float64=0.85) = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
+Δ_β(α::Num; α_thresh::Float64=0.85) = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
 
 """
 function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
 returns a vecotr with conversions between c̄, c_gp, kₚ, and ωₚ
-al returned values are positive
 """
-function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
-        c_gp = abs(c̄) ./ r_g
-        kₚ = g ./ (4.0 .* c_gp^2)
-        ωₚ = g ./ (2.0 .* c_gp)
+function c_g_conversions(c̄::Num; g::Float64=9.81, r_g::Num=0.9)
+        c_gp = @. c̄ / r_g
+        kₚ = @. g / (4.0 * c_gp^2)
+        ωₚ = @. g / (2.0 * c_gp)
         [c_gp, kₚ, ωₚ]
 end
 
 function speed_and_angles(cx::Number, cy::Number)
         #sqrt(cx.^2 + cy.^2), cx ./ sqrt(cx.^2 + cy.^2), cy ./sqrt(cx.^2 + cy.^2)
-        c = sqrt(cx .^ 2 + cy .^ 2)
+        c = sqrt(cx .^ 2 .+ cy .^ 2)
         c, cx ./ c, cy ./ c
 end
 
@@ -231,13 +241,17 @@ end
 
 # peak downshift
 # C_α is negative in Kudravtec definition, here its a positive value
-S_cg(lne, Δₚ, kₚ, C_α) = C_α * Δₚ * kₚ .^ 4 * exp(2 * lne)
+S_cg(lne::Num, Δₚ::Num, kₚ::Num, C_α::Num) = @. C_α * Δₚ * kₚ^4 * exp(2 * lne)
 
 
 # Peak direction shift
-function S_dir(u::NamedTuple, cx::Num, cy::Num, C_φ::Number, Hₚ)
-        alpha = α_func(speed(u.u, u.v), speed(cx, cy))
-        alpha^2 * C_φ * Hₚ * sin2_a_min_b(u, cx, cy)
+function S_dir(u::Num, v::Num, cx::Num, cy::Num, C_φ::Number, Hₚ)
+        alpha = α_func(speed(u, v), speed(cx, cy))
+        return @. alpha^2 * C_φ * Hₚ * sin2_a_min_b(u, v, cx, cy)::Num
+        #alpha^2 * C_φ * Hₚ * sin2_a_min_b(cx, cy, u.u, u.v)
+
+        #alpha^2 * C_φ * sin2_a_min_b(u, cx, cy)
+        #alpha^2 * C_φ * Hₚ * sin2_a_plus_b(u, cx, cy)
 end
 
 
@@ -262,8 +276,8 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         input=true,
         dissipation=true,
         peak_shift=true,
-        direction=true
-)
+        direction=true,
+        debug_output=false)
         t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
         p, q, n = magic_fractions(q)
@@ -271,14 +285,15 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         D = Differential(t)
 
         # forcing fields
-        u = (u=u(x, y, t), v=v(x, y, t))
+        u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Num,Num}}
 
         # trig-values # we only use scalers, not vectors
+        c̄_y = c̄_y
         c̄, cφ_p, sφ_p = speed_and_angles(c̄_x, c̄_y)
         u_speed, cφ_w, sφ_w = speed_and_angles(u.u, u.v)
 
         # peak parameters
-        c_gp, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
+        c_gp, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
         c_gp_x, _, _ = c_g_conversions(c̄_x, r_g=r_g)
         c_gp_y, _, _ = c_g_conversions(c̄_y, r_g=r_g)
 
@@ -291,19 +306,39 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         Ĩ = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
         D̃ = dissipation ? D̃_func_lne(lne, kₚ, e_T, n) : 0.0
         S_cg_tilde = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
-        S_dir_tilde = direction ? S_dir(u, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
+        S_dir_tilde = direction ? S_dir(u.u, u.v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
-        particle_equations = [
+        particle_equations = [ #::Vector{Equation}
                 # energy
                 D(lne) ~ +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃), #- c̄ .* G_n,
 
                 # peak group velocity vector
-                D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde,
-                D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde,
+                D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde, #* (-1),
+                D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde, #* (1),
+
+                # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
+                # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
 
                 # propagation
                 D(x) ~ propagation ? c̄_x : 0.0,
                 D(y) ~ propagation ? c̄_y : 0.0,]
+
+        if debug_output
+                @variables Input, Dissp, H_p, alpha, alpha_p, Scg, Delta_p, Sdir, c_y
+
+                additional_output = [
+                                Input ~ Ĩ,
+                                Dissp ~ - D̃,
+                                Scg ~ r_g^2 * S_cg_tilde,
+                                #alpha_p ~ αₚ(u, c_gp_x, c_gp_y),
+                                H_p ~ Hₚ,
+                                #alpha ~ α,
+                                Sdir ~ S_dir_tilde,
+                                Delta_p ~ Δₚ,
+                                c_y ~ c_gp_y]
+                append!(particle_equations, additional_output)
+
+        end
 
         return particle_equations
 end

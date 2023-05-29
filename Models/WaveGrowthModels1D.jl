@@ -111,7 +111,7 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
   ODEdefaults::ParticleDefaults1D=nothing,  # default_ODE_parameters
   currents=nothing,  # 
   periodic_boundary=true,
-  boundary_type="wind_sea", # or "flat"
+  boundary_type="wind_sea", # or "flat", "default", default is wind_sea
   CBsets=nothing)
 
   # initialize state {SharedArray} given grid and layers
@@ -136,7 +136,7 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
   elseif boundary_type == "zero"
     @info "use zero boundary"
     #FetchRelations.get_minimal_windsea(u(0, 0), ODEsets.DT)
-    boundary_defaults = copy(ParticleDefaults1D(-11.0, 1e-3, 0.0))
+    boundary_defaults = copy(ParticleDefaults2D(-11.0, 1e-3, 0.0))
   elseif boundary_type == "default"
     @info "use default value boundary"
     boundary_defaults = copy(ODEdefaults)

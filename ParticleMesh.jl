@@ -88,6 +88,16 @@ struct TwoDGridNotes <: AbstractGrid
     end
 end
 
+function TwoDGridMesh(grid::TwoDGrid; skip=1)
+    gn = TwoDGridNotes(grid)
+    gridmesh = [(i, j) for i in gn.x[1:skip:end], j in gn.y[1:skip:end]]
+    gridmesh_x = [i for i in gn.x[1:skip:end], j in gn.y[1:skip:end]]
+    gridmesh_y = [j for i in gn.x[1:skip:end], j in gn.y[1:skip:end]]
+    return (tuples=gridmesh, x=gridmesh_x, y=gridmesh_y)
+end
+
+
+
 
 struct OneDGrid{I, T <:Number} <: AbstractGrid
     Nx::I # number grid points

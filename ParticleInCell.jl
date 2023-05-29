@@ -153,10 +153,59 @@ function wrap_index!(pos::Int, N::Int)
 end
 
 
+#### merging rules: ####
+
+function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
+
+    verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
+
+    m_grid = grid_point[2]
+    m_charge = charge[2]
+    if (sign(m_grid) == sign(m_charge)) | (m_grid == 0)
+        verbose ? (@info "add, same sign, or grid is zero") : nothing
+        grid_point += charge
+    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid > sign(m_charge) * m_charge)
+        verbose ? (@info "forget charge, State is larger") : nothing
+
+    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid <= sign(m_charge) * m_charge)
+        verbose ? (@info "overwrite, charge is >=") : nothing
+        grid_point = charge
+    end
+    return grid_point
+end
+
+function merge!(grid_point::Float64, charge::Float64; verbose=false)
+
+    verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
+
+    m_grid = grid_point
+    m_charge = charge
+    if (sign(m_grid) == sign(m_charge)) | (m_grid == 0)
+        verbose ? (@info "add, same sign, or grid is zero") : nothing
+        m_grid += m_charge
+    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid > sign(m_charge) * m_charge)
+        verbose ? (@info "forget charge, State is larger") : nothing
+
+    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid <= sign(m_charge) * m_charge)
+        verbose ? (@info "overwrite, charge is >=") : nothing
+        m_grid = m_charge
+    end
+    return m_grid
+end
+
+
+
+#define merging operator
+(⊓)(g::Vector{Float64}, c::Vector{Float64}) = merge!(g, c, verbose=false)
+(⊓)(g::Float64, c::Float64) = merge!(g, c, verbose=true)
+
+
+
 #wrap_index!.(collect(range(0, gridnotes.Nx+1, step=1)), gridnotes.Nx)
 #wrap_index!.(collect(range(-2, gridnotes.Ny*2, step=1)), gridnotes.Ny)
 
 #charges_grid = zeros(grid2d.Nx, grid2d.Ny)
+
 
 ## 2D versions
 function push_to_grid!(grid::Matrix{Float64},
@@ -201,13 +250,14 @@ end
 #push_to_grid!(charges_grid,1.0 , index_positions[1][1], weights[1][1], grid2d.Nx , grid2d.Ny )
 
 
-
+# wrapping over vectors of charges, index positions and weights
 function push_to_grid!(grid::SharedArray{Float64,3},
                             charge::Vector{Float64},
                             index_pos::Vector{Tuple{Int, Int}},
                             weights::Vector{Tuple{Float64, Float64}},
                             Nx::Int, Ny::Int,
                             periodic::Bool=true)
+    #@info "this is version D"
     for (i, w) in zip(index_pos, weights)
         push_to_grid!(grid, charge , i, w , Nx, Ny, periodic)
     end
@@ -215,55 +265,78 @@ end
 
 #push_to_grid!(charges_grid, 1.0 , index_positions[3], weights[3] , grid2d.Nx , grid2d.Ny )
 
+
+
+
+###### 1D versions ####
+
+# wrapper over 1D Vecors of chanegs and (nested) index positions and weights
 function push_to_grid!(grid::SharedMatrix{Float64},
-                            charge::Vector{Float64},
-                            index_pos::Vector{Any},
-                            weights::Vector{Any} ,
-                            Nx::Int )
+    charge::Vector{Float64},
+    index_pos::Vector{Any},
+    weights::Vector{Any},
+    Nx::Int,
+    periodic::Bool=true)
+    #@info "this is version C"
     for (im, wm, c) in zip(index_pos, weights, charge)
         for (i, w) in zip(im, wm)
-            push_to_grid!(grid, c , i, w , Nx)
+            push_to_grid!(grid, c, i, w, Nx, periodic)
         end
     end
 end
 
 
 
-###### 1D versions ####
-
-function push_to_grid!(grid::SharedMatrix{Float64},
+# multiple index positions and 1 charge
+function push_to_grid!(grid::MM,
                             charge::Vector{Float64},
                             index_pos::Vector{Int},
-                            weights::Vector{Float64} ,
+                            weights::Vector{Float64},
                             Nx::Int,
-                            periodic::Bool = true)
+                            periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
+    #@info "this is version B"
     if periodic
         for (im, wm) in zip(index_pos, weights)
-            grid[ wrap_index!(im, Nx), : ] += wm * charge
+            #grid[ wrap_index!(im, Nx), :] ⊓ wm * charge
+            # old version
+            #grid[wrap_index!(im, Nx), :] += wm * charge
+            # merge rule version
+            grid[wrap_index!(im, Nx), :] = merge!(grid[wrap_index!(im, Nx), :], wm * charge)
         end
     else
         for (im, wm) in zip(index_pos, weights)
             if (im <= Nx) & (im > 0)
-                grid[im, : ] += wm * charge
+                # old version
+                #grid[im, : ] += wm * charge
+
+                # merge rule version
+                grid[im, :] = merge!(grid[im, :], wm * charge)
+                #grid[im, :] = grid[im, :] ⊓ wm * charge
             end
         end
     end
 end
 
 
-
+# only 1 index position and 1 charge
 function push_to_grid!(grid::MM,
                             charge::Float64,
                             index_pos::Int,
                             weights::Float64,
                             Nx::Int,
                             periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
+        #@info "this is version A"
         if periodic
-            grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
+            #grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge
             #grid[ index_pos[1] , index_pos[2] ] += weights[1] * weights[2] * charge
+
+            #grid[wrap_index!(index_pos[1], Nx)] = grid[wrap_index!(index_pos[1], Nx)] ⊓ weights * charge
+            grid[wrap_index!(index_pos[1], Nx)] = merge!(grid[wrap_index!(index_pos[1], Nx)], weights * charge)
         else
-            if (im <= Nx) & (im > 0)
-                grid[im, : ] += wm * charge
+            if (index_pos <= Nx) & (index_pos > 0)
+                #grid[index_pos] ⊓ weights * charge
+                #grid[index_pos] += weights * charge
+                grid[index_pos] = merge!(grid[index_pos], weights * charge)
             end
         end
 end

@@ -274,12 +274,15 @@ function SeedParticle!(
     ParticleCollection::Vector{Any},
     State::SharedMatrix,
     i::Int64,
+
     particle_system::ODESystem,
     particle_defaults::PP,
     ODE_settings, #particle_waves_v3.ODESettings type
+
     GridNotes, # ad type of grid note
     winds,     # interp winds
     DT::Float64,
+    
     boundary::Vector{T},
     periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
 
