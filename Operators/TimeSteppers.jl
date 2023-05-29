@@ -57,7 +57,7 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
     for a_particle in model.ParticleCollection
             mapping_1D.remesh!(     a_particle, model.State, 
                                     model.winds, model.clock.time, 
-                                    model.ODEsettings, Δt,
+                                    model.ODEsettings, Δt;
                                     default_particle=model.boundary_defaults,
                                     )
     end
@@ -87,7 +87,7 @@ clock is ticked by Δt
 callbacks are not implimented yet
 
 """
-function time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=false)
+function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, debug=false)
 
     # temporary FailedCollection to store failed particles
     FailedCollection = Vector{AbstractMarkedParticleInstance}([])

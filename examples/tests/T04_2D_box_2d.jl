@@ -41,7 +41,7 @@ save_path = "plots/tests/T04_box_2d/"
 mkpath(save_path)
 
 # % Parameters
-U10,V10           = 10.0, 10.0
+U10,V10           = 20.0, 10.0
 dt_ODE_save       = 30minutes
 DT                = 30minutes
 # version 3
@@ -59,28 +59,34 @@ Const_ID
 
 # u(x, y, t) = 0.01 + U10 * sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
 # v(x, y, t) = 0.01 - V10 * cos(t / (6*60*60 * 2π) ) * sin(x / 50e3) * sin(y / 50e3)
-u_std= 2e3
-v_std= 2e3
-# u(x, y, t) = 0.1 + U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) +t *0 # sin(t*2  / (1 * 60 * 60 * 2π))
-# v(x, y, t) = 0.1 + V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) +t * 0# cos(t*3 / (1 * 60 * 60 * 2π) )   
-#v(x, y, t) = x * 0 +y * 0 + t * 0 + 0.01  
+u_std= 2e3 *1
+v_std= 2e3 *1
+# u_func(x, y, t) = 0.1 + U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  sin(t*3  / (1 * 60 * 60 * 2π))
+# v_func(x, y, t) = 0.1 + V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  cos(t*3 / (1 * 60 * 60 * 2π) )   
 
-u(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, 0.2) + y * 0 + t * 0
-v(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, 0.2) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 6 / (1 * 60 * 60 * 2π)) > 0 , 
+                sin(t * 6 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
+                                        0.1) 
+v_func(x, y, t) = 0.1 + IfElse.ifelse.(sin(t * 3 / (1 * 60 * 60 * 2π)) > 0,
+                            0.0,
+                            -0.0)
 
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
 
-## this shuold hopefully work
+# u_func(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, 0.2) + y * 0 + t * 0
+# v_func(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, 0.2) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+
+# this shuold hopefully work
 # u_func(x::Num, y::Num, t::Num)::Num = U10 + x * 0 + y * 0 + t * 0
 # v_func(x::Num, y::Num, t::Num)::Num = V10 + x * 0 + y * 0 + t * 0
 # u(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 5.0
 # v(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 10.0
 
 
-# u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-# v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
-# u(x, y, t) = simplify(u_func(x, y, t))
-# v(x, y, t) = simplify(v_func(x, y, t))
+u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
+v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
+u(x, y, t) = u_func(x, y, t)
+v(x, y, t) = v_func(x, y, t)
 
 winds = (u=u, v=v)
 
@@ -102,7 +108,7 @@ gn = TwoDGridNotes(grid);
 
 #heatmap( v.(mesh.x, mesh.y, 0) )
 
-# %%
+
 Revise.retry()
 
 # define variables based on particle equation
@@ -182,11 +188,11 @@ initialize_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdef
 #init_state_store!(wave_simulation, save_path)
 #wave_simulation.model.MovieState = wave_simulation.model.State
 
-run!(wave_simulation, cash_store=true, debug=true)
+@time run!(wave_simulation, cash_store=true, debug=true)
 #reset_simulation!(wave_simulation)
 # run simulation
 #ProfileView.@profview run!(wave_simulation, cash_store=true, debug=true)
-# %%
+
 
 istate = wave_simulation.store.store[end];
 p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
@@ -325,7 +331,7 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=default_particle,  # default_ODE_parameters
     minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
-    periodic_boundary=false,
+    periodic_boundary=true,
     boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
     movie=true)
 
@@ -341,7 +347,7 @@ fig, n = init_movie_2D_box_plot(wave_simulation)
 
 #wave_simulation.stop_time += 1hour
 N = 180
-record(fig, save_path*"varying_winds_nonper_half_domain_x.gif", 1:N, framerate=10) do i
+record(fig, save_path*"varying_winds_nonper_rotation_x_push.gif", 1:N, framerate=10) do i
     @info "Plotting frame $i of $N..."
     #@time for _ = 1:10
     #run!(wave_simulation, store=false)
