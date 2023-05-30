@@ -82,12 +82,10 @@ t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.in
 # u(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 5.0
 # v(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 10.0
 
-
 u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
 v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
 u(x, y, t) = u_func(x, y, t)
 v(x, y, t) = v_func(x, y, t)
-
 winds = (u=u, v=v)
 
 typeof(winds.u)

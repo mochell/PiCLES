@@ -22,8 +22,12 @@ function init_movie_2D_box_plot(wave_simulation)
 
 
     #ocean_wind = @lift ($n; sqrt.(ocean_wind_u.^2 + ocean_wind_u.^2))
-    #ocean_wind = @lift(sqrt(vo.(mesh.x, mesh.y)^2 + uo.(mesh.x, mesh.y)^2)($model_time) )
+    #ocean_wind = @lift($n; sqrt(vo.(mesh.x, mesh.y, $model_time)^2 + uo.(mesh.x, mesh.y, $model_time)^2))
+    ocean_wind = @lift(sqrt.(vo.(mesh.x, mesh.y, $model_time).^2 + uo.(mesh.x, mesh.y, $model_time).^2))
+    strength = @lift( vec(sqrt.(vo.(mesh.x, mesh.y, $model_time).^2 + uo.(mesh.x, mesh.y, $model_time).^2)))
+    #ocean_wind = @lift ($n; model_time * 2)
 
+    #@info ocean_wind
 
     wave_energy = @lift ($n; 4 * sqrt.(wave_simulation.model.MovieState[:,:, 1]))
     wave_momentum_x = @lift ($n; wave_simulation.model.MovieState[:, :, 2])
@@ -50,13 +54,16 @@ function init_movie_2D_box_plot(wave_simulation)
     ax_cy = Axis(fig[3, 2], aspect=1, xlabel="x (km)",  title="c_y")
 
     #hm_i = heatmap!(ax_wind, 1e-3 * x, 1e-3 * y, ice_speed_n)
-    hm_wind = heatmap!(ax_wind, 1e-3 * gn.x[1:3:end], 1e-3 * gn.y[1:3:end], ocean_wind_v, colormap=:jet, colorbar=true, colorrange=(-6, 6))
+    hm_wind = heatmap!(ax_wind, 1e-3 * gn.x[1:3:end], 1e-3 * gn.y[1:3:end], ocean_wind, colormap=:jet, colorbar=true, colorrange=(-11, 11))
     # colormap options for heatmap 
 
-    #quiver!(ax_wind, mesh.x / 1e3, mesh.y / 1e3, quiver=(ocean_wind_u, ocean_wind_v))#, color=:red, scale_unit=:data, label="wind")
+    #quiver!(ax_wind, 1e-3 * gn.x, 1e-3 * gn.y, quiver=(ocean_wind_u, ocean_wind_v))#, color=:red, scale_unit=:data, label="wind")
+    #strength = ocean_wind_u.^2 .+ ocean_wind_v.^2
+    arrows!(ax_wind, 1e-3 * gn.x, 1e-3 * gn.y, ocean_wind_u, ocean_wind_v, arrowsize=10, lengthscale = 0.08, length=strength)#, arrowcolor=strength, linecolor=strength)
     #scatter!(ax_wind, vec(gridmesh.* 1e-3), rotations=0, markersize=20, marker='↑')
 
-    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 1))
+
+    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 1.5))
     hm_x = heatmap!(ax_mx, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_x, colormap=:balance, colorrange=(-0.01, 0.01))
     hm_y = heatmap!(ax_my, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_y, colormap=:balance, colorrange=(-0.01, 0.01))
 
@@ -73,10 +80,15 @@ function init_movie_2D_box_plot(wave_simulation)
     Colorbar(fig[2, 4], hm_x, label = "Wave momentum x []")
     Colorbar(fig[3, 4], hm_cx, label="Group Velocity [m/s]")
 
+    limits!(ax_wind, (1e-3 * gn.x[1], 1e-3 * gn.x[end]), (1e-3 * gn.y[1], 1e-3 * gn.y[end]))
     # sc
     #hm_o = heatmap(ax_o, 1e-3 * mesh.x, 1e-3 * mesh.y, ocean_wind_v, colormap=:redblue)
     DT = wave_simulation.model.ODEsettings.timestep
-    title = @lift ($n; "Static winds DT=$DT , dx=$(round(gn.dx)), max(cg)= \ntime=" * prettytime(wave_simulation.model.clock.time))
+    #c_yi = GetGroupVelocity(wave_simulation.model.MovieState).c_y
+    #c_xi = GetGroupVelocity(wave_simulation.model.MovieState).c_x
+    #CFL = @lift ($n; round(maximum(sqrt(cx[]^2 + cx[]^2))) * DT / gn.dx)
+
+    title = @lift ($n; "Static winds DT=$DT , dx=$(round(gn.dx)), CFL= $(round( maximum(sqrt.(cx[].^2+cy[].^2)) * DT /gn.dx; digits=3 )), \ntime=" * prettytime(wave_simulation.model.clock.time))
     Label(fig[0, :], title)
     display(fig)
 
