@@ -240,7 +240,7 @@ function get_initial_windsea(U10::Number, time_scale::Number, type::String="JONS
     mom             = U10_sign * E_ / (2 * cg_bar_amp)
 
     # return dictionary with E, cg_bar, Hs, f_peak, T_bar, X_tilde
-    return Dict("E" => E_, "cg_bar" => cg_bar, "Hs" => Hs_, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m" => mom)
+    return Dict("E" => E_, "lne" => log(E_) , "cg_bar" => cg_bar, "Hs" => Hs_, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m" => mom)
 end
 
 """
@@ -304,17 +304,20 @@ function get_initial_windsea(U10::Number, V10::Number, time_scale::Number, type:
     mom_y       = (V10 / U_amp) * E_ / (2 * cg_bar_amp)
 
     # return dictionary with E, Hs, cg_bar_x, cg_bar_y, cg_bar, f_peak, T_bar, X_tilde, m_x, m_y
-    return Dict("E" => E_, "Hs" => Hs_, "cg_bar_x" => cg_bar_x, "cg_bar_y" => cg_bar_y,
+    return Dict("E" => E_, "lne" => log(E_), "Hs" => Hs_, "cg_bar_x" => cg_bar_x, "cg_bar_y" => cg_bar_y,
         "cg_bar" => cg_bar_amp, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m_x" => mom_x, "m_y" => mom_y)
 end
 
 
 u_min = 2.0
+rand_sign() = sign.(rand(0:1) - 0.5)
+
 """
     get_minimal_windsea(U10, timescale, type="JONSWAP")
 Alias for default minimum Parameters takes wind just for the correct sign convention, then replaces with u_min values.
 """
 function get_minimal_windsea(U10::Number, time_scale::Number, type::String="JONSWAP")
+    U10 = U10 == 0 ? rand_sign() : U10
     return get_initial_windsea(sign(U10) * u_min, time_scale, type)
 end
 
@@ -324,7 +327,9 @@ end
 Alias for default minimum Parameters takes wind just for the correct sign convention, then replaces with u_min values.
 """
 function get_minimal_windsea(U10::Number, V10::Number, time_scale::Number, type::String="JONSWAP")
-    Uamp = sqrt(U10^2 + V10^2)
+    U10 = U10 == 0 ? rand_sign() : U10 
+    V10 = V10 == 0 ? rand_sign() : V10
+    Uamp =  sqrt(U10^2 + V10^2)
     return get_initial_windsea(u_min * U10 / Uamp, u_min * V10 / Uamp, time_scale, type)
 end
 
