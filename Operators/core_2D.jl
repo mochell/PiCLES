@@ -168,7 +168,7 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
                 reltol=ODE_settings.reltol,
                 callback=ODE_settings.callbacks,
                 save_everystep=ODE_settings.save_everystep)
-        return ParticleInstance2D(ij, (z_initials[x], z_initials[y]), integrator, boundary_flag)
+        return ParticleInstance2D(ij, (z_initials[x], z_initials[y]), integrator, boundary_flag, true)
 end
 
 
@@ -188,8 +188,8 @@ function InitParticleState(
         defaults::PP,
         ij::Tuple{Int, Int},
         xy::Tuple{Float64, Float64},
-        uv::Tuple{Float64, Float64}, 
-        DT) where {PP<:Union{Dict,Nothing}}
+        uv::Tuple{TT, TT}, 
+        DT) where {PP<:Union{Dict,Nothing}, TT<:Union{Float64,Num}}
 
         i,j = ij
         xx, yy = xy
@@ -309,6 +309,7 @@ function SeedParticle!(
 
         
         xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
+        #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
         uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
 
         # define initial condition

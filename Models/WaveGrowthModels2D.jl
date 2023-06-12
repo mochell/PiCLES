@@ -108,10 +108,10 @@ function mark_boundary(grid::TwoDGrid)
     yi = collect(range(1, stop=grid.Ny, step=1))
 
     # make boundary nodes
-    a = [(yi[i], xi[j]) for i in 1:grid.Ny, j in [1, grid.Nx]]
-    b = [(yi[i], xi[j]) for j in 1:grid.Nx, i in [1, grid.Nx]]
+    a = [(xi[i], yi[j]) for j in 1:grid.Ny   , i in [1, grid.Nx]]
+    b = [(xi[i], yi[j]) for j in [1, grid.Ny], i in 1:grid.Nx   ]
     #merge a and b
-    return vec(vcat(a, b))
+    return vcat(vec(a), vec(b)) #vec(vcat(a, b))
 end
 
 

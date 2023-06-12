@@ -206,7 +206,7 @@ function init_particles!(model::Abstract2DModel; defaults::T=nothing, verbose::B
                 gridnotes, model.winds, model.ODEsettings.timestep,
                 model.boundary, model.periodic_boundary)
 
-        map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Nx])
+        map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
 
 
 
