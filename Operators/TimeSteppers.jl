@@ -94,7 +94,8 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
 
     #print("mean energy before advance ", mean_of_state(model), "\n")
     if debug
-            model.FailedCollection = FailedCollection
+        @info maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
+        model.FailedCollection = FailedCollection
     end 
 
     for a_particle in model.ParticleCollection
@@ -111,6 +112,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
 
     if debug
         @info "advanced: "
+        @info maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
         #@info model.State[8:12, 1], model.State[8:12, 2]
         @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
         @info "winds:", model.winds.u(model.ParticleCollection[10].ODEIntegrator.u[4], model.ParticleCollection[10].ODEIntegrator.u[5], model.ParticleCollection[10].ODEIntegrator.t)
@@ -128,6 +130,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     if debug
         @info "remeshed: "
         #@info model.State[8:12, 1], model.State[8:12, 2]
+        @info maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
         @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
 
     end

@@ -147,7 +147,28 @@ function advance!(PI::AbstractParticleInstance,
         savevalues!(PI.ODEIntegrator)
         
         # advance particle
-        step!(PI.ODEIntegrator, DT , true)
+        try
+                if ~PI.boundary
+                        step!(PI.ODEIntegrator, DT , true)
+                end
+        catch e 
+                @printf "error on advancing ODE:\n"
+                print("- time after fail $(PI.ODEIntegrator.t)\n ")
+                print("- error message: $(e)\n")
+                print("- push to failed\n")
+                print("- state of particle: $(PI.ODEIntegrator.u)\n")
+                print("- winds are: $(winds.u( PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5], PI.ODEIntegrator.t))\n")
+                print("- winds are: $(winds.v( PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5], PI.ODEIntegrator.t))\n")
+                push!(Failed,
+                        MarkedParticleInstance(
+                                        copy(PI),
+                                        copy(PI.ODEIntegrator.t),
+                                        copy(PI.ODEIntegrator.u),
+                                        PI.ODEIntegrator.sol.retcode
+                                                ))
+                return
+
+        end
 
         # check if integration was successful
         if check_error(PI.ODEIntegrator) != :Success

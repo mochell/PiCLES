@@ -163,6 +163,7 @@ speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
 #αₚ(α::Number, cφ_p::Number, sφ_p::Number, cφ_w::Number, sφ_w::Number) = (cφ_p .* cφ_w + sφ_p .* sφ_w) .* α
 αₚ(u::NamedTuple, cg::NamedTuple)         = @. (u.u .* cg.cx + u.v .* cg.cy) ./ (2 .* speed(cg.cx, cg.cy)^2)
 αₚ(u::NamedTuple, cx::Number, cy::Number) = @. (u.u .* cx + u.v .* cy) ./ (2 .* speed(cx, cy)^2)
+αₚ(u::Number, v::Number, cx::Number, cy::Number) = @. (u .* cx + v .* cy) ./ (2 .* speed(cx, cy)^2)
 
 α_func(u_speed::Number, c_gp::Number) = @. u_speed / (2.0 * c_gp)
 
@@ -208,7 +209,13 @@ end
 
 function speed_and_angles(cx::Number, cy::Number)
         #sqrt(cx.^2 + cy.^2), cx ./ sqrt(cx.^2 + cy.^2), cy ./sqrt(cx.^2 + cy.^2)
-        c = sqrt(cx .^ 2 .+ cy .^ 2)
+        c = sqrt.(cx .^ 2 .+ cy .^ 2)
+        c, cx ./ c, cy ./ c
+end
+
+function speed_and_angles(cx, cy)
+        #sqrt(cx.^2 + cy.^2), cx ./ sqrt(cx.^2 + cy.^2), cy ./sqrt(cx.^2 + cy.^2)
+        c = sqrt.(cx .^ 2 .+ cy .^ 2)
         c, cx ./ c, cy ./ c
 end
 
@@ -285,12 +292,15 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         D = Differential(t)
 
         # forcing fields
-        u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Num,Num}}
-
+        #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Num,Num}}
+        
+        #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Num,Num}}
+        u = u(x, y, t)::Num
+        v = v(x, y, t)::Num
         # trig-values # we only use scalers, not vectors
         c̄_y = c̄_y
         c̄, cφ_p, sφ_p = speed_and_angles(c̄_x, c̄_y)
-        u_speed, cφ_w, sφ_w = speed_and_angles(u.u, u.v)
+        u_speed, cφ_w, sφ_w = speed_and_angles(u, v)
 
         # peak parameters
         c_gp, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
@@ -299,14 +309,14 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
 
         # direction equations
         α = α_func(u_speed, c_gp)
-        Hₚ = H_β(αₚ(u, c_gp_x, c_gp_y), p)
-        Δₚ = Δ_β(αₚ(u, c_gp_x, c_gp_y))
+        Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
+        Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
 
         # Source terms
         Ĩ = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
         D̃ = dissipation ? D̃_func_lne(lne, kₚ, e_T, n) : 0.0
         S_cg_tilde = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
-        S_dir_tilde = direction ? S_dir(u.u, u.v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
+        S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
         particle_equations::Vector{Equation} = [
                 # energy
