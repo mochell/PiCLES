@@ -94,17 +94,18 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
 
     #print("mean energy before advance ", mean_of_state(model), "\n")
     if debug
+        @info "before advance"
         @info maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
         model.FailedCollection = FailedCollection
     end 
 
     for a_particle in model.ParticleCollection
-        #@show a_particle.position_ij
+        #@info a_particle.position_ij
         mapping_2D.advance!(    a_particle, model.State, FailedCollection,
                                 model.grid, model.winds, Δt,
-                                model.ODEsettings, 
-                                model.periodic_boundary, 
-                                model.minimal_particle, 
+                                model.ODEsettings.log_energy_maximum, 
+                                model.ODEsettings.wind_min_squared,
+                                model.periodic_boundary,
                                 model.boundary_defaults)
     end
     
@@ -124,6 +125,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
                         model.winds, model.clock.time, 
                         model.ODEsettings, Δt, 
                         model.minimal_particle, 
+                        model.minimal_state,
                         default_particle=model.ODEdefaults)
     end
 
@@ -160,9 +162,9 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
         #@show a_particle.position_ij
         mapping_2D.advance!(a_particle, model.State, FailedCollection,
             model.grid, model.winds, Δt,
-            model.ODEsettings,
-            model.periodic_boundary, 
-            model.minimal_particle, 
+            model.ODEsettings.log_energy_maximum,
+            model.ODEsettings.wind_min_squared,
+            model.periodic_boundary,
             model.boundary_defaults)
     end
 
@@ -178,6 +180,7 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
             model.winds, model.clock.time,
             model.ODEsettings, Δt,
             model.minimal_particle,
+            model.minimal_state,
             default_particle=model.ODEdefaults)
     end
 

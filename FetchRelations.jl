@@ -351,6 +351,17 @@ function MinimalParticle(U10::Number, V10::Number, time_scale::Number, type::Str
     return [log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0, 0]
 end
 
+"""
+    MinimalState(U10, V10, timescale, type="JONSWAP")
+Alias for needed minimum State. Takes wind just for the correct sign convention, then replaces with u_min values.
+    returns:
+    [ minimal energy, momentum^2]
+"""
+function MinimalState(U10::Number, V10::Number, time_scale::Number, type::String="JONSWAP")
+    WindSeamin=  get_minimal_windsea(U10, V10, time_scale, type)
+    return [WindSeamin["E"], WindSeamin["m_x"]^2 + WindSeamin["m_y"]^2 ]
+end
+
 
 ## testing
 # u10, v10 = -2, 0

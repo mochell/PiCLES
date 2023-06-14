@@ -49,6 +49,8 @@ $(DocStringExtensions.FIELDS)
         "maximum allowed log energy on particle "
         log_energy_maximum::Float64 = log(17)
 
+        "minimum needed squared wind velocity to seed particle"
+        wind_min_squared::Float64 = 4.0
         "solver method for ODE system"
         #alternatives
         #Rosenbrock23(), AutoVern7(Rodas4()) ,AutoTsit5(Rosenbrock23()) , Tsit5()
@@ -142,13 +144,13 @@ end
 
 
 
-# test values
-u = (u=1, v=-1)
-cx = 1.0
-cy = 1.0
+# # test values
+# u = (u=1, v=-1)
+# cx = 1.0
+# cy = 1.0
 
 
-speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
+
 
 """
         αₚ(α::Number, φ::Number, φ_w::Number)
@@ -161,17 +163,33 @@ speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
 """
 # αₚ(α::Number, φ::Number, φ_w::Number) = cos.(φ .- φ_w) .* α
 #αₚ(α::Number, cφ_p::Number, sφ_p::Number, cφ_w::Number, sφ_w::Number) = (cφ_p .* cφ_w + sφ_p .* sφ_w) .* α
-αₚ(u::NamedTuple, cg::NamedTuple)         = @. (u.u .* cg.cx + u.v .* cg.cy) ./ (2 .* speed(cg.cx, cg.cy)^2)
-αₚ(u::NamedTuple, cx::Number, cy::Number) = @. (u.u .* cx + u.v .* cy) ./ (2 .* speed(cx, cy)^2)
-αₚ(u::Number, v::Number, cx::Number, cy::Number) = @. (u .* cx + v .* cy) ./ (2 .* speed(cx, cy)^2)
+αₚ(u::NamedTuple, cg::NamedTuple)                =  αₚ(u.u, u.v, cg.cx, cg.cy)
+αₚ(u::NamedTuple, cx::Number, cy::Number)        =  αₚ(u.u, u.v, cx, cy)
+αₚ(u::Number, v::Number, cx::Number, cy::Number) =  @. (u .* cx + v .* cy) ./ (2 .* max( speed(cx, cy), 1e-4 )^2)
 
-α_func(u_speed::Number, c_gp::Number) = @. u_speed / (2.0 * c_gp)
-
+#α_func(u_speed::Number, c_gp_speed::Number) = @. min( u_speed / (2.0 * c_gp_speed), 500)
+function α_func(u_speed, c_gp_speed)
+        a = @. u_speed / (2.0 * c_gp_speed)
+        # if isnan(a) | isinf(a)
+        #         return 500
+        # else
+        return min( a, 500)
+        # end
+end
 
 
 #sin2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  4 * sb * cb * (sa^2 -0.5) - 4 * sa * ca * (sb^2 -0.5)
 # sign(cx) *
-sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
+#sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
+function sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) 
+        sind2  = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
+        # if isnan(sind2) | isinf(sind2)
+        #         return 0
+        # else
+        return sind2
+        # end
+end
+
 function sin2_a_min_b(u::NamedTuple, cx::Number, cy::Number)
         sin2_a_min_b(u.u, u.v, cx, cy)
 end
@@ -202,10 +220,12 @@ returns a vecotr with conversions between c̄, c_gp, kₚ, and ωₚ
 """
 function c_g_conversions(c̄::Num; g::Float64=9.81, r_g::Num=0.9)
         c_gp = @. c̄ / r_g
-        kₚ = @. g / (4.0 * c_gp^2)
-        ωₚ = @. g / (2.0 * c_gp)
+        kₚ = @. g / (4.0 * max(c_gp^2, 1e-2))
+        ωₚ = @. g / (2.0 * max(sign(c_gp) * c_gp, 0.1))
         [c_gp, kₚ, ωₚ]
 end
+
+speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
 
 function speed_and_angles(cx::Number, cy::Number)
         #sqrt(cx.^2 + cy.^2), cx ./ sqrt(cx.^2 + cy.^2), cy ./sqrt(cx.^2 + cy.^2)
@@ -218,6 +238,8 @@ function speed_and_angles(cx, cy)
         c = sqrt.(cx .^ 2 .+ cy .^ 2)
         c, cx ./ c, cy ./ c
 end
+
+
 
 
 # -------------------------------
@@ -298,17 +320,17 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         u = u(x, y, t)::Num
         v = v(x, y, t)::Num
         # trig-values # we only use scalers, not vectors
-        c̄_y = c̄_y
-        c̄, cφ_p, sφ_p = speed_and_angles(c̄_x, c̄_y)
-        u_speed, cφ_w, sφ_w = speed_and_angles(u, v)
+
+        c̄            = speed(c̄_x, c̄_y)
+        u_speed      = speed(u, v)
 
         # peak parameters
-        c_gp, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
+        c_gp_speed, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
         c_gp_x, _, _ = c_g_conversions(c̄_x, r_g=r_g)
         c_gp_y, _, _ = c_g_conversions(c̄_y, r_g=r_g)
 
         # direction equations
-        α = α_func(u_speed, c_gp)
+        α = α_func(u_speed, c_gp_speed)
         Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
         Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
 
@@ -320,7 +342,7 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
 
         particle_equations::Vector{Equation} = [
                 # energy
-                D(lne) ~ +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃), #- c̄ .* G_n,
+                D(lne) ~ + ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃), #- c̄ .* G_n,
 
                 # peak group velocity vector
                 D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde, #* (-1),
@@ -381,10 +403,10 @@ function particle_equations(u; γ::Number=0.88, q::Number=-1 / 4.0,
         u_speed = abs(u)
 
         # peak parameters
-        c_gp, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
+        c_gp_speed, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
 
         # direction equations
-        α = α_func(u_speed, c_gp)
+        α = α_func(u_speed, c_gp_speed)
         Hₚ = H_β(α, p)
         Δₚ = Δ_β(α)
 

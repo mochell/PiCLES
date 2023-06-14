@@ -13,6 +13,7 @@ mutable struct ParticleInstance2D <: AbstractParticleInstance
         position_xy::Tuple{Float64, Float64}
         ODEIntegrator::ODEIntegrator
         boundary :: Bool
+        on::Bool
 end
 
 mutable struct ParticleInstance1D <: AbstractParticleInstance
@@ -20,6 +21,7 @@ mutable struct ParticleInstance1D <: AbstractParticleInstance
         position_xy::Float64
         ODEIntegrator::ODEIntegrator
         boundary::Bool
+        on::Bool
 end
 
 # Debugging ParticleInstance
@@ -30,8 +32,8 @@ mutable struct MarkedParticleInstance <: AbstractMarkedParticleInstance
         errorReturnCode
 end
 
-Base.copy(s::ParticleInstance1D) = ParticleInstance1D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary)
-Base.copy(s::ParticleInstance2D) = ParticleInstance2D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary)
+Base.copy(s::ParticleInstance1D) = ParticleInstance1D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary, s.on)
+Base.copy(s::ParticleInstance2D) = ParticleInstance2D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary, s.on)
 
 
 

@@ -8,7 +8,7 @@ using ModelingToolkit: Num
 using DocStringExtensions
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
-export InitParticleState, ResetParticleState
+export InitParticleVector, ResetParticleVector
 
 
 using FetchRelations
@@ -173,7 +173,7 @@ end
 
 
 """
-InitParticleState(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
+InitParticleVector(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
@@ -183,7 +183,7 @@ Find initial conditions for particle. Used at the beginning of the experiment.
         u               interp. fucntion with wind values
         DT              time step of model, used to determine fetch laws
 """
-function InitParticleState(
+function InitParticleVector(
     defaults::PP,
     i::Int64,
     gridnote::OneDGridNotes,
@@ -212,7 +212,7 @@ function InitParticleState(
 end
 
 """
-ResetParticleState(defaults:: Dict{Num, Float64}, PI::AbstractParticleInstance, u_rn, DT)
+ResetParticleVector(defaults:: Dict{Num, Float64}, PI::AbstractParticleInstance, u_rn, DT)
 
 resets the particle state to the default values if they given, otherwise it will use the fetch relations
         inputs:
@@ -221,7 +221,7 @@ resets the particle state to the default values if they given, otherwise it will
         u_rn            u value at the particle position
         DT              time step of model, used to determine fetch laws
 """
-function ResetParticleState(
+function ResetParticleVector(
     defaults::PP,
     PI::AbstractParticleInstance,
     u_rn::Number, DT; vector=true) where {PP<:Union{Dict,Nothing}}
@@ -287,7 +287,7 @@ function SeedParticle!(
     periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
 
     # define initial condition
-    z_i = InitParticleState(particle_defaults, i, GridNotes, winds, DT)
+    z_i = InitParticleVector(particle_defaults, i, GridNotes, winds, DT)
 
     # check if point is boundary point
     boundary_point = check_boundary_point(i, boundary, periodic_boundary)

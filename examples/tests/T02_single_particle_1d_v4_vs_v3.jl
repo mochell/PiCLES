@@ -8,7 +8,7 @@ using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 import PiCLES: FetchRelations
 
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleState, InitParticleInstance
+using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleVector, InitParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
 
 using ModelingToolkit, DifferentialEquations
@@ -88,7 +88,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 #particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
 
 # initialize particle given the wind conditions:
-ParticleState = InitParticleState(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
+ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
 
 
 Revise.retry()
