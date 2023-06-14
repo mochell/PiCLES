@@ -9,7 +9,7 @@ using DocStringExtensions
 
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults, InitParticleInstance
-export InitParticleState
+export InitParticleVector
 
 #include("../Utils/FetchRelations.jl")
 using FetchRelations
@@ -149,7 +149,7 @@ wrapper function to initalize a particle instance
         ij              is the (i,j) tuple that of the initial position
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag; cbSets=Nothing)
+function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
 
         # create ODEProblem
         problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
@@ -168,13 +168,13 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
                 reltol=ODE_settings.reltol,
                 callback=ODE_settings.callbacks,
                 save_everystep=ODE_settings.save_everystep)
-        return ParticleInstance2D(ij, (z_initials[x], z_initials[y]), integrator, boundary_flag, true)
+        return ParticleInstance2D(ij, (z_initials[x], z_initials[y]), integrator, boundary_flag, particle_on)
 end
 
 
 
 """
-InitParticleState(defaults:: Dict{Num, Float64}, ij::Tuple, gridnote::OneDGridNotes, u, v, DT)
+InitParticleVector(defaults:: Dict{Num, Float64}, ij::Tuple, gridnote::OneDGridNotes, u, v, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
@@ -184,7 +184,7 @@ Find initial conditions for particle. Used at the beginning of the experiment.
         winds           NamedTuple (u,v) with interp. functions for wind values
         DT              time step of model, used to determine fetch laws
 """
-function InitParticleState(
+function InitParticleVector(
         defaults::PP,
         ij::Tuple{Int, Int},
         xy::Tuple{Float64, Float64},
@@ -193,33 +193,46 @@ function InitParticleState(
 
         i,j = ij
         xx, yy = xy
- 
+
         if defaults == nothing
-
-                #@info "init particles from fetch relations: $z_i"
                 particle_defaults = Dict{Num,Float64}()
-                # take in local wind velocities
-                u_init, v_init = uv#winds.u(xx, yy, 0), winds.v(xx, yy, 0)
+                
+                if speed(uv[1], uv[2]) > sqrt(2)
+                        # defaults are not defined and there is wind
 
-                WindSeaMin = FetchRelations.get_initial_windsea(u_init, v_init, DT)
-                # seed particle given fetch relations
-                particle_defaults[lne] = log(WindSeaMin["E"])
-                particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
-                particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
+                        # take in local wind velocities
+                        WindSeaMin = FetchRelations.get_initial_windsea(uv[1], uv[2], DT)
+                        # seed particle given fetch relations
+                        particle_defaults[lne] = log(WindSeaMin["E"])
+                        particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
+                        particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
 
+                        particle_on = true
+                else
+                        # defaults are not defined and there is no wind
+                        u_min = FetchRelations.MinimalParticle(uv[1], uv[2], DT)
+                        particle_defaults[lne] = u_min[1]
+                        particle_defaults[c̄_x] = u_min[2]
+                        particle_defaults[c̄_y] = u_min[3]
+                        
+                        particle_on = false
+                end                        
         else
                 particle_defaults = defaults
+                particle_on = true
+
         end
+
         particle_defaults[x] = xx
         particle_defaults[y] = yy
 
 
         #@show defaults
-        return particle_defaults
+        return particle_defaults, particle_on
 end
 
 """
-ResetParticleState(PI::AbstractParticleInstance, particle_defaults::Dict{Num,Float64}, ODE_settings::ODESettings, gridnote::OneDGridNotes, winds, DT)
+ResetParticleVector(PI::AbstractParticleInstance, particle_defaults::Dict{Num,Float64}, ODE_settings::ODESettings, gridnote::OneDGridNotes, winds, DT)
 
 Reset the state of a particle instance
         inputs:
@@ -232,7 +245,7 @@ Reset the state of a particle instance
 returns:
         dict or vector
 """
-function ResetParticleState(defaults::PP,
+function ResetParticleVector(defaults::PP,
         PI::AbstractParticleInstance,
         wind_tuple,
         DT, vector=true) where {PP<:Union{Dict,Nothing,Vector{Float64}}}
@@ -307,23 +320,20 @@ function SeedParticle!(
         boundary::Vector{T},
         periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
 
-        
         xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
         #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
         uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
 
         # define initial condition
-        z_i = InitParticleState(particle_defaults, ij, (xx,yy), uv, DT)
+        z_i, particle_on = InitParticleVector(particle_defaults, ij, (xx,yy), uv, DT)
         # check if point is boundary point
         boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
         #@info "boundary?", boundary_point
 
-        # @info z_i
-        # @info ij
-        # @info GetParticleEnergyMomentum(z_i)
-        #@info State 
         # add initial state to State vector
-        init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
+        if particle_on
+                init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
+        end
 
         # Push Inital condition to collection
         push!(ParticleCollection,
@@ -332,7 +342,8 @@ function SeedParticle!(
                 z_i,
                 ODE_settings,
                 ij,
-                boundary_point))
+                boundary_point,
+                particle_on))
         nothing
 end
 

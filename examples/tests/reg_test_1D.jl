@@ -13,7 +13,7 @@ import particle_waves_v4#: particle_equations, ODESettings
 PW4 = particle_waves_v4
 
 import FetchRelations, ParticleTools
-using core_1D: ParticleDefaults, InitParticleInstance, InitParticleState
+using core_1D: ParticleDefaults, InitParticleInstance, InitParticleVector
 using TimeSteppers
 using ParticleMesh: OneDGrid, OneDGridNotes
 using WaveGrowthModels1D

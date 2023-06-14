@@ -11,7 +11,7 @@ import FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
 
-using ..core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleState
+using ..core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleVector
 
 using DifferentialEquations
 using ..particle_waves_v3: ODESettings
@@ -82,7 +82,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix, ti::Numb
 
                 # defaults = nothing: replace with wind sea
                 # defaults = dict : dict values
-                ui = ResetParticleState(defaults, PI, u_init, DT)
+                ui = ResetParticleVector(defaults, PI, u_init, DT)
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
                 set_t!(PI.ODEIntegrator, last_t)
                 u_modified!(PI.ODEIntegrator, true)
@@ -182,7 +182,7 @@ function advance!(PI::AbstractParticleInstance,
         if isnan(PI.ODEIntegrator.u[1]) | isnan(PI.ODEIntegrator.u[2]) | isnan(PI.ODEIntegrator.u[3])
                 @info "position or Energy is nan, reset"
                 #@show PI
-                ui = ResetParticleState(boundary_defaults, PI, u(PI.position_xy[1], t_start) , DT)
+                ui = ResetParticleVector(boundary_defaults, PI, u(PI.position_xy[1], t_start) , DT)
                 #reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)
                 set_u!(PI.ODEIntegrator, ui)
                 u_modified!(PI.ODEIntegrator, true)

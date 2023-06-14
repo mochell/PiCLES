@@ -10,7 +10,7 @@ using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 
 import PiCLES: FetchRelations, ParticleTools
-using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleState, InitParticleInstance
+using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleVector, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 
 # % Parameters
@@ -91,7 +91,7 @@ grid = TwoDGrid(3, 3, 3, 3)
 particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_u_local, cg_v_local, 0.0, 0.0)
 
 # initialize particle given the wind conditions:
-#ParticleState = InitParticleState(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
+#ParticleState = InitParticleVector(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
 ParticleState = copy(particle_defaults)
 
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false)

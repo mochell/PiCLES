@@ -61,6 +61,7 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
                         Oses,
                         Odev,
                         MinPar,
+                        MinStat,
                         bl_flag,
                         bl,
                         bl_type,
@@ -82,6 +83,7 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
     ODEsettings::Oses     # All setting needed to solve the ODEsystem
     ODEdefaults::Odev     # Dict{NUm, Float64} ODE defaults
     minimal_particle::MinPar
+    minimal_state::MinStat
 
     periodic_boundary::bl_flag # If true we use a period boundary 
     boundary::bl       # List of boundary points
@@ -138,6 +140,7 @@ function WaveGrowth2D(; grid::TwoDGrid,
     ODEsets::AbstractODESettings=nothing,  # ODE_settings
     ODEdefaults::ParticleDefaults2D=nothing,  # default_ODE_parameters
     minimal_particle=nothing, # minimum particle the model falls back to if a particle fails to integrate
+    minimal_state=nothing, # minimum state threshold needed for the state to be advanced 
     currents=nothing,  # 
     periodic_boundary=true,
     boundary_type="wind_sea", # or "flat"
@@ -160,6 +163,14 @@ function WaveGrowth2D(; grid::TwoDGrid,
     else
         @info "use minimal particle"
     end
+
+    if isnothing(minimal_state)
+        @info "initalize minimum state"
+        minimal_state = FetchRelations.MinimalState(2, 2, ODEsets.timestep)
+    else
+        @info "use minimal state"
+    end
+
     # initliaze boundary points (periodic_boundary)
     if ~periodic_boundary  # if false, define boundary points here:
         boundary = boundary = mark_boundary(grid)
@@ -221,6 +232,7 @@ function WaveGrowth2D(; grid::TwoDGrid,
         ODEsets,
         ODEdev, 
         minimal_particle, 
+        minimal_state,
         periodic_boundary,
         boundary, boundary_defaults,
         winds,
