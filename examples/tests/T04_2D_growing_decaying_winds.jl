@@ -131,8 +131,8 @@ end
 
 # % half domain tests
 Revise.retry()
-#gridmesh = [(i, j) for i in [-10,10], j in  [0]]
-gridmesh = [(i, j) for i in [10], j in [0]]
+gridmesh = [(i, j) for i in [-10,10], j in  [0]]
+#gridmesh = [(i, j) for i in [10], j in [0]]
 
 #for I in CartesianIndices(gridmesh)
 for (U10, V10) in gridmesh
@@ -174,44 +174,44 @@ end
 
 # %%
 
-# gridmesh = [(i, j) for i in [-10,10], j in 0:5:5]
-# #for I in CartesianIndices(gridmesh)
-# for (U10, V10) in gridmesh
-#     @show U10, V10
+gridmesh = [(i, j) for i in [-10,10], j in 0:5:5]
+#for I in CartesianIndices(gridmesh)
+for (U10, V10) in gridmesh
+    @show U10, V10
 
-#     x0 =50e3
-#     Lx = (gn.Nx - 1) * gn.dx
-#     u_func(x, y, t) = IfElse.ifelse.(x .< x0, U10, U10 * (1 -x/Lx) ) + y * 0 + t * 0 + 0.1
-#     v_func(x, y, t) = IfElse.ifelse.(x .< x0, V10, V10 * (1 -x/Lx) ) + y * 0 + t * 0 + 0.1
+    x0 =50e3
+    Lx = (gn.Nx - 1) * gn.dx
+    u_func(x, y, t) = IfElse.ifelse.(x .< x0, U10, U10 * (1 -x/Lx) ) + y * 0 + t * 0 + 0.1
+    v_func(x, y, t) = IfElse.ifelse.(x .< x0, V10, V10 * (1 -x/Lx) ) + y * 0 + t * 0 + 0.1
 
-#     # u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
-#     # v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
+    # u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
+    # v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
 
-#     u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-#     v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
-#     u(x, y, t) = u_func(x, y, t)
-#     v(x, y, t) = v_func(x, y, t)
-#     winds = (u=u, v=v)
+    u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
+    v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
+    u(x, y, t) = u_func(x, y, t)
+    v(x, y, t) = v_func(x, y, t)
+    winds = (u=u, v=v)
 
-#     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
+    #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-#     particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
-#     @named particle_system = ODESystem(particle_equations)
+    particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+    @named particle_system = ODESystem(particle_equations)
 
-#     ## Define wave model
-#     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
-#         winds=winds,
-#         ODEsys=particle_system,
-#         ODEvars=vars,
-#         ODEsets=ODE_settings,  # ODE_settings
-#         ODEdefaults=default_particle,  # default_ODE_parameters
-#         minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
-#         periodic_boundary=false,
-#         boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
-#         movie=true)
+    ## Define wave model
+    wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
+        winds=winds,
+        ODEsys=particle_system,
+        ODEvars=vars,
+        ODEsets=ODE_settings,  # ODE_settings
+        ODEdefaults=default_particle,  # default_ODE_parameters
+        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        periodic_boundary=false,
+        boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+        movie=true)
 
-#     make_reg_test(wave_model, save_path, plot_name="T02_2D_decaying_U" * string(U10) * "_V" * string(V10), N=60, axline=x0/1e3)
-# end
+    make_reg_test(wave_model, save_path, plot_name="T02_2D_decaying_U" * string(U10) * "_V" * string(V10), N=60, axline=x0/1e3)
+end
 
 
 # %%

@@ -41,7 +41,7 @@ save_path = "plots/tests/T04_box_2d/"
 mkpath(save_path)
 
 # % Parameters
-U10,V10           = 20.0, 10.0
+U10,V10           = 10.0, 10.0
 dt_ODE_save       = 30minutes
 DT                = 30minutes
 # version 3
@@ -61,15 +61,15 @@ Const_ID
 # v(x, y, t) = 0.01 - V10 * cos(t / (6*60*60 * 2π) ) * sin(x / 50e3) * sin(y / 50e3)
 u_std= 2e3 *1
 v_std= 2e3 *1
-# u_func(x, y, t) = 0.1 + U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  sin(t*3  / (1 * 60 * 60 * 2π))
-# v_func(x, y, t) = 0.1 + V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  cos(t*3 / (1 * 60 * 60 * 2π) )   
+u_func(x, y, t) = U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  sin(t*2 / (1 * 60 * 60 * 2π))
+v_func(x, y, t) = V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  cos(t*2 / (1 * 60 * 60 * 2π) )   
 
-u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 6 / (1 * 60 * 60 * 2π)) > 0 , 
-                sin(t * 6 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
-                                        0.1) 
-v_func(x, y, t) = 0.1 + IfElse.ifelse.(sin(t * 3 / (1 * 60 * 60 * 2π)) > 0,
-                            0.0,
-                            -0.0)
+# u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 6 / (1 * 60 * 60 * 2π)) > 0 , 
+#                 sin(t * 6 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
+#                                         0.1) 
+# v_func(x, y, t) = 0.1 + IfElse.ifelse.(sin(t * 3 / (1 * 60 * 60 * 2π)) > 0,
+#                             0.0,
+#                             -0.0)
 
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
 
@@ -95,8 +95,6 @@ typeof(winds.u(x,y,t))
 
 u2 = winds.u(x, y, t)
 typeof(u2)
-
-
 typeof(winds.u(x, y, t))
 # %%
 
@@ -328,24 +326,22 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     ODEvars=vars,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=default_particle,  # default_ODE_parameters
-    minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
-    periodic_boundary=true,
+    minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+    minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
+    periodic_boundary=false,
     boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
     movie=true)
 
 wave_simulation = Simulation(wave_model, Δt=5minutes, stop_time=4hours)#1hours)
-initialize_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
+initialize_simulation!(wave_simulation)#, particle_initials=copy(wave_model.ODEdefaults))
 
 #reset_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
 
-
-Revise.retry()
-
-fig, n = init_movie_2D_box_plot(wave_simulation)
+fig, n = init_movie_2D_box_plot(wave_simulation, name_string= "Rotating Stationary Winds")
 
 #wave_simulation.stop_time += 1hour
-N = 180
-record(fig, save_path*"varying_winds_nonper_rotation_x_push.gif", 1:N, framerate=10) do i
+N = 250
+record(fig, save_path*"T02_2D_totating_winds_nonper.gif", 1:N, framerate=10) do i
     @info "Plotting frame $i of $N..."
     #@time for _ = 1:10
     #run!(wave_simulation, store=false)

@@ -321,6 +321,8 @@ function SeedParticle!(
         periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
 
         xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
+
+        
         #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
         uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
 

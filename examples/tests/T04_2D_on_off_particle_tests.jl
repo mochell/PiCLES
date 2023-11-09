@@ -87,7 +87,7 @@ ODE_settings = PW4.ODESettings(
     #maximum energy threshold
     log_energy_maximum=log(27),#log(17),  # correcsponds to Hs about 16 m
     # define minimum wind squared threshold
-    wind_min_squared=4.0,
+    wind_min_squared=2.0,
     saving_step=DT,
     timestep=DT,
     total_time=T = 6days,
@@ -99,15 +99,13 @@ ODE_settings = PW4.ODESettings(
     save_everystep=false)
 
 
-gn.y
-
 # %% half domain tests
 Revise.retry()
 #gridmesh = [(i, j) for i in [-10,10], j in  [0]]
 #gridmesh = [(i, j) for i in [10], j in [0]]
 
-U10 = -10
-V10 = 0.1
+U10 = -8
+V10 = 0.0
 
 @show U10, V10
 
@@ -116,11 +114,11 @@ Lx = (gn.Nx - 1) * gn.dx
 # u_func(x, y, t) = IfElse.ifelse.(x .< x0, U10, U10 * (1 -x/Lx) ) + y * 0 + t * 0
 # v_func(x, y, t) = IfElse.ifelse.(x .< x0, V10, V10 * (1 -x/Lx) ) + y * 0 + t * 0
 
-# u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
-# v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
+u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
+v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
 
-u_func(x, y, t) = IfElse.ifelse.(x .< x0, x *0+  0.1 , U10 ) + y * 0 + t * 0
-v_func(x, y, t) = IfElse.ifelse.(x .< x0, x *0 + 0.1 , V10 ) + y * 0 + t * 0
+# u_func(x, y, t) = IfElse.ifelse.(x .< x0, x *0+  0.0 , U10 ) + y * 0 + t * 0
+# v_func(x, y, t) = IfElse.ifelse.(x .< x0, x *0 + 0.0 , V10 ) + y * 0 + t * 0
 
 u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
 v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
@@ -134,7 +132,7 @@ particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 @named particle_system = ODESystem(particle_equations)
 
 
-## Define wave model
+# Define wave model
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
@@ -147,36 +145,47 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     boundary_type="wind_sea", #"zero",#"wind_sea", #"wind_sea", # or "default"
     movie=true)
 
-# %
+
+typeof(wave_model)
+
+
+# %%
 ### build Simulation
 Revise.retry()
-wave_simulation = Simulation(wave_model, Δt=DT, stop_time=4hours)
+wave_simulation = Simulation(wave_model, Δt=DT/2, stop_time=4hours)
 initialize_simulation!(wave_simulation)
 
+init_state_store!(wave_simulation, save_path)
+
+length(wave_simulation.store.shape) 
+
 #run!(wave_simulation, cash_store=true, debug=true)
-# %%
+run!(wave_simulation, store=true, cash_store=false, debug=false)
 
-plot(wave_simulation.model.State[:,:,2])
-wave_simulation.model.State[:, :, 2]
-# wave_simulation.model.State[:, :, 1]
-time_step!(wave_simulation.model, wave_simulation.Δt)
+close_store!(wave_simulation)
 
-wave_simulation.model.State[:, :, 2]
+#run!(wave_simulation, cash_store=true, debug=true)
+# %
 
-(wave_simulation.model.State[:, :, 1] .>= wave_model.minimal_state[1])
+# plot(wave_simulation.model.State[:,:,2])
+# wave_simulation.model.State[:, :, 2]
+# # wave_simulation.model.State[:, :, 1]
+# time_step!(wave_simulation.model, wave_simulation.Δt)
 
-(wave_simulation.model.State[:, :, 2] .>= wave_model.minimal_state[2])
+# wave_simulation.model.State[:, :, 2]
 
-wave_simulation.model.State[:, :, 2]
-wave_simulation.model.State[:, :, 3]
+# (wave_simulation.model.State[:, :, 1] .>= wave_model.minimal_state[1])
+
+# (wave_simulation.model.State[:, :, 2] .>= wave_model.minimal_state[2])
+
+# wave_simulation.model.State[:, :, 2]
+# wave_simulation.model.State[:, :, 3]
 
 
-
-
-# %%
+# %
 # or, alternatively, make movie
 plot_name="T02_2D_growing_U" * string(U10) * "_V" * string(V10)
-N=20
+N=80
 axline=x0/1e3
 fig, n = init_movie_2D_box_plot(wave_simulation; resolution=(1300, 800), name_string=plot_name, aspect=3, axline=axline)
 
@@ -207,7 +216,7 @@ end
 
 PW4.sin2_a_min_b( 1, 1 , 0.01,0.01 )
 PW4.sin2_a_min_b( 0,0.1  , 0,0.1 )
-PW4.sin2_a_min_b( 0.001,0.001  , 1,1 )
+PW4.sin2_a_min_b( 0,0  , 1,1 )
 PW4.sin2_a_min_b( 1,0  , 0,1 )
 PW4.sin2_a_min_b( 0,1  , 0,1 )
 
@@ -223,7 +232,7 @@ PW4.αₚ(0,0,0,0)
 @btime PW4.α_func(0,0)
 
 
-isnan(PW4.α_func(40,0.1)) ?
+isnan(PW4.α_func(40,0.1)) 
 PW4.α_func(0, 10)
 # %%
 
