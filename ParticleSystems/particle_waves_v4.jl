@@ -3,7 +3,7 @@ module particle_waves_v4
 #@info "Loading ModelingToolkit"
 using ModelingToolkit
 #@info "Loading DifferentialEquations"
-using DifferentialEquations
+using DifferentialEquations, IfElse
 
 using Architectures: AbstractODESettings
 
@@ -182,12 +182,12 @@ end
 # sign(cx) *
 #sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
 function sin2_a_min_b(ux::Number, uy::Number, cx::Number, cy::Number) 
-        sind2  = @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
-        # if isnan(sind2) | isinf(sind2)
-        #         return 0
-        # else
-        return sind2
-        # end
+
+        IfElse.ifelse(
+                (speed(ux, uy) * speed(cx, cy)) == 0, 
+                0, 
+                @. (2 / (speed(ux, uy) * speed(cx, cy))^2) * (ux * uy * (2 * cy^2 - speed(cx, cy)^2) - cx * cy * (2 * uy^2 - speed(ux, uy)^2))
+                )
 end
 
 function sin2_a_min_b(u::NamedTuple, cx::Number, cy::Number)

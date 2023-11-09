@@ -1,6 +1,7 @@
 using HDF5
 using DataStructures
 
+using ParticleMesh
 #using Simulation
 
 struct EmptyStore{Int} <: AbstractStore
@@ -16,10 +17,11 @@ end
 
 
 
-mutable struct StateStore{FL,HDFg,Int} <: AbstractStore
+mutable struct StateStore{FL,HDFg,Int,ST} <: AbstractStore
     file::FL
     store::HDFg
     iteration::Int
+    shape::ST
 end
 
 const StateOrNothing = Union{AbstractStore,Nothing}
@@ -56,7 +58,19 @@ function state_store(path, coords; name="state", replace=true, mode="w")
     store_waves["var_names"] = ["e", "m_x", "m_y"]
 
 
-    return StateStore(file, store_waves, 1)
+    return StateStore(file, store_waves, 1, shape)
+end
+
+
+function make_coords(grid::TwoDGrid)
+    x = collect(LinRange(0, grid.dimx, grid.Nx))
+    y = collect(LinRange(0, grid.dimy, grid.Ny))
+    (x=x, y=y)
+end
+
+function make_coords(grid::OneDGrid)
+    x = collect(LinRange(0, grid.dimx, grid.Nx))
+    (x=x,)
 end
 
 
@@ -69,10 +83,12 @@ Initializes the state store for the simulation sim.
 function init_state_store!(sim, save_path; state=["e", "m_x", "m_y"], kwargs...)
 
     grid = sim.model.grid
-    x = collect(LinRange(0, grid.dimx, grid.Nx))
+    coords = make_coords(grid)
+    #x = collect(LinRange(0, grid.dimx, grid.Nx))
     time_range = range(0.0, sim.stop_time + sim.Δt, step=sim.Δt)
 
-    coords = (time=Array(time_range), x=x, state=state)
+    coords = (; time=Array(time_range), coords..., state=state)
+    #coords = (time=Array(time_range), x=x, state=state)
 
     if sim.verbose
         @info "init state store"
@@ -92,7 +108,13 @@ Pushes the current state of the simulation sim to the state store.
 """
 function push_state_to_storage!(sim; i=nothing)
     ii = isnothing(i) ? sim.store.iteration : i
-    sim.store.store["data"][ii, :, :] = sim.model.State
+    if length(sim.store.shape) == 4
+        sim.store.store["data"][ii, :, :, :] = sim.model.State
+    elseif length(sim.store.shape) == 3
+        sim.store.store["data"][ii, :, :] = sim.model.State
+    else
+        error("wrong shape")
+    end
     nothing
 end
 

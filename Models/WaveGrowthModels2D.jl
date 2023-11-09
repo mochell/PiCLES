@@ -24,7 +24,7 @@ using PiCLES.Operators.mapping_2D
 #includet("mapping_1D.jl")
 
 function Base.show(io::IO, ow::AbstractModel)
-    print(io, "WaveGrowth1D ", "\n",
+    print(io, "WaveGrowth2D ", "\n",
         "├── grid: ", ow.grid, "\n",
         "├── layers: ", ow.layers, "\n",
         "├── clock: ", ow.clock,

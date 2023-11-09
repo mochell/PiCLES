@@ -36,6 +36,9 @@ using Distributions
 save_path = "plots/tests/T04_2D_regtest_netCDF/"
 mkpath(save_path)
 
+save_path_data = "data/work/T04_2D_regtest_netCDF/"
+mkpath(save_path_data)
+
 ##### basic parameters
 # timestep
 DT = 20minutes
@@ -43,10 +46,10 @@ DT = 20minutes
 U10, V10 = 10.0, 10.0
 
 # Define basic ODE parameters
-r_g0 = 0.85
-Const_ID = PW4.get_I_D_constant()
+r_g0            = 0.85
+Const_ID        = PW4.get_I_D_constant()
 @set Const_ID.γ = 0.88
-Const_Scg = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
+Const_Scg       = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
 # register symbolic variables
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
@@ -56,15 +59,15 @@ t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.in
 
 function interpolate_winds(ds)
     # define grid based on
-    grid = TwoDGrid(ds["x"][end], Int(ceil(ds.attrib["Nx"] / 2)),
-        ds["y"][end], Int(ceil(ds.attrib["Ny"] / 2)))
+    grid = TwoDGrid(ds["x"][end], Int(ceil(ds.attrib["Nx"]/2 )),
+        ds["y"][end], Int(ceil(ds.attrib["Ny"]/2 )))
     #grid = TwoDGrid(ds["x"][end], 31, ds["y"][end], 31)
     grid_mesh = TwoDGridMesh(grid, skip=1)
     gn = TwoDGridNotes(grid)
 
     # define time
     time_rel = (ds["time"][:] - ds["time"][1]) ./ convert(Dates.Millisecond, Dates.Second(1))
-    T = time_rel[end]
+    T = 1day#hours#time_rel[end]
 
     nodes = (ds["x"][:], ds["y"][:], time_rel)
     u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"][:], [1, 2, 3]), extrapolation_bc=Periodic())
@@ -90,25 +93,27 @@ default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], W
 function make_reg_test(wave_model, save_path; plot_name="dummy", N=36)
 
     ### build Simulation
-    wave_simulation = Simulation(wave_model, Δt=DT, stop_time=wave_model.ODE_settings.total_time)#1hours)
-    initialize_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
+    wave_simulation = Simulation(wave_model, Δt=DT, stop_time=wave_model.ODEsettings.total_time)#1hours)
+    initialize_simulation!(wave_simulation)
 
-    # run simulation
+    # run simulation & save simulation
+    init_state_store!(wave_simulation, save_path)
     #run!(wave_simulation, cash_store=true, debug=true)
+    run!(wave_simulation, store=true, cash_store=false, debug=false)
+    close_store!(wave_simulation)
     # # or, alternatively, make movie
+    # fig, n = init_movie_2D_box_plot(wave_simulation, name_string="T01")
 
-    fig, n = init_movie_2D_box_plot(wave_simulation, name_string="T01")
+    # #wave_simulation.stop_time += 1hour
+    # #N = 36
+    # #plot_name = "dummy"
+    # record(fig, save_path * plot_name * ".gif", 1:N, framerate=10) do i
+    #     @info "Plotting frame $i of $N..."
+    #     @info wave_simulation.model.clock
+    #     movie_time_step!(wave_simulation.model, wave_simulation.Δt)
 
-    #wave_simulation.stop_time += 1hour
-    #N = 36
-    #plot_name = "dummy"
-    record(fig, save_path * plot_name * ".gif", 1:N, framerate=10) do i
-        @info "Plotting frame $i of $N..."
-        @info wave_simulation.model.clock
-        movie_time_step!(wave_simulation.model, wave_simulation.Δt)
-
-        n[] = 1
-    end
+    #     n[] = 1
+    # end
 
 end
 
@@ -116,7 +121,7 @@ end
 # %%
 # loop over U10 and V10 range
 #case_list = ["Test02_2D", "Test03_2D", "Test04_2D"]
-case_list= ["Test05_2D", "Test06_2D", "Test07_2D"]
+case_list = ["Test01_2D"]#, "Test02_2D", "Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
     # load netCDF file
@@ -163,8 +168,6 @@ for case in case_list
         movie=true)
 
     NN = Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
-    make_reg_test(wave_model, save_path, plot_name=case, N=NN )
+    mkpath(save_path_data * case)
+    make_reg_test(wave_model, save_path_data * case, plot_name=case, N=NN)
 end
-
-# %%
-
