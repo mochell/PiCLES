@@ -5,7 +5,6 @@ using Oceananigans: AbstractDiagnostic, AbstractOutputWriter, fields
 import Oceananigans: fields
 using Oceananigans.Units
 
-
 using Architectures: AbstractStore
 
 #using Architectures: StateOrNothing, StateStore, AbstractStore, EmptyStore
