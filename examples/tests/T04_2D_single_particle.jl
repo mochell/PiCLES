@@ -40,7 +40,6 @@ v(x, y, t) = - (V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 
 winds = (u=u, v=v)
 
-Revise.retry()
 
 # define variables based on particle equation
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = PW4.init_vars()
@@ -86,7 +85,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"
 # initialize particle given the wind conditions:
 #ParticleState = InitParticleVector(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
 ParticleState = copy(particle_defaults)
-PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false)
+PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
 
 states(particle_system)
 #defaults(particle_system3)
