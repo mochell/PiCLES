@@ -224,30 +224,46 @@ Find initial conditions for particle. Used at the beginning of the experiment.
 """
 function InitParticleVector(
     defaults::PP,
-    i::Int64,
-    gridnote::OneDGridNotes,
-    u, DT) where {PP<:Union{Dict,Nothing}}
+    ii::Int64,
+    xx::Float64,
+    uu::TT,
+    DT) where {PP<:Union{Dict,Nothing}, TT<:Union{Float64,Num}}
     # take in local wind velocities
 
     if defaults == nothing
         #@info "init particles from fetch relations: $z_i"
         particle_defaults = Dict{Num,Float64}()
 
-        u_init = u(gridnote.x[i], 0)
-        # seed particle given fetch relations
-        WindSeaMin = FetchRelations.get_initial_windsea(u_init, DT) # takes u_init just for the sign.
-        particle_defaults[lne] = log(WindSeaMin["E"])
-        particle_defaults[c̄_x] = WindSeaMin["cg_bar"]
+        if uu > sqrt(2)
+            # defaults are not defined and there is wind
 
+            # take in local wind velocities
+            WindSeaMin = FetchRelations.get_initial_windsea(uu, 0.0, DT)
+            # seed particle given fetch relations
+            particle_defaults[lne] = log(WindSeaMin["E"])
+            particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
+            # particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
+
+            particle_on = true
+
+        else
+
+            # defaults are not defined and there is no wind
+            u_min = FetchRelations.MinimalParticle(uu,0.0, DT)
+            particle_defaults[lne] = u_min[1]
+            particle_defaults[c̄_x] = u_min[2]
+            
+            particle_on = false
+        end
     else
-        particle_defaults = defaults#deepcopy(defaults)
+        particle_defaults = defaults
+        particle_on = true
     end
-
     # initalize state based on state vector
-    particle_defaults[x] = gridnote.x[i]
+    particle_defaults[x] = xx
 
     #@show defaults
-    return particle_defaults
+    return particle_defaults, particle_on
 end
 
 """
@@ -325,14 +341,21 @@ function SeedParticle!(
     boundary::Vector{T},
     periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
 
+    # get x position
+    x = GridNotes.x[i]
+    u = winds(x, 0.0)::Float64
+
     # define initial condition
-    z_i = InitParticleVector(particle_defaults, i, GridNotes, winds, DT)
+    z_i, particle_on = InitParticleVector(particle_defaults, i, x, u, DT)
 
     # check if point is boundary point
     boundary_point = check_boundary_point(i, boundary, periodic_boundary)
 
     # add initial state to State vector
-    init_z0_to_State!(State, i, GetParticleEnergyMomentum(z_i))
+    #@info z_i
+    if particle_on
+        init_z0_to_State!(State, i, GetParticleEnergyMomentum(z_i))
+    end
 
     # Push Inital condition to collection
     push!(ParticleCollection,
@@ -341,7 +364,8 @@ function SeedParticle!(
             z_i,
             ODE_settings,
             i,
-            boundary_point))
+            boundary_point,
+            particle_on))
     nothing
 end
 

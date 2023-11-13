@@ -268,10 +268,10 @@ function init_particles!(model::Abstract1DModel; defaults::T=nothing, verbose::B
 
         # print(defaults)
         # ParticleCollection=[]
-        # for i in range(1,length = grid1d.Nx)
+        # for i in range(1, length=gridnotes.Nx)
         #         SeedParticle!(ParticleCollection, model.State, i,
         #                         model.ODEsystem, defaults , model.ODEsettings,
-        #                         gridnotes, model.winds, model.ODEsettings.timestep, model.grid.Nx,
+        #                         gridnotes, model.winds, model.ODEsettings.timestep,
         #                         model.boundary, model.periodic_boundary  )
         # end
 
