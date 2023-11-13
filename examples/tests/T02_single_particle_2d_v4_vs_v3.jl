@@ -95,8 +95,8 @@ particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_u_local
 #ParticleState = InitParticleVector(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
 ParticleState = copy(particle_defaults)
 
-PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false)
-PI3 = InitParticleInstance(particle_system3, ParticleState, ODE_settings, (0, 0), false)
+PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
+PI3 = InitParticleInstance(particle_system3, ParticleState, ODE_settings, (0, 0), false, true)
 
 
 model_simple = equations(particle_system3)

@@ -21,7 +21,7 @@ using Oceananigans.Units
 # % Parameters
 
 plot_path_base = "plots/tests/plot_path_base/"
-mkdir(plot_path_base)
+mkpath(plot_path_base)
 @register_symbolic u(x, t)
 @register_symbolic u_x(x, t)
 
@@ -87,8 +87,11 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 #particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
 
 # initialize particle given the wind conditions:
-ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false)
+
+ij = 2
+xx = OneDGridNotes(grid1d).x[ij]
+ParticleState, particle_on = InitParticleVector(copy(particle_defaults), ij, xx, u(xx, 0), DT)
+PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, ij, false, particle_on)
 
 # %
 function set_u_and_t!(integrator, u_new, t_new)
@@ -143,6 +146,7 @@ title!("PW4")
 
 savefig(plot_path_base*"PW3_positive4.png")
 
+@info "c_g min,max", minimum(PID4[:, 3]), maximum(PID4[:, 3])
 
 
 # %%  same for negatie winds:
@@ -151,8 +155,10 @@ u(x, t) = x .* 0 + t * 0 - 10.0
 WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
 
-ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false)
+ij = 2
+xx = OneDGridNotes(grid1d).x[ij]
+ParticleState, particle_on = InitParticleVector(copy(particle_defaults), ij, xx, u(xx, 0), DT)
+PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, ij, false, particle_on)
 
 clock_time = 0
 NDT = 6
@@ -163,7 +169,9 @@ for i in Base.Iterators.take(PI4.ODEIntegrator, NDT)
     step!(PI4.ODEIntegrator, DT, true)
     clock_time += DT
     clock_time = PI4.ODEIntegrator.t
-    ui = [log(exp(PI4.ODEIntegrator.u[1]) * 1), PI4.ODEIntegrator.u[2], PI4.ODEIntegrator.u[3] * 0]
+    #ui = [log(exp(PI4.ODEIntegrator.u[1]) * 1), PI4.ODEIntegrator.u[2], PI4.ODEIntegrator.u[3] * 0]
+    ui = [PI4.ODEIntegrator.u[1] , PI4.ODEIntegrator.u[2], PI4.ODEIntegrator.u[3] * 0]
+
     #ui = [log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0]
     #ui = [lne_local, cg_local, PI4.ODEIntegrator.u[3]]
 
@@ -194,6 +202,8 @@ title!("PW4")
 # save figure
 savefig(plot_path_base* "PW4_negtive4.png")
 
+@info "c_g min,max", minimum(PID4[:, 3]), maximum(PID4[:, 3])
+
 
 # %% test with PIC remeshing algorithm ####
 
@@ -212,6 +222,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid= OneDGrid(0, 30e3, 50),
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=particle_defaults,  # default_ODE_parameters
+    minimal_particle=FetchRelations.MinimalParticle(U10, 0, DT), #
     periodic_boundary=false,
     boundary_type="wind_sea"#"wind_sea"  # "default" #
 )
@@ -239,7 +250,7 @@ Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave
 #title!("titlde")
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png") )
 
-
+# %%
 @info "experiment 1: positive winds, non-periodic \n"
 u10 = 10
 u(x, t) = x .* 0 + t * 0 + u10
@@ -255,6 +266,7 @@ run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
+# %%
 @info "experiment 1: nagative winds, perodic \n"
 u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
@@ -270,6 +282,7 @@ run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
+# %%
 @info "experiment 1: nagative winds, non-perodic \n"
 u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10

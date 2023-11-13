@@ -374,7 +374,6 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
 
         return particle_equations
 end
-
 # ------------ 1D ------------
 """
 particle_equations(u ; γ::Number=0.88, q::Number=-1/4.0 )
@@ -403,7 +402,7 @@ function particle_equations(u; γ::Number=0.88, q::Number=-1 / 4.0,
         u_speed = abs(u)
 
         # peak parameters
-        c_gp_speed, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
+        c_gp_speed, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
 
         # direction equations
         α = α_func(u_speed, c_gp_speed)
