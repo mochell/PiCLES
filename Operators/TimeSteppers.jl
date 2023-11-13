@@ -42,7 +42,10 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
             #@show a_particle.position_ij
             mapping_1D.advance!(    a_particle, model.State, FailedCollection, 
                                     model.grid, model.winds , Δt , 
-                                    model.ODEsettings , model.periodic_boundary, model.boundary_defaults )
+                                    model.ODEsettings.log_energy_maximum, 
+                                    model.ODEsettings.wind_min_squared,
+                                    model.periodic_boundary,
+                                    model.boundary_defaults)
     end
     if debug
             model.FailedCollection = FailedCollection
@@ -57,9 +60,10 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
     for a_particle in model.ParticleCollection
             mapping_1D.remesh!(     a_particle, model.State, 
                                     model.winds, model.clock.time, 
-                                    model.ODEsettings, Δt;
-                                    default_particle=model.boundary_defaults,
-                                    )
+                                    model.ODEsettings, Δt,
+                                    model.minimal_particle,
+                                    model.minimal_state,
+                                    default_particle=model.ODEdefaults)
     end
 
     if debug
@@ -123,7 +127,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     for a_particle in model.ParticleCollection
         mapping_2D.remesh!(a_particle, model.State, 
                         model.winds, model.clock.time, 
-                        model.ODEsettings, Δt, 
+                        model.ODEsettings, Δt,
                         model.minimal_particle, 
                         model.minimal_state,
                         default_particle=model.ODEdefaults)
