@@ -48,22 +48,24 @@ end
 
 """
 mutable struct WaveGrowth1D{Grid<:AbstractGrid,
-  Lay,
-  Tim,
-  Clo,
-  Int,
-  stat,
-  PC,
-  FPC,
-  Ovar,
-  Osys,
-  Oses,
-  Odev,
-  bl_flag,
-  bl,
-  bl_type,
-  wnds,
-  cur} <: Abstract1DModel
+              Lay,
+              Tim,
+              Clo,
+              Int,
+              stat,
+              PC,
+              FPC,
+              Ovar,
+              Osys,
+              Oses,
+              Odev,
+              MinPar,
+              MinStat,
+              bl_flag,
+              bl,
+              bl_type,
+              wnds,
+              cur} <: Abstract1DModel
   grid::Grid
   layers::Lay      # number of layers used in the model, 1 is eneough
   timestepper::Tim      # silly Oceananigans
@@ -78,6 +80,8 @@ mutable struct WaveGrowth1D{Grid<:AbstractGrid,
   ODEsystem::Osys     # the ODE system used at each particle
   ODEsettings::Oses     # All setting needed to solve the ODEsystem
   ODEdefaults::Odev     # Dict{NUm, Float64} ODE defaults
+  minimal_particle::MinPar
+  minimal_state::MinStat
 
   periodic_boundary::bl_flag # If true we use a period boundary 
   boundary::bl        # List of boundary points
@@ -109,6 +113,8 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
   clock=Clock{eltype(grid)}(0, 0, 1),
   ODEsets::AbstractODESettings=nothing,  # ODE_settings
   ODEdefaults::ParticleDefaults1D=nothing,  # default_ODE_parameters
+  minimal_particle=nothing, # minimum particle the model falls back to if a particle fails to integrate
+  minimal_state=nothing, # minimum state threshold needed for the state to be advanced 
   currents=nothing,  # 
   periodic_boundary=true,
   boundary_type="wind_sea", # or "flat", "default", default is wind_sea
@@ -121,6 +127,20 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
     State = SharedArray{Float64,3}(grid.Nx, Nstate, layers)
   else
     State = SharedMatrix{Float64}(grid.Nx, Nstate)
+  end
+
+  if isnothing(minimal_particle)
+    @info "initalize minimum particle"
+    minimal_particle = FetchRelations.MinimalParticle(2, 2, ODEsets.timestep)
+  else
+    @info "use minimal particle"
+  end
+
+  if isnothing(minimal_state)
+    @info "initalize minimum state"
+    minimal_state = FetchRelations.MinimalState(2, 2, ODEsets.timestep)
+  else
+    @info "use minimal state"
   end
 
   # initliaze boundary points (periodic_boundary)
@@ -173,6 +193,8 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, ODEvars,
     ODEsys,
     ODEsets,
     ODEdev,
+    minimal_particle,
+    minimal_state,
     periodic_boundary,
     boundary,
     boundary_defaults,
