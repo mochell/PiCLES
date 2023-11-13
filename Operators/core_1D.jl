@@ -137,7 +137,7 @@ Get_u_FromShared(PI::AbstractParticleInstance, S::SharedMatrix,) = S[PI.position
 
 ###### seed particles #####
 
-
+# normal version
 """
 InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing)
 wrapper function to initalize a particle instance
@@ -148,7 +148,46 @@ wrapper function to initalize a particle instance
         ij              is the (i,j) tuple that of the initial position
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag; cbSets=Nothing)
+function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
+
+    # convert to ordered particle state
+    z_initials = [z_initials[lne], z_initials[c̄_x], z_initials[x]]
+    # converty to ordered named tuple
+    ODE_parameters = NamedTuple{Tuple(Symbol.(keys(ODE_settings.Parameters)))}(values(ODE_settings.Parameters))
+
+    # create ODEProblem
+    problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_parameters)
+    # inialize problem
+    # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
+    integrator = init(
+        problem,
+        ODE_settings.solver,
+        saveat=ODE_settings.saving_step,
+        abstol=ODE_settings.abstol,
+        adaptive=ODE_settings.adaptive,
+        dt=ODE_settings.dt,
+        dtmin=ODE_settings.dtmin,
+        force_dtmin=ODE_settings.force_dtmin,
+        maxiters=ODE_settings.maxiters,
+        reltol=ODE_settings.reltol,
+        callback=ODE_settings.callbacks,
+        save_everystep=ODE_settings.save_everystep)
+    return ParticleInstance1D(ij, z_initials[3], integrator, boundary_flag, particle_on)
+end
+
+
+# ODESystem version
+"""
+InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing)
+wrapper function to initalize a particle instance
+        inputs:
+        model           is an initlized ODESytem
+        z_initials      is the initial state of the ODESystem
+        pars            are the parameters of the ODESystem
+        ij              is the (i,j) tuple that of the initial position
+        chSet           (optional) is the set of callbacks the ODE can have
+"""
+function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
 
     # create ODEProblem
     problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
@@ -167,7 +206,7 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
         reltol=ODE_settings.reltol,
         callback=ODE_settings.callbacks,
         save_everystep=ODE_settings.save_everystep)
-    return ParticleInstance1D(ij, z_initials[x], integrator, boundary_flag)
+    return ParticleInstance1D(ij, z_initials[x], integrator, boundary_flag, particle_on)
 end
 
 

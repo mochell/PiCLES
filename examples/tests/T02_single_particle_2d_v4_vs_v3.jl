@@ -52,6 +52,7 @@ particle_equations3 = PW3.particle_equations_vec5(u, v, u, v, γ=Const_ID.γ, q=
 particle_equations = PW4.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 @named particle_system = ODESystem(particle_equations)
 
+
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
     C_φ => Const_ID.c_β, C_e => Const_ID.C_e, g => 9.81)
@@ -96,6 +97,11 @@ ParticleState = copy(particle_defaults)
 
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false)
 PI3 = InitParticleInstance(particle_system3, ParticleState, ODE_settings, (0, 0), false)
+
+
+model_simple = equations(particle_system3)
+
+ODEProblem(particle_equations3, ParticleState, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
 
 states(particle_system3)
 #defaults(particle_system3)
