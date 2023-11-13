@@ -140,13 +140,15 @@ end
 
 
 """
-InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing)
+InitParticleInstance(model::WaveGrowth1D, z_initials, pars, ij, boundary_flag, particle_on ; cbSets=nothing)
 wrapper function to initalize a particle instance
         inputs:
         model           is an initlized ODESytem
         z_initials      is the initial state of the ODESystem
         pars            are the parameters of the ODESystem
         ij              is the (i,j) tuple that of the initial position
+        boundary_flag   is a boolean that indicates if the particle is on the boundary
+        particle_on     is a boolean that indicates if the particle is on
         chSet           (optional) is the set of callbacks the ODE can have
 """
 function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
