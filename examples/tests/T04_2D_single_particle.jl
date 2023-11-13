@@ -47,6 +47,8 @@ t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = PW4.init_vars
 particle_equations = PW4.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 @named particle_system = ODESystem(particle_equations)
 
+typeof(particle_system)
+
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
     C_φ => Const_ID.c_β, C_e => Const_ID.C_e)

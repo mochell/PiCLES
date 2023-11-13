@@ -21,7 +21,7 @@ using Oceananigans.Units
 # % Parameters
 
 plot_path_base = "plots/tests/plot_path_base/"
-mkdir(plot_path_base)
+mkpath(plot_path_base)
 @register_symbolic u(x, t)
 @register_symbolic u_x(x, t)
 
@@ -88,7 +88,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 
 # initialize particle given the wind conditions:
 ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false)
+PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false, true)
 
 # %
 function set_u_and_t!(integrator, u_new, t_new)
@@ -152,7 +152,7 @@ WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
 
 ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false)
+PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, 0, false, true)
 
 clock_time = 0
 NDT = 6
