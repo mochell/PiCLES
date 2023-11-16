@@ -8,6 +8,7 @@ push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
 using PiCLES.ParticleSystems: particle_waves_v4 as PW4
 using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
+using PiCLES.ParticleSystems: particle_waves_v5 as PW5
 
 import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleVector, InitParticleInstance
@@ -52,6 +53,7 @@ particle_equations3 = PW3.particle_equations_vec5(u, v, u, v, γ=Const_ID.γ, q=
 particle_equations = PW4.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 @named particle_system = ODESystem(particle_equations)
 
+particle_system5 = PW5.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
@@ -98,12 +100,18 @@ ParticleState = copy(particle_defaults)
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
 PI3 = InitParticleInstance(particle_system3, ParticleState, ODE_settings, (0, 0), false, true)
 
+# %%
+Revise.retry()
+
+particle_system5 = PW5.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
+ParticleState
+particle_system5()
+PI5 = InitParticleInstance(particle_system5, ParticleState, ODE_settings, (0, 0), false, true)
 
 model_simple = equations(particle_system3)
 
-ODEProblem(particle_equations3, ParticleState, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
 
-states(particle_system3)
+#states(particle_system3)
 #defaults(particle_system3)
 
 function set_u_and_t!(integrator, u_new, t_new)

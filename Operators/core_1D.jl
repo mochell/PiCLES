@@ -4,7 +4,7 @@ using DifferentialEquations: OrdinaryDiffEq.ODEProblem, init
 using ModelingToolkit: ODESystem
 
 using SharedArrays
-using ModelingToolkit: Num
+#using ModelingToolkit: Num
 using DocStringExtensions
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
@@ -36,7 +36,7 @@ Structure holds default particles
 # Fields  
 $(DocStringExtensions.FIELDS)
 """
-struct ParticleDefaults
+mutable struct ParticleDefaults
     "log energy"
     lne::Float64
     "horizontal velocity"
@@ -44,6 +44,10 @@ struct ParticleDefaults
     "x Position"
     x::Float64
 end
+
+
+Base.copy(s::ParticleDefaults) = ParticleDefaults(s.lne, s.c̄_x, s.x)
+init(s::ParticleDefaults) = [s.lne, s.c̄_x, s.x]
 
 # """
 # ParticleDefaults
@@ -59,8 +63,6 @@ end
 #     "log energy"
 #     lne::Float64
 # end
-
-Base.copy(s::ParticleDefaults) = Dict(lne => s.lne, c̄_x => s.c̄_x, x => s.x)
 
 speed(x::Float64, y::Float64) = sqrt(x^2 + y^2)
 
@@ -151,12 +153,13 @@ wrapper function to initalize a particle instance
 function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
 
     # convert to ordered particle state
-    z_initials = [z_initials[lne], z_initials[c̄_x], z_initials[x]]
+    
+    #z_initials = [z_initials[lne], z_initials[c̄_x], z_initials[x]]
     # converty to ordered named tuple
     ODE_parameters = NamedTuple{Tuple(Symbol.(keys(ODE_settings.Parameters)))}(values(ODE_settings.Parameters))
 
     # create ODEProblem
-    problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_parameters)
+    problem = ODEProblem(model, init(z_initials) , (0.0, ODE_settings.total_time), ODE_parameters)
     # inialize problem
     # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
     integrator = init(
@@ -212,27 +215,27 @@ end
 
 
 """
-InitParticleVector(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
+InitParticleVector(defaults:: Dict{Number, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
         defaults        Dict with variables of the state vector, these will be replaced in this function
         i               index of the grid point
         gridnote        grid to determine the position in the grid
-        u               interp. fucntion with wind values
+        uu              wind value
         DT              time step of model, used to determine fetch laws
 """
 function InitParticleVector(
     defaults::PP,
     ii::Int64,
     xx::Float64,
-    uu::TT,
-    DT) where {PP<:Union{Dict,Nothing}, TT<:Union{Float64,Num}}
+    uu::Number,
+    DT) where {PP<:Union{Nothing,ParticleDefaults}}
     # take in local wind velocities
 
     if defaults == nothing
         #@info "init particles from fetch relations: $z_i"
-        particle_defaults = Dict{Num,Float64}()
+        #particle_defaults = Dict{Num,Float64}()
 
         if uu > sqrt(2)
             # defaults are not defined and there is wind
@@ -240,8 +243,8 @@ function InitParticleVector(
             # take in local wind velocities
             WindSeaMin = FetchRelations.get_initial_windsea(uu, 0.0, DT)
             # seed particle given fetch relations
-            particle_defaults[lne] = log(WindSeaMin["E"])
-            particle_defaults[c̄_x] = WindSeaMin["cg_bar_x"]
+            lne = log(WindSeaMin["E"])
+            c̄_x = WindSeaMin["cg_bar_x"]
             # particle_defaults[c̄_y] = WindSeaMin["cg_bar_y"]
 
             particle_on = true
@@ -250,24 +253,26 @@ function InitParticleVector(
 
             # defaults are not defined and there is no wind
             u_min = FetchRelations.MinimalParticle(uu,0.0, DT)
-            particle_defaults[lne] = u_min[1]
-            particle_defaults[c̄_x] = u_min[2]
+            lne = u_min[1]
+            c̄_x = u_min[2]
             
             particle_on = false
         end
+        # initalize state based on state vector
+        particle_defaults = ParticleDefaults(lne, c̄_x, xx)
+
     else
-        particle_defaults = defaults
+        particle_defaults = copy(defaults)
         particle_on = true
     end
-    # initalize state based on state vector
-    particle_defaults[x] = xx
+
 
     #@show defaults
     return particle_defaults, particle_on
 end
 
 """
-ResetParticleVector(defaults:: Dict{Num, Float64}, PI::AbstractParticleInstance, u_rn, DT)
+ResetParticleVector(defaults:: Dict{Number, Float64}, PI::AbstractParticleInstance, u_rn, DT)
 
 resets the particle state to the default values if they given, otherwise it will use the fetch relations
         inputs:
@@ -283,7 +288,7 @@ function ResetParticleVector(
     # take in local wind velocities
 
     if defaults == nothing # this is boundary_defaults = "wind_sea"
-        particle_defaults = Dict{Num,Float64}()
+        particle_defaults = Dict{Number,Float64}()
         #@info "init particles from fetch relations: $z_i"
         # seed particle given fetch relations
         WindSeaMin = FetchRelations.get_initial_windsea(u_rn, DT) # takes u_init just for the sign.
@@ -320,7 +325,7 @@ end
 
 """
 SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
-                particle_system::ODESystem, particle_defaults::Dict{Num, Float64}, ODE_defaults::Dict{Num, Float64},
+                particle_system::ODESystem, particle_defaults::Dict{Number, Float64}, ODE_defaults::Dict{Number, Float64},
                 GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
 
 Seed Pickles to ParticleColletion and State
@@ -330,7 +335,7 @@ function SeedParticle!(
     State::SharedMatrix,
     i::Int64,
 
-    particle_system::ODESystem,
+    particle_system::SS,
     particle_defaults::PP,
     ODE_settings, #particle_waves_v3.ODESettings type
 
@@ -339,7 +344,7 @@ function SeedParticle!(
     DT::Float64,
     
     boundary::Vector{T},
-    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing}}
+    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing,},SS<:Union{ODESystem,Any}}
 
     # get x position
     x = GridNotes.x[i]

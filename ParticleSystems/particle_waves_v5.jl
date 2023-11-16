@@ -5,7 +5,7 @@ module particle_waves_v5
 #@info "Loading DifferentialEquations"
 using DifferentialEquations, IfElse
 
-using Architectures: AbstractODESettings
+using Architectures: AbstractODESettings, AbstractParticleSystem
 
 export particle_equations, ODESettings
 using LinearAlgebra
@@ -35,7 +35,7 @@ $(DocStringExtensions.FIELDS)
 """
 @with_kw struct ODESettings <: AbstractODESettings
     "ODE parameters (Dict)"
-    Parameters::Dict{Number,Float64}
+    Parameters::NamedTuple
     "minimum allowed log energy on particle "
     log_energy_minimum::Float64
     "maximum allowed log energy on particle "
@@ -316,7 +316,7 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
     e_T = e_T_func(γ, p, q, n)#, C_e=C_e)
 
 
-    function partice_system(dz, z, params, t)
+    function partice_system(dz, z, params, t) <: MVector{3, Float64}
     
         # forcing fields
         #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
@@ -344,21 +344,21 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
         S_cg_tilde = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
         S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
-        particle_equations::Vector{Number} = [
-                    # energy
-                    +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃), #- c̄ .* G_n,
+        #particle_equations::Vector{Number} = [
+        # energy
+        dz[1] = +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
 
-                    # peak group velocity vector
-                    -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde, #* (-1),
-                    -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde, #* (1),
+        # peak group velocity vector
+        dz[2] = -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
+        dz[3] = -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
 
-                    # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
-                    # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
+        # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
+        # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
 
-                    # propagation
-                    propagation ? c̄_x : 0.0,
-                    propagation ? c̄_y : 0.0
-                    ]
+        # propagation
+        dz[4] = propagation ? c̄_x : 0.0
+        dz[5] =propagation ? c̄_y : 0.0
+        
 
         if debug_output
             #@variables Input, Dissp, H_p, alpha, alpha_p, Scg, Delta_p, Sdir, c_y
@@ -373,10 +373,10 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
                 S_dir_tilde,
                 Δₚ,
                 c_gp_y]
-            append!(particle_equations, additional_output)
+            append!(dz, additional_output)
         end
 
-        return particle_equations
+        return dz
 
     end
 
@@ -416,8 +416,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     #D = Differential(t)
 
     ###  ---------------- start function here
-    function partice_system(dz, z, params, t)
-
+    function partice_system(dz, z, params, t) #<: Vector{Number}
         #unpack0
         lne, c̄_x, x      = z
         #lne, c̄_x, x      = z.lne, z.c̄_x, z.x
@@ -433,7 +432,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
         u_speed = abs(u)
 
         # peak parameters
-        c_gp_speed, kₚ, ωₚ = c_g_conversions(c̄, r_g=r_g)
+        c_gp_speed, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
 
         # direction equations
         α = α_func(u_speed, c_gp_speed)
@@ -482,25 +481,23 @@ returns 3 element state vector of the particle system as vector:
         [lne, c̄_x, x], lne, c̄_x, are constants
 """
 function particle_rays(info=false)
-    #t, x, c̄_x, lne, r_g, C_α, g, C_e = init_vars_1D()
 
     # no directional changes  in 1D!
     if info
         println("c_x = ", c̄_x)
     end
     #D = Differential(t)
-    particle_equations = [
+    function partice_system(dz, z, params, t) #<: Vector{Number}
+        lne, c̄_x, x = z
         # energy
-        D(lne) ~ 0,
+        dz[1] = 0
         # peak group velocity vector
-        D(c̄_x) ~ 0,
-
+        dz[2] = 0
         # propagation
-        D(x) ~ c̄_x
-    ]
+        dz[3] = c̄_x
+    end
 
-
-    return particle_equations
+    return partice_system
 end
 
 

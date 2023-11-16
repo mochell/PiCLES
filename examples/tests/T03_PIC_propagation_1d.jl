@@ -5,7 +5,7 @@ using Revise
 using IfElse
 using Statistics
 
-using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
+#using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 
 using HDF5, JLD2
 
@@ -21,7 +21,7 @@ using PiCLES.Simulations
 using PiCLES: ParticleInCell
 
 #using PiCLES.Debugging
-using PiCLES.ParticleSystems: particle_waves_v4 as PW
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 using Oceananigans.TimeSteppers: Clock, tick!
 import Oceananigans: fields
@@ -64,7 +64,7 @@ ID = "empl_eq_v4"
 @info "Init Forcing Field\n"
 # create wind test fucntion
 
-@register_symbolic u(x, t)
+#@register_symbolic u(x, t)
 
 x_scale = 600e3
 t_scale = (60 * 60 * 24 * 1.5)
@@ -77,16 +77,15 @@ u(x, t) = U10 + x * 0 + t * 0#
 #using PiCLES.ParticleInCell: push_to_grid!
 Revise.revise(ParticleInCell)
 
-#Revise.retry()
+Revise.retry()
 ############ try v3 again first and check ways to import module
 #particle_equations = PW.particle_equations(u, γ=γ,input=true, dissipation=true, peak_shift=true )
-particle_equations = PW.particle_rays()
-@named particle_system = ODESystem(particle_equations)
+particle_system = PW.particle_rays()
 
 # define variables based on particle equation
-t, x, c̄_x, lne, r_g, C_α, g, C_e = PW.init_vars_1D()
+#t, x, c̄_x, lne, r_g, C_α, g, C_e = nothing
 
-default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha, C_e => Const_ID.C_e)
+default_ODE_parameters = (r_g =r_g0, C_α = Const_Scg.C_alpha, C_e = Const_ID.C_e)
 
 WindSeamin = FetchRelations.get_minimal_windsea(U10, DT)
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
@@ -111,7 +110,7 @@ ODE_settings = PW.ODESettings(
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     winds=u,
     ODEsys=particle_system,
-    ODEvars=PW.init_vars_1D(),
+    ODEvars=nothing,
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=particle_defaults,  # default_ODE_parameters
@@ -164,7 +163,6 @@ for i in range(10, Integer(floor(length(wave_model.ParticleCollection) * 1 / 2))
     @info i, wave_model.ParticleCollection[i].ODEIntegrator.u
 end
 
-
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 
 output = convert_state_store_to_array(wave_simulation.store.store)
@@ -213,7 +211,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     winds=u,
     ODEsys=particle_system,
-    ODEvars=PW.init_vars_1D(),
+    ODEvars=nothing,
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=particle_defaults,  # default_ODE_parameters
