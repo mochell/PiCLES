@@ -2,8 +2,8 @@ import Plots
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 
-using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
-using PiCLES.ParticleSystems: particle_waves_v4 as PW4
+#using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
+using PiCLES.ParticleSystems: particle_waves_v5 as PW5
 
 import PiCLES: FetchRelations
 
@@ -11,7 +11,7 @@ push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleVector, InitParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
 
-using ModelingToolkit, DifferentialEquations
+using DifferentialEquations
 
 using PiCLES.Utils.ParticleTools 
 using Plots
@@ -22,8 +22,8 @@ using Oceananigans.Units
 
 plot_path_base = "plots/tests/plot_path_base/"
 mkpath(plot_path_base)
-@register_symbolic u(x, t)
-@register_symbolic u_x(x, t)
+# @register_symbolic u(x, t)
+# @register_symbolic u_x(x, t)
 
 U10 = 10.1
 r_g0 = 0.85
@@ -41,32 +41,32 @@ u(x, t) = x .* 0 + t * 0 + U10
 u_x(x, t) = x .* 0 + t * 0
 
 Revise.retry()
-
-particle_equations4 = PW4.particle_equations(u, γ=γ)
-@named particle_system4 = ODESystem(particle_equations4)
+particle_system = PW5.particle_equations(u, γ=γ)
 
 # define variables based on particle equation
-t, x, c̄_x, lne, r_g, C_α, g, C_e = PW3.init_vars_1D()
+#t, x, c̄_x, lne, r_g, C_α, g, C_e = PW3.init_vars_1D()
 
 # define storing stucture and populate inital conditions
-default_ODE_parameters = Dict(
-    r_g => 0.85,
-    C_α => -1.41,
-    g => 9.81,
-    C_e => C_e0,
+default_ODE_parameters = (
+    r_g = 0.85,
+    C_α = -1.41,
+    g = 9.81,
+    C_e = C_e0,
 )
 
+typeof(default_ODE_parameters)
 
 condition(u, t, integrator) = 0.9 * u[1] > log(17)
 affect!(integrator) = terminate!(integrator)
 cb = ContinuousCallback(condition, affect!)
 
 # define initial conditions
-WindSeamin = FetchRelations.get_initial_windsea( u(0, 0), 5minutes)
+WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
 #WindSeamin = FetchRelations.get_minimal_windsea( u(0, 0), 5minutes)
 
+Revise.retry()
 
-ODE_settings = PW4.ODESettings(
+ODE_settings = PW5.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
     log_energy_minimum=log(WindSeamin["E"]),#log(FetchRelations.Eⱼ(0.1, DT)),
@@ -88,12 +88,14 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 
 # initialize particle given the wind conditions:
 
+
+
 ij = 2
 xx = OneDGridNotes(grid1d).x[ij]
-ParticleState, particle_on = InitParticleVector(copy(particle_defaults), ij, xx, u(xx, 0), DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, ij, false, particle_on)
+ParticleState, particle_on = InitParticleVector(particle_defaults, ij, xx, u(xx, 0), DT)
+PI4 = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij, false, particle_on)
 
-# %
+# %%
 function set_u_and_t!(integrator, u_new, t_new)
     integrator.u = u_new
     integrator.t = t_new
@@ -158,7 +160,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 ij = 2
 xx = OneDGridNotes(grid1d).x[ij]
 ParticleState, particle_on = InitParticleVector(copy(particle_defaults), ij, xx, u(xx, 0), DT)
-PI4 = InitParticleInstance(particle_system4, ParticleState, ODE_settings, ij, false, particle_on)
+PI4 = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij, false, particle_on)
 
 clock_time = 0
 NDT = 6
@@ -190,7 +192,7 @@ PID4 = ParticleTools.ParticleToDataframe(PI4)
 gr(display_type=:inline)
 # plit each row in PID and a figure
 p1 = plot(PID4[:, 4] / 1e3, exp.(PID4[:, 2]), color=:red, marker=2, label="PW4") #|> display
-
+ 
 p2 = plot(PID4[:, 4] / 1e3, PID4[:, 3], marker=2, title="cg", ylabel="cg", xlabel="x (km)", label="PW3") #|> display
 
 p3 = plot(PID4[:, 1] / 60 / 60, PID4[:, 4] / 1e3, marker=3, title="Hofmoeller", xlabel="time (hours)", ylabel="x (km)", label="PW3", bottom_margin=5 * Plots.mm)
@@ -206,19 +208,19 @@ savefig(plot_path_base* "PW4_negtive4.png")
 
 
 # %% test with PIC remeshing algorithm ####
-
-# define model 
+# define model -
 using PiCLES: WaveGrowthModels1D
 using Oceananigans.Units
 using PiCLES.Simulations
 using PiCLES.Plotting
 
+Revise.retry()
 
 # redefine model 
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid= OneDGrid(0, 30e3, 50),
     winds=u,
-    ODEsys=particle_system4,
-    ODEvars=PW4.init_vars_1D(),
+    ODEsys=particle_system,
+    ODEvars=nothing, #PW5.init_vars_1D(),
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
     ODEdefaults=particle_defaults,  # default_ODE_parameters
@@ -238,7 +240,7 @@ u10 = 10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = true 
 
-#WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
+#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
 WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
 wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 
@@ -256,7 +258,7 @@ u10 = 10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = false
 
-#WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
+#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
 WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
 wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 
@@ -272,7 +274,7 @@ u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = true
 
-#WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
+#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
 WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
 wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 
@@ -288,7 +290,7 @@ u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = false
 
-#WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
+#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
 WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
 wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 

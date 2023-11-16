@@ -5,7 +5,7 @@ export fields
 
 using Architectures
 
-using ModelingToolkit: Num, get_states
+using ModelingToolkit: Num, get_states, ODESystem
 
 #using core_1D: MarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
@@ -23,21 +23,8 @@ using FetchRelations
 using PiCLES.Operators.mapping_2D
 #includet("mapping_1D.jl")
 
-function Base.show(io::IO, ow::AbstractModel)
-    print(io, "WaveGrowth2D ", "\n",
-        "├── grid: ", ow.grid, "\n",
-        "├── layers: ", ow.layers, "\n",
-        "├── clock: ", ow.clock,
-        "├── State: ", size(ow.State), "\n",
-        "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
-        "├── ODEs  \n",
-        "|    ├── System: ", get_states(ow.ODEsystem), "\n",
-        "|    ├── Defaults: ", ow.ODEdefaults, "\n",
-        "|    └── Settings:  \n", ow.ODEsettings, "\n",
-        "├── winds ", ow.winds, "\n",
-        "├── currents ", ow.currents, "\n",
-        "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
-end
+
+
 
 
 """
@@ -254,6 +241,27 @@ fields(model::WaveGrowth2D) = (State=model.State,)
 
 
 
+function Base.show(io::IO, ow::WaveGrowth2D)
+
+    try
+        sys_print = get_states(ow.ODEsystem)
+    catch
+        sys_print = ow.ODEsystem
+    end
+    print(io, "WaveGrowth2D ", "\n",
+        "├── grid: ", ow.grid, "\n",
+        "├── layers: ", ow.layers, "\n",
+        "├── clock: ", ow.clock,
+        "├── State: ", size(ow.State), "\n",
+        "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
+        "├── ODEs  \n",
+        "|    ├── System: ", sys_print, "\n",
+        "|    ├── Defaults: ", ow.ODEdefaults, "\n",
+        "|    └── Settings:  \n", ow.ODEsettings, "\n",
+        "├── winds ", ow.winds, "\n",
+        "├── currents ", ow.currents, "\n",
+        "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
+end
 
 
 

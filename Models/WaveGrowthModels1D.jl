@@ -4,7 +4,7 @@ export WaveGrowth1D
 export fields
 
 using Architectures
-using ModelingToolkit: get_states
+using ModelingToolkit: get_states, ODESystem
 
 
 #using core_1D: MarkedParticleInstance
@@ -22,21 +22,6 @@ using FetchRelations
 using PiCLES.Operators.mapping_1D
 #includet("mapping_1D.jl")
 
-function Base.show(io::IO, ow::AbstractModel)
-  print(io, "WaveGrowth1D ", "\n",
-    "├── grid: ", ow.grid, "\n",
-    "├── layers: ", ow.layers, "\n",
-    "├── clock: ", ow.clock,
-    "├── State: ", size(ow.State), "\n",
-    "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
-    "├── ODEs  \n",
-    "|    ├── System: ", get_states(ow.ODEsystem), "\n",
-    "|    ├── Defaults: ", ow.ODEdefaults, "\n",
-    "|    └── Settings:  \n", ow.ODEsettings, "\n",
-    "├── winds ", ow.winds, "\n",
-    "├── currents ", ow.currents, "\n",
-    "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
-end
 
 
 """
@@ -76,7 +61,7 @@ mutable struct WaveGrowth1D{Grid<:AbstractGrid,
   ParticleCollection::PC    # Collection (list) of Particles
   FailedCollection::FPC      # Collection (list) of Particles that failed to integrate
 
-  ODEvars::Ovar     # list of variables in ODE system, have type Num from OrdinaryDiffEq and ModelingToolkit
+  ODEvars::Ovar     # list of variables in ODE system, have type Num from ModelingToolkit, obsolute when ModelingToolkit is removed.
   ODEsystem::Osys     # the ODE system used at each particle
   ODEsettings::Oses     # All setting needed to solve the ODEsystem
   ODEdefaults::Odev     # Dict{NUm, Float64} ODE defaults
@@ -213,6 +198,30 @@ fields(model::WaveGrowth1D) = (State=model.State,)
 # # Oceananigans.Simulations interface
 # fields(m::ContinuumIceModel) = merge(m.velocities, m.stresses)
 
+
+
+function Base.show(io::IO, ow::WaveGrowth1D)
+
+  if ow.ODEsystem isa ODESystem
+    sys_print = get_states(ow.ODEsystem)
+  else
+    sys_print = ow.ODEsystem
+  end
+
+  print(io, "WaveGrowth1D ", "\n",
+    "├── grid: ", ow.grid, "\n",
+    "├── layers: ", ow.layers, "\n",
+    "├── clock: ", ow.clock,
+    "├── State: ", size(ow.State), "\n",
+    "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
+    "├── ODEs  \n",
+    "|    ├── System: ", sys_print, "\n",
+    "|    ├── Defaults: ", ow.ODEdefaults, "\n",
+    "|    └── Settings:  \n", ow.ODEsettings, "\n",
+    "├── winds ", ow.winds, "\n",
+    "├── currents ", ow.currents, "\n",
+    "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
+end
 
 
 
