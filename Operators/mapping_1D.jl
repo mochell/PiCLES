@@ -80,18 +80,18 @@ end
         advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::OneDGrid, DT::Float64)
 """
 function advance!(PI::AbstractParticleInstance,
-        S::SharedMatrix{Float64},
-        Failed::Vector{AbstractMarkedParticleInstance},
-        G::OneDGrid,
-        u,
-        DT::Float64, #ODEs::AbstractODESettings, 
-        log_energy_maximum::Float64,
-        wind_min_squared::Float64,
-        periodic_boundary::Bool, 
-        default_particle::PP,
-                ) where {PP<:Union{ParticleDefaults,Nothing}}
+                        S::SharedMatrix{Float64},
+                        Failed::Vector{AbstractMarkedParticleInstance},
+                        G::OneDGrid,
+                        u,
+                        DT::Float64, #ODEs::AbstractODESettings, 
+                        log_energy_maximum::Float64,
+                        wind_min_squared::Float64,
+                        periodic_boundary::Bool, 
+                        default_particle::PP,
+                        ) where {PP<:Union{ParticleDefaults,Nothing}}
 
-        
+                        
         t_start = copy(PI.ODEIntegrator.t)
         add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t)
         savevalues!(PI.ODEIntegrator)
@@ -222,7 +222,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix,
         u_wind::Number,
         minimal_particle::Vector{Float64},
         minimal_state::Vector{Float64},
-        wind_min_squared::Number,
+        wind_min_squared::Float64,
         default_particle::PP,
         e_min_log::Number,
         DT::Float64) where {PP<:Union{ParticleDefaults,Nothing}}

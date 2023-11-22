@@ -1,10 +1,10 @@
-using ModelingToolkit#: @register_symbolic
-#using Plots
+
+
 import Plots as plt
 using Setfield, IfElse
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
-using PiCLES.ParticleSystems: particle_waves_v4 as PW4
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, GetGroupVelocity
@@ -47,10 +47,6 @@ Const_ID = PW4.get_I_D_constant()
 @set Const_ID.γ = 0.88
 Const_Scg = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
-# register symbolic variables
-t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
-@register_symbolic u(x, y, t)
-@register_symbolic v(x, y, t)
 
 # define grid
 grid = TwoDGrid(260e3, 66, 80e3, 21)
@@ -62,19 +58,16 @@ u_func(x, y, t) = U10 + x * 0 + y * 0 + t * 0
 v_func(x, y, t) = V10 + x * 0 + y * 0 + t * 0
 
 # provide function handles for ODE and Simulation in the right format
-u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
 u(x, y, t) = u_func(x, y, t)
 v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
 
 
 # define ODE system and parameters
-particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q);
-@named particle_system = ODESystem(particle_equations);
+particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
 
-default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
-                            C_φ => Const_ID.c_β, C_e => Const_ID.C_e, g => 9.81);
+default_ODE_parameters = ( r_g=r_g0, C_α=Const_Scg.C_alpha,
+    C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
@@ -82,7 +75,7 @@ WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
 
 # ... and ODESettings
-ODE_settings = PW4.ODESettings(
+ODE_settings = PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
     log_energy_minimum=WindSeamin["lne"],
@@ -107,7 +100,7 @@ function make_reg_test(wave_model, save_path; plot_name="dummy", N=36, axline=0)
 
     ### build Simulation
     wave_simulation = Simulation(wave_model, Δt=DT, stop_time=1hour)#1hours)
-    initialize_simulation!(wave_simulation, particle_initials=nothing)#copy(wave_model.ODEdefaults))
+    initialize_simulation!(wave_simulation)
 
     # run simulation
     #run!(wave_simulation, cash_store=true, debug=true)
@@ -146,27 +139,24 @@ for (U10, V10) in gridmesh
     u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
     v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
 
-    u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-    v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
     u(x, y, t) = u_func(x, y, t)
     v(x, y, t) = v_func(x, y, t)
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-    particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
-    @named particle_system = ODESystem(particle_equations)
+    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 
     ## Define wave model
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
         winds=winds,
         ODEsys=particle_system,
-        ODEvars=vars,
         ODEsets=ODE_settings,  # ODE_settings
-        ODEdefaults=default_particle,  # default_ODE_parameters
-        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        ODEinit_type="wind_sea",  # default_ODE_parameters
         periodic_boundary=false,
-        boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+        boundary_type="same",
+        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        # minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
         movie=true)
 
     make_reg_test(wave_model, save_path, plot_name="T02_2D_growing_U" * string(U10) * "_V" * string(V10), N=20, axline=x0/1e3)
@@ -186,28 +176,24 @@ for (U10, V10) in gridmesh
 
     # u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
     # v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
-
-    u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-    v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
     u(x, y, t) = u_func(x, y, t)
     v(x, y, t) = v_func(x, y, t)
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-    particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
-    @named particle_system = ODESystem(particle_equations)
+    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 
     ## Define wave model
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
         winds=winds,
         ODEsys=particle_system,
-        ODEvars=vars,
         ODEsets=ODE_settings,  # ODE_settings
-        ODEdefaults=default_particle,  # default_ODE_parameters
-        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        ODEinit_type="wind_sea",  # default_ODE_parameters
         periodic_boundary=false,
-        boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+        boundary_type="same",
+        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        # minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
         movie=true)
 
     make_reg_test(wave_model, save_path, plot_name="T02_2D_decaying_U" * string(U10) * "_V" * string(V10), N=60, axline=x0/1e3)
@@ -228,28 +214,24 @@ for (U10, V10) in gridmesh
 
     # u_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, U10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
     # v_func(x, y, t) = IfElse.ifelse.(x .< x0, x*0+ 0.1, V10 * (x - x0) / (Lx-x0)) + y * 0 + t * 0
-
-    u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-    v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
     u(x, y, t) = u_func(x, y, t)
     v(x, y, t) = v_func(x, y, t)
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-    particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
-    @named particle_system = ODESystem(particle_equations)
+    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 
     ## Define wave model
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
         winds=winds,
         ODEsys=particle_system,
-        ODEvars=vars,
         ODEsets=ODE_settings,  # ODE_settings
-        ODEdefaults=default_particle,  # default_ODE_parameters
-        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        ODEinit_type="wind_sea",  # default_ODE_parameters
         periodic_boundary=false,
-        boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+        boundary_type="same",
+        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        # minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
         movie=true)
 
     make_reg_test(wave_model, save_path, plot_name="T02_2D_divergence_U" * string(U10) * "_V" * string(V10), N=60, axline=x0/1e3)

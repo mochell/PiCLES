@@ -5,7 +5,7 @@ export fields
 
 using Architectures
 
-using ModelingToolkit: Num, get_states, ODESystem
+using ModelingToolkit: get_states, ODESystem
 
 #using core_1D: MarkedParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
@@ -28,9 +28,9 @@ using PiCLES.Operators.mapping_2D
 
 
 """
-    WaveGrowth1D{Grid, Lay, Tim, Clo, stat, PC, Ovar, Osys, Oses, Odev, bl_flag, bl, wnds, cur}
+    WaveGrowth2D{Grid, Lay, Tim, Clo, stat, PC, Ovar, Osys, Oses, Odev, bl_flag, bl, wnds, cur}
 
-    WaveGrowth1D is a model for simulating wave growth in a 1D domain. 
+    WaveGrowth2D is a model for simulating wave growth in a 1D domain. 
     The model is based on the particle method, where each particle represents wave statistics at a given point in space.
     This structure contains all the information needed to run the model, including the grid, the particles, the ODE system, the boundary conditions, and the state of the model. 
 
@@ -106,7 +106,7 @@ end
 
 """  
 WaveGrowth2D(; grid, winds, ODEsys, ODEvars, layers, clock, ODEsets, ODEdefaults, currents, periodic_boundary, CBsets)
-This is the constructor for the WaveGrowth1D model. The inputs are:
+This is the constructor for the WaveGrowth2D model. The inputs are:
     grid             : the grid used in the model,
     winds            : the wind interpolation function here only 1D,
     ODEsys           : the ODE system used in the model,
@@ -121,18 +121,19 @@ This is the constructor for the WaveGrowth1D model. The inputs are:
 """
 function WaveGrowth2D(; grid::TwoDGrid,
     winds::NamedTuple{(:u, :v)}, 
-    ODEsys, ODEvars,
+    ODEsys, 
+    ODEvars=nothing, #needed for MTK for ODEsystem. will be depriciated later
     layers::Int=1,
     clock=Clock{eltype(grid)}(0, 0, 1),
     ODEsets::AbstractODESettings=nothing,  # ODE_settings
-    ODEdefaults::ParticleDefaults2D=nothing,  # default_ODE_parameters
+    ODEinit_type::PP= "wind_sea",  # default_ODE_parameters
     minimal_particle=nothing, # minimum particle the model falls back to if a particle fails to integrate
     minimal_state=nothing, # minimum state threshold needed for the state to be advanced 
     currents=nothing,  # 
     periodic_boundary=true,
-    boundary_type="wind_sea", # or "flat"
+    boundary_type="same", # or "minimal", "same", default is same, only used if periodic_boundary is false
     CBsets=nothing,
-    movie=false)
+    movie=false) where {PP<:Union{ParticleDefaults2D,String}}
 
     # initialize state {SharedArray} given grid and layers
     # Number of state variables 
@@ -143,6 +144,15 @@ function WaveGrowth2D(; grid::TwoDGrid,
         State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate)
     end
 
+    if ODEinit_type isa ParticleDefaults2D
+        ODEdefaults = ODEinit_type
+    elseif ODEinit_type == "wind_sea"
+        ODEdefaults = nothing
+    elseif ODEinit_type == "mininmal"
+        ODEdefaults = ParticleDefaults1D(-11.0, 1e-3, 0.0)
+    else
+        error("ODEinit_type must be either 'wind_sea','mininmal', or ParticleDefaults2D instance ")
+    end
 
     if isnothing(minimal_particle)
         @info "initalize minimum particle"
@@ -168,8 +178,8 @@ function WaveGrowth2D(; grid::TwoDGrid,
     if boundary_type == "wind_sea"
         boundary_defaults = nothing
         @info "use wind_sea boundary"
-    elseif boundary_type == "zero"
-        @info "use 'zero' boundary (5min with 2m/s)"
+    elseif boundary_type == "mininmal"
+        @info "use 'mininmal' boundary (1min with 2m/s)"
         #FetchRelations.get_minimal_windsea(u(0, 0), ODEsets.DT)
         WindSeamin = FetchRelations.get_minimal_windsea(1, 1, 5*60) # 5 min with 2 m/s
         #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
@@ -179,14 +189,12 @@ function WaveGrowth2D(; grid::TwoDGrid,
         cg_v_local = WindSeamin["cg_bar_y"]
         boundary_defaults = copy(ParticleDefaults2D(lne_local, cg_u_local, cg_v_local, 0.0, 0.0))
 
-    elseif boundary_type == "default"
+    elseif boundary_type == "same"
         @info "use default value boundary"
-        boundary_defaults = copy(ODEdefaults)
+        boundary_defaults = ODEdefaults
     else
-        error("boundary_type must be either 'wind_sea','zero', or 'default' ")
+        error("boundary_type must be either 'wind_sea','mininmal', or 'same' ")
     end
-
-    ODEdev = copy(ODEdefaults)
 
     ParticleCollection = []
     FailedCollection = Vector{AbstractMarkedParticleInstance}([])
@@ -205,7 +213,7 @@ function WaveGrowth2D(; grid::TwoDGrid,
         Mstat = nothing
     end
 
-    # return WaveGrowth1D structure
+    # return WaveGrowth2D structure
     return WaveGrowth2D(
         grid,
         layers,
@@ -214,10 +222,11 @@ function WaveGrowth2D(; grid::TwoDGrid,
         2, # This is a 2D model
         State,
         ParticleCollection,
-        FailedCollection, ODEvars,
+        FailedCollection, 
+        ODEvars,
         ODEsys,
         ODEsets,
-        ODEdev, 
+        ODEdefaults,
         minimal_particle, 
         minimal_state,
         periodic_boundary,
@@ -233,19 +242,28 @@ end
 """
     fields(model::WaveGrowth)
 
-Return a flattened `NamedTuple` of the State vector for a `WaveGrowth1D` model.
+Return a flattened `NamedTuple` of the State vector for a `WaveGrowth2D` model.
 """
 fields(model::WaveGrowth2D) = (State=model.State,)
 # # Oceananigans.Simulations interface
 # fields(m::ContinuumIceModel) = merge(m.velocities, m.stresses)
 
+function reset_boundary!(model::WaveGrowth2D)
+
+    if model.periodic_boundary  # if false, define boundary points here:
+        boundary = []
+    else
+        boundary = boundary = mark_boundary(grid)
+    end
+
+end
 
 
 function Base.show(io::IO, ow::WaveGrowth2D)
 
-    try
+    if ow.ODEsystem isa ODESystem
         sys_print = get_states(ow.ODEsystem)
-    catch
+    else
         sys_print = ow.ODEsystem
     end
     print(io, "WaveGrowth2D ", "\n",

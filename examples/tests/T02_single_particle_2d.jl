@@ -1,32 +1,29 @@
-using ModelingToolkit, DifferentialEquations
+using DifferentialEquations
 using Plots
 using Setfield
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
-using PiCLES.ParticleSystems: particle_waves_v4 as PW4
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 import PiCLES: FetchRelations, ParticleTools
-using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleVector, InitParticleInstance
+using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleValues, InitParticleInstance
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 using Oceananigans.Units
 
 plot_path_base = "plots/tests/T04_2D_single_particle/"
 mkpath(plot_path_base)
+
 # %% Parameters
-@register_symbolic u(x, y, t)
-@register_symbolic v(x, y, t)
-
 U10, V10 =  + 10.0, + 10.0
-
 
 # version 3
 r_g0 = 0.85
 # function to define constants for grouwth and dissipation
-Const_ID = PW4.get_I_D_constant()
+Const_ID = PW.get_I_D_constant()
 #@set Const_ID.γ = 0.88
-Const_Scg = PW4.get_Scg_constants()
+Const_Scg = PW.get_Scg_constants()
 
 # %%
 #u(x, y, t) = 0.01 - U10 * sin(t / (6 * 60 * 60 * 2π))
@@ -41,17 +38,17 @@ v(x, y, t) = - (V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 winds = (u=u, v=v)
 
 
-# define variables based on particle equation
-t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = PW4.init_vars()
-
-particle_equations = PW4.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
-@named particle_system = ODESystem(particle_equations)
-
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 typeof(particle_system)
 
 # define V4 parameters absed on Const NamedTuple:
-default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
-    C_φ => Const_ID.c_β, C_e => Const_ID.C_e)
+default_ODE_parameters = (
+    r_g = r_g0,
+    C_α = Const_Scg.C_alpha,
+    C_φ = Const_ID.c_β,
+    C_e = Const_ID.C_e,
+    g = 9.81,
+)
 
 # define simple callback
 condition(u, t, integrator) = 0.9 * u[1] > log(17)
@@ -63,7 +60,7 @@ DT = 4hours
 WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/2)
 #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), 20minutes)
 
-ODE_settings = PW4.ODESettings(
+ODE_settings = PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
     log_energy_minimum=log(WindSeamin["E"]),
@@ -82,15 +79,12 @@ ODE_settings = PW4.ODESettings(
 )
 
 grid = TwoDGrid(3, 3, 3, 3)
-particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
+ParticleState = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
 
 # initialize particle given the wind conditions:
-#ParticleState = InitParticleVector(copy(particle_defaults), (1, 1), TwoDGridNotes(grid), winds, DT)
-ParticleState = copy(particle_defaults)
+#ParticleState = InitParticleValues(copy(particle_defaults), TwoDGridNotes(grid), winds, DT)
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
 
-states(particle_system)
-#defaults(particle_system3)
 
 function set_u_and_t!(integrator, u_new, t_new)
     integrator.u = u_new

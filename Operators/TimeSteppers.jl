@@ -185,7 +185,7 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
             model.ODEsettings, Δt,
             model.minimal_particle,
             model.minimal_state,
-            default_particle=model.ODEdefaults)
+            model.ODEdefaults)
     end
 
     

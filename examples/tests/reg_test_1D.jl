@@ -105,7 +105,7 @@ Revise.retry()
 
 ### build Simulation
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)
-initialize_simulation!(wave_simulation; defaults=copy(particle_defaults))
+initialize_simulation!(wave_simulation)#; defaults=copy(particle_defaults))
 
 
 # init_state_store!(wave_simulation, save_path)

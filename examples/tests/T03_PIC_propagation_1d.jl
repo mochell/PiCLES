@@ -5,7 +5,6 @@ using Revise
 using IfElse
 using Statistics
 
-#using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 
 using HDF5, JLD2
 
@@ -87,6 +86,7 @@ particle_system = PW.particle_rays()
 
 default_ODE_parameters = (r_g =r_g0, C_α = Const_Scg.C_alpha, C_e = Const_ID.C_e)
 
+
 WindSeamin = FetchRelations.get_minimal_windsea(U10, DT)
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
 #particle_defaults = ParticleDefaults(log(FetchRelations.Eⱼ(5.0, DT)), 1e-4, 0.0)
@@ -113,9 +113,9 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     ODEvars=nothing,
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
-    ODEdefaults=particle_defaults,  # default_ODE_parameters
+    ODEinit_type="wind_sea",  # default_ODE_parameters
     periodic_boundary=false,
-    boundary_type="default"
+    boundary_type="same"
 )
 
 
@@ -148,7 +148,7 @@ end
 
 ##### avection to the right #########
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 
 WindSea2 = FetchRelations.get_initial_windsea(U10, 3hours)
 cg_bar = round(WindSea2["cg_bar"])
@@ -176,7 +176,7 @@ savefig(joinpath(plot_path_base, "test1_forward.png"))
 ##### avection to the left #########
 
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 
 WindSea2 = FetchRelations.get_initial_windsea(-U10, 3hours)
 cg_bar = round(WindSea2["cg_bar"])
@@ -214,13 +214,13 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
     ODEvars=nothing,
     layers=1,
     ODEsets=ODE_settings,  # ODE_settings
-    ODEdefaults=particle_defaults,  # default_ODE_parameters
+    ODEinit_type="wind_sea",  # default_ODE_parameters
     periodic_boundary=false,
-    boundary_type="default"
+    boundary_type="same"
 )
 
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 
 WindSea2 = FetchRelations.get_initial_windsea(U10, 3hours)
 cg_bar = round(WindSea2["cg_bar"])
@@ -243,7 +243,7 @@ savefig(joinpath(plot_path_base, "test2_forward.png"))
 
 # %%
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=24hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 
 WindSea2 = FetchRelations.get_initial_windsea(-U10, 3hours)
 cg_bar = round(WindSea2["cg_bar"])

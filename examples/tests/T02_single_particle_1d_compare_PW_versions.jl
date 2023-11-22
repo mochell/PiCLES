@@ -72,7 +72,7 @@ WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 10minutes)
 #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), 20minutes)
 
 
-ODE_settings = PW4.ODESettings(
+ODE_settings =  PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
     log_energy_minimum=log(WindSeamin["E"]),#log(FetchRelations.Eⱼ(0.1, DT)),

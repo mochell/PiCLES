@@ -15,7 +15,7 @@ using ParticleInCell
 
 using DifferentialEquations
 using ParticleMesh: OneDGrid, OneDGridNotes
-using ModelingToolkit: Num, ODESystem
+using ModelingToolkit: ODESystem
 
 using FetchRelations
 
