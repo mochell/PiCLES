@@ -1,14 +1,14 @@
 ENV["JULIA_INCREMENTAL_COMPILE"]=true
+
 #using ModelingToolkit, DifferentialEquations
-using ModelingToolkit#: @register_symbolic
+#using ModelingToolkit#: @register_symbolic
 #using Plots
 import Plots as plt
 using Setfield, IfElse
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
 
-using PiCLES.ParticleSystems: particle_waves_v4 as PW4
-#using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, GetGroupVelocity
@@ -24,7 +24,6 @@ import Oceananigans: fields
 using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
-
 using Architectures
 using GLMakie
 
@@ -33,8 +32,6 @@ using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 # debugging:
 #using ProfileView
-
-
 
 # %%
 save_path = "plots/tests/T04_box_2d/"
@@ -48,13 +45,9 @@ DT                = 30minutes
 r_g0              = 0.85
 
 # function to define constants 
-Const_ID = PW4.get_I_D_constant()
+Const_ID = PW.get_I_D_constant()
 @set Const_ID.γ = 0.88
-Const_Scg = PW4.get_Scg_constants(C_alpha=- 1.41, C_varphi=1.81e-5)
-Const_ID
-@register_symbolic u(x, y, t)
-@register_symbolic v(x, y, t)
-
+Const_Scg = PW.get_Scg_constants(C_alpha=- 1.41, C_varphi=1.81e-5)
 
 
 # u(x, y, t) = 0.01 + U10 * sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
@@ -71,19 +64,13 @@ v_func(x, y, t) = V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_st
 #                             0.0,
 #                             -0.0)
 
-t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
-
 # u_func(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, 0.2) + y * 0 + t * 0
 # v_func(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, 0.2) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
 
 # this shuold hopefully work
-# u_func(x::Num, y::Num, t::Num)::Num = U10 + x * 0 + y * 0 + t * 0
-# v_func(x::Num, y::Num, t::Num)::Num = V10 + x * 0 + y * 0 + t * 0
 # u(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 5.0
 # v(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 10.0
 
-u(x::Num, y::Num, t::Num) = simplify(u_func(x, y, t))
-v(x::Num, y::Num, t::Num) = simplify(v_func(x, y, t))
 u(x, y, t) = u_func(x, y, t)
 v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
@@ -91,11 +78,11 @@ winds = (u=u, v=v)
 typeof(winds.u)
 typeof(winds.u(1e3, 1e3, 11))
 #typeof(u_func(1e3, 1e3, 11))
-typeof(winds.u(x,y,t))
+#typeof(winds.u(x,y,t))
 
-u2 = winds.u(x, y, t)
-typeof(u2)
-typeof(winds.u(x, y, t))
+# u2 = winds.u(x, y, t)
+# typeof(u2)
+# typeof(winds.u(x, y, t))
 # %%
 
 grid = TwoDGrid(10e3, 31, 10e3, 31)
@@ -111,23 +98,22 @@ Revise.retry()
 
 #ProfileView.@profview 
 #ProfileView.@profview 
-particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true, dissipation=true);
+particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true, dissipation=true);
 #particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=0.88, q=Const_ID.q);
-@named particle_system = ODESystem(particle_equations);
 
 # define V4 parameters absed on Const NamedTuple:
-default_ODE_parameters = Dict(      r_g => r_g0, C_α => Const_Scg.C_alpha, 
-                                    C_φ => Const_ID.c_β, C_e => Const_ID.C_e, g=> 9.81 );
+default_ODE_parameters = (r_g = r_g0, C_α = Const_Scg.C_alpha, 
+                                    C_φ = Const_ID.c_β, C_e = Const_ID.C_e, g= 9.81 );
 
 # define setting and standard initial conditions
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT )
+WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT );
 #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
 #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
 lne_local = log(WindSeamin["E"])
 cg_u_local = WindSeamin["cg_bar_x"]
 cg_v_local = WindSeamin["cg_bar_y"]
 
-ODE_settings    = PW4.ODESettings(
+ODE_settings    = PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
     log_energy_minimum=lne_local,#log(FetchRelations.Eⱼ(0.1, DT)),
@@ -166,19 +152,18 @@ Revise.retry()
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
-    ODEvars=vars,
     ODEsets=ODE_settings,  # ODE_settings
-    ODEdefaults=default_particle,  # default_ODE_parameters
-    minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
+    ODEinit_type="wind_sea",  # default_ODE_parameters
     periodic_boundary=false,
-    boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+    boundary_type="same",
+    #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
     movie=true)
 
 
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=1hour)#1hours)
-initialize_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
+initialize_simulation!(wave_simulation)
 
 
 #init_state_store!(wave_simulation, save_path)
@@ -203,7 +188,7 @@ DD = ParticleTools.ParticleToDataframe(wave_simulation.model.FailedCollection)
 
 DD_stats = ParticleTools.ParticleStatsToDataframe(wave_simulation.model.FailedCollection)
 
-sum(DD_stats.boundary)
+#sum(DD_stats.boundary)
 
 function plot_state_and_error_points(wave_simulation, FailedTable)
     plt.plot()
@@ -323,17 +308,15 @@ Revise.retry()
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
-    ODEvars=vars,
     ODEsets=ODE_settings,  # ODE_settings
-    ODEdefaults=default_particle,  # default_ODE_parameters
-    minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
-    minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
+    ODEinit_type="wind_sea",  # default_ODE_parameters
     periodic_boundary=false,
-    boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+    boundary_type="same",
+    #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
     movie=true)
 
 wave_simulation = Simulation(wave_model, Δt=5minutes, stop_time=4hours)#1hours)
-initialize_simulation!(wave_simulation)#, particle_initials=copy(wave_model.ODEdefaults))
+initialize_simulation!(wave_simulation)
 
 #reset_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
 

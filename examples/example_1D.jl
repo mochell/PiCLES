@@ -108,7 +108,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=grid1d,
 
 # %% initialize Simulation 
 wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=52hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)#, particle_initials=wave_model.ODEdefaults)
 
 # run simulation
 run!(wave_simulation, store=false, cash_store=true, debug=false)

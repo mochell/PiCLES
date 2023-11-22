@@ -1,14 +1,12 @@
 module particle_waves_v5
 
-#@info "Loading ModelingToolkit"
-#using ModelingToolkit
-#@info "Loading DifferentialEquations"
 using DifferentialEquations, IfElse
 
 using Architectures: AbstractODESettings, AbstractParticleSystem
 
 export particle_equations, ODESettings
 using LinearAlgebra
+using StaticArrays
 
 using Parameters
 using DocStringExtensions
@@ -303,7 +301,7 @@ return an ODE system as function particle_system(dz, z, params, t) that provides
         params can be a named tuple with the parameters or a vector
         params = [r_g, C_α, g, C_e] 
 """
-function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
+function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     propagation=true,
     input=true,
     dissipation=true,
@@ -315,15 +313,16 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
     p, q, n = magic_fractions(q)
     e_T = e_T_func(γ, p, q, n)#, C_e=C_e)
 
-
-    function partice_system(dz, z, params, t) <: MVector{3, Float64}
+    function partice_system(dz, z, params, t)#::MVector{5, Number}
     
         # forcing fields
         #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
+        lne, c̄_x, c̄_y, x, y = z
 
+        r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
         #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
-        u = u(x, y, t)::Number
-        v = v(x, y, t)::Number
+        u = u_wind(x, y, t)#::Number
+        v = v_wind(x, y, t)#::Number
 
         c̄ = speed(c̄_x, c̄_y)
         u_speed = speed(u, v)
@@ -357,7 +356,7 @@ function particle_equations(u, v; γ::Number=0.88, q::Number=-1 / 4.0,
 
         # propagation
         dz[4] = propagation ? c̄_x : 0.0
-        dz[5] =propagation ? c̄_y : 0.0
+        dz[5] = propagation ? c̄_y : 0.0
         
 
         if debug_output

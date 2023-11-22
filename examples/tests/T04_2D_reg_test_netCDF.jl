@@ -1,11 +1,11 @@
-using ModelingToolkit#: @register_symbolic
+
 
 #using Plots
 import Plots as plt
 using Setfield, IfElse
 
 push!(LOAD_PATH, joinpath(pwd(), "code/"))
-using PiCLES.ParticleSystems: particle_waves_v4 as PW4
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, GetGroupVelocity
@@ -47,20 +47,15 @@ U10, V10 = 10.0, 10.0
 
 # Define basic ODE parameters
 r_g0            = 0.85
-Const_ID        = PW4.get_I_D_constant()
+Const_ID        = PW.get_I_D_constant()
 @set Const_ID.γ = 0.88
-Const_Scg       = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
-
-# register symbolic variables
-t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars = PW4.init_vars();
-@register_symbolic u(x, y, t)
-@register_symbolic v(x, y, t)
+Const_Scg       = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
 
 function interpolate_winds(ds)
     # define grid based on
-    grid = TwoDGrid(ds["x"][end], Int(ceil(ds.attrib["Nx"]/2 )),
-        ds["y"][end], Int(ceil(ds.attrib["Ny"]/2 )))
+    grid = TwoDGrid(ds["x"][end], Int(ceil(ds.attrib["Nx"] )),
+        ds["y"][end], Int(ceil(ds.attrib["Ny"] )))
     #grid = TwoDGrid(ds["x"][end], 31, ds["y"][end], 31)
     grid_mesh = TwoDGridMesh(grid, skip=1)
     gn = TwoDGridNotes(grid)
@@ -78,11 +73,12 @@ end
 
 
 # define ODE system and parameters
-particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q);
-@named particle_system = ODESystem(particle_equations);
+#particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
+ 
 
-default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha,
-    C_φ => Const_ID.c_β, C_e => Const_ID.C_e, g => 9.81);
+default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
+    C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
+
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
@@ -121,7 +117,8 @@ end
 # %%
 # loop over U10 and V10 range
 #case_list = ["Test02_2D", "Test03_2D", "Test04_2D"]
-case_list = ["Test01_2D"]#, "Test02_2D", "Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
+#case_list = ["Test01_2D", "Test02_2D"]#, "Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
+case_list = ["Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
     # load netCDF file
@@ -135,11 +132,10 @@ for case in case_list
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
-    particle_equations = PW4.particle_equations(u, v, γ=0.88, q=Const_ID.q)
-    @named particle_system = ODESystem(particle_equations)
+    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 
     # ... and ODESettings
-    ODE_settings = PW4.ODESettings(
+    ODE_settings =  PW.ODESettings(
         Parameters=default_ODE_parameters,
         # define mininum energy threshold
         log_energy_minimum=WindSeamin["lne"],
@@ -159,13 +155,14 @@ for case in case_list
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
         winds=winds,
         ODEsys=particle_system,
-        ODEvars=vars,
         ODEsets=ODE_settings,  # ODE_settings
-        ODEdefaults=default_particle,  # default_ODE_parameters
-        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        ODEinit_type="wind_sea",  # default_ODE_parameters
         periodic_boundary=false,
-        boundary_type="wind_sea",#"zero",#"wind_sea", #"wind_sea", # or "default"
+        boundary_type="same",
+        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
+        #minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
         movie=true)
+
 
     NN = Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
     mkpath(save_path_data * case)

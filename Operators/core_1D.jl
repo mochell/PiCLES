@@ -1,7 +1,7 @@
 module core_1D
 
 using DifferentialEquations: OrdinaryDiffEq.ODEProblem, init
-using ModelingToolkit: ODESystem
+using ModelingToolkit: ODESystem ## depriciate when MTK is removed
 
 using SharedArrays
 #using ModelingToolkit: Num
@@ -257,11 +257,12 @@ function InitParticleValues(
             
             particle_on = false
         end
-        # initalize state based on state vector
+
+        # initialize particle instance based on above devfined values
         particle_defaults = ParticleDefaults(lne, c̄_x, xx)
 
     else
-        particle_defaults = copy(defaults)
+        particle_defaults = defaults
         particle_on = true
     end
 
@@ -296,9 +297,7 @@ function ResetParticleValues(
     else
         particle_defaults = defaults#deepcopy(defaults)
     end
-
-    # initalize state based on state vector
-    
+        
     if vector
         return initParticleDefaults(particle_defaults)
     else

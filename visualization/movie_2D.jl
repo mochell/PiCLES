@@ -7,7 +7,7 @@ using PiCLES.Operators.core_2D: GetGroupVelocity
 
 import Oceananigans.Utils: prettytime
 
-function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_string=nothing, aspect=1, axline=0)
+function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_string="", aspect=1, axline=0)
 
     n = Observable(1) # for visualization
     # Ocean vorticity

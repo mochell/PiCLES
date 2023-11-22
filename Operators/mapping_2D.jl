@@ -3,13 +3,12 @@ module mapping_2D
 using SharedArrays
 using ParticleMesh: TwoDGrid, TwoDGridNotes
 using Printf
-using ModelingToolkit: Num
 
 import ParticleInCell as PIC
 using FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
-using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues
+using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
 using DifferentialEquations
 using ..particle_waves_v3: ODESettings
@@ -47,12 +46,27 @@ function ParticleToNode!(PI::AbstractParticleInstance, S::SharedArray, G::TwoDGr
         nothing
 end
 
+"""
+        ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, u_state::Vector{Float64})
+Pushes values u_state to the node in S of the particle origin of PI.
+"""
+function ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, u_state::Vector{Float64})
+
+        S[PI.position_ij[1], PI.position_ij[2], :] = u_state
+        nothing
+end
+
 function set_u_and_t!(integrator, u_new, t_new)
         integrator.u = u_new
         integrator.t = t_new
 end
 
 
+function reset_PI!(PI::AbstractParticleInstance, ui::Vector{Float64})
+        set_u!(PI.ODEIntegrator, ui)
+        u_modified!(PI.ODEIntegrator, true)
+        auto_dt_reset!(PI.ODEIntegrator)
+end
 
 ######### Core routines for advancing and remeshing
 
@@ -68,8 +82,8 @@ function advance!(PI::AbstractParticleInstance,
                         log_energy_maximum::Float64,
                         wind_min_squared::Float64,
                         periodic_boundary::Bool, 
-                        default_particle::PP=nothing,
-                        ) where {PP<:Union{Dict,Nothing}}
+                        default_particle::PP,
+                        ) where {PP<:Union{ParticleDefaults,Nothing}}
         #@show PI.position_ij
 
         #if ~PI.boundary # if point is not a 
@@ -101,7 +115,7 @@ function advance!(PI::AbstractParticleInstance,
 
                 end
         
-        elseif ~PI.on # particle is off, test if there was windsea
+        elseif ~PI.on & ~PI.boundary # particle is off, test if there was windsea
 
                 t_end = t_start + DT
                 wind_end = convert(Tuple{Float64,Float64},
@@ -112,9 +126,7 @@ function advance!(PI::AbstractParticleInstance,
                 if speed_square(wind_end[1], wind_end[2]) >= wind_min_squared
                         # winds are large eneough, reinit
                         ui = ResetParticleValues(default_particle, PI, wind_end, DT)
-                        set_u!(PI.ODEIntegrator, ui)
-                        u_modified!(PI.ODEIntegrator, true)
-                        auto_dt_reset!(PI.ODEIntegrator)
+                        reset_PI!(PI, ui)
                         PI.on = true
                 end
 
@@ -125,65 +137,6 @@ function advance!(PI::AbstractParticleInstance,
                 PI.on=false
                 return
         end
-
-        # check if integration was successful
-        # if check_error(PI.ODEIntegrator) != :Success
-        #         @printf "no Success on advancing ODE:\n"
-        #         print("- time after fail $(PI.ODEIntegrator.t)\n ")
-
-        #         @printf "- push to failed\n"
-        #         push!(Failed,
-        #                 MarkedParticleInstance(
-        #                                 copy(PI),
-        #                                 copy(PI.ODEIntegrator.t),
-        #                                 copy(PI.ODEIntegrator.u),
-        #                                 PI.ODEIntegrator.sol.retcode
-        #                                         ))
-
-        #         if PI.boundary
-        #                 @printf "- boundary particle reset and do not advance:\n"
-        #                 winds_start = convert(  Tuple{Float64,Float64}, 
-        #                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start), 
-        #                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)) )::Tuple{Float64,Float64}
-
-        #                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-        #                 set_u!(PI.ODEIntegrator, ui)
-        #                 u_modified!(PI.ODEIntegrator, true)
-        #                 auto_dt_reset!(PI.ODEIntegrator)
-        #         else
-        #                 # reinitialize from grid
-        #                 @printf "- adjust reltol and retry:\n"
-
-        #                 winds_start = convert(  Tuple{Float64,Float64},
-        #                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
-        #                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
-
-        #                 NodeToParticle!(PI, S, t_start, winds_start, minimum_particle, default_particle, log_energy_minimum, DT)
-        #                 reinit!(PI.ODEIntegrator, PI.ODEIntegrator.u , erase_sol=false, reset_dt=true, reinit_cache=true)
-
-        #                 #set_t!(PI.ODEIntegrator, time)
-        #                 # # change relative tolerance
-        #                 # u_modified!(PI.ODEIntegrator,true)
-        #                 # auto_dt_reset!(PI.ODEIntegrator)
-        #                 u_modified!(PI.ODEIntegrator, true)
-        #                 auto_dt_reset!(PI.ODEIntegrator)
-        #                 #
-
-        #                 PI.ODEIntegrator.opts.reltol = PI.ODEIntegrator.opts.reltol/10
-
-        #                 # try integration again
-        #                 step!(PI.ODEIntegrator, DT , true)
-        #                 #@show check_error(PI.ODEIntegrator)
-        #                 # readjust error
-        #                 PI.ODEIntegrator.opts.reltol = PI.ODEIntegrator.opts.reltol * 10
-        #                 #@show PI.ODEIntegrator.opts.reltol
-        #                 #@show "  final time ", PI.ODEIntegrator.t
-        #                 print("- 2nd try success? ", check_error(PI.ODEIntegrator) != :Success, "\n" )
-
-        #                 @printf "--- \n"
-        #         end
-        # end
-
 
         # # check if integration reached limits or is nan, or what ever. if so, reset
         if sum(isnan.(PI.ODEIntegrator.u[1:3])) > 0
@@ -198,10 +151,8 @@ function advance!(PI::AbstractParticleInstance,
                 @show winds_start
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-                set_u!(PI.ODEIntegrator, ui)
                 @show PI.ODEIntegrator.u
-                u_modified!(PI.ODEIntegrator,true)
-                auto_dt_reset!(PI.ODEIntegrator)
+                reset_PI!(PI, ui)
 
         elseif  sum(isinf.(PI.ODEIntegrator.u[1:3])) > 0
                 @info "position or Energy is inf"
@@ -212,9 +163,7 @@ function advance!(PI::AbstractParticleInstance,
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-                set_u!(PI.ODEIntegrator, ui)
-                u_modified!(PI.ODEIntegrator, true)
-                auto_dt_reset!(PI.ODEIntegrator)
+                reset_PI!(PI, ui)
 
         elseif PI.ODEIntegrator.u[1] > log_energy_maximum
                 @info "e_max_log is reached"
@@ -225,9 +174,8 @@ function advance!(PI::AbstractParticleInstance,
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-                set_u!(PI.ODEIntegrator, ui)
-                u_modified!(PI.ODEIntegrator, true)
-                auto_dt_reset!(PI.ODEIntegrator)
+                reset_PI!(PI, ui)
+
         end
 
         #if PI.ODEIntegrator.u[1] > -13.0 #ODEs.log_energy_minimum # the minimum enerçy is distributed to 4 neighbouring particles
@@ -243,13 +191,13 @@ end
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64}, 
+function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64,3}, 
                 winds::NamedTuple{(:u, :v)}, 
                 ti::Number, 
-                ODEs::AbstractODESettings, DT::Float64, 
-                minimal_particle::Vector{Float64}, minimal_state::Vector{Float64};
-                default_particle::PP=nothing) where {PP<:Union{Dict,Nothing}}        #ui = u(PI.position_xy[1], ti)
-
+                ODEs::AbstractODESettings, DT::Float64,  #
+                minimal_particle::Vector{Float64}, minimal_state::Vector{Float64},
+                default_particle::PP) where {PP<:Union{ParticleDefaults,Nothing}}        
+                
         winds_i::Tuple{Float64,Float64} = winds.u(PI.position_xy[1], PI.position_xy[2], ti), winds.v(PI.position_xy[1], PI.position_xy[2], ti)
         
         NodeToParticle!(PI, S, 
@@ -278,7 +226,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
         wind_min_squared::Float64, 
         default_particle::PP, 
         e_min_log::Number, 
-        DT::Float64,) where {PP<:Union{Dict,Nothing}}
+        DT::Float64,) where {PP<:Union{ParticleDefaults,Nothing}}
         # load data from shared array
         u_state = Get_u_FromShared(PI, S)
 
