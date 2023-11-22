@@ -30,7 +30,7 @@ export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
 
 export ParticleInstance1D, MarkedParticleInstance, ParticleDefaults
 
-export InitParticleVector, check_boundary_point
+export InitParticleValues, check_boundary_point
 
 using custom_structures: ParticleInstance1D, MarkedParticleInstance
 
@@ -318,7 +318,7 @@ Get_u_FromShared(PI::ParticleInstance1D, S::SharedMatrix,) = S[PI.position_ij[1]
 ###### seed particles #####
 
 """
-InitParticleVector(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
+InitParticleValues(defaults:: Dict{Num, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
@@ -328,7 +328,7 @@ Find initial conditions for particle. Used at the beginning of the experiment.
         u               interp. fucntion with wind values
         DT              time step of model, used to determine fetch laws
 """
-function InitParticleVector(
+function InitParticleValues(
         defaults::Dict,
         i::Int64,
         gridnote::OneDGridNotes,
@@ -410,7 +410,7 @@ function SeedParticle!(
         periodic_boundary::Bool)
 
         # define initial condition
-        z_i = InitParticleVector(particle_defaults, i, GridNotes, winds, DT)
+        z_i = InitParticleValues(particle_defaults, i, GridNotes, winds, DT)
         # check if point is boundary point
         boundary_point = check_boundary_point(i, boundary, periodic_boundary)
 

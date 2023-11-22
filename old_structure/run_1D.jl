@@ -38,8 +38,8 @@ push!(LOAD_PATH, joinpath(pwd(), "code/"))
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 using core_1D_old: init_z0_to_State!, wrap_pos!, periodic_BD_single_PI!, show_pos!, periodic_condition_x
 using core_1D_old: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared
-#using core_1D: InitParticleVector, check_boundary_point
-using core_1D_old: InitParticleVector, SeedParticle!
+#using core_1D: InitParticleValues, check_boundary_point
+using core_1D_old: InitParticleValues, SeedParticle!
 
 
 using custom_structures: ParticleInstance1D, MarkedParticleInstance, AbstractParticleInstance
@@ -348,7 +348,7 @@ plot(p1, p2, p3, layout=(3, 1), legend=false, size=(600, 1200))
 #         # there is SeedParticle! in the core module as alternative wrapper
 #
 #         # define initial condition
-#         z_i = InitParticleVector(copy(z0), i, grid1dnotes, u, DT )
+#         z_i = InitParticleValues(copy(z0), grid1dnotes, u, DT )
 #         # check if point is boundary point
 #         boundary_point  =  check_boundary_point(i, boundary, periodic_boundary)
 #

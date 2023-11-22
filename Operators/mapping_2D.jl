@@ -9,7 +9,7 @@ import ParticleInCell as PIC
 using FetchRelations
 
 using custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
-using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleVector
+using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues
 
 using DifferentialEquations
 using ..particle_waves_v3: ODESettings
@@ -111,7 +111,7 @@ function advance!(PI::AbstractParticleInstance,
                 # test if winds where strong enough
                 if speed_square(wind_end[1], wind_end[2]) >= wind_min_squared
                         # winds are large eneough, reinit
-                        ui = ResetParticleVector(default_particle, PI, wind_end, DT)
+                        ui = ResetParticleValues(default_particle, PI, wind_end, DT)
                         set_u!(PI.ODEIntegrator, ui)
                         u_modified!(PI.ODEIntegrator, true)
                         auto_dt_reset!(PI.ODEIntegrator)
@@ -146,7 +146,7 @@ function advance!(PI::AbstractParticleInstance,
         #                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start), 
         #                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)) )::Tuple{Float64,Float64}
 
-        #                 ui = ResetParticleVector(default_particle, PI, winds_start, DT)
+        #                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
         #                 set_u!(PI.ODEIntegrator, ui)
         #                 u_modified!(PI.ODEIntegrator, true)
         #                 auto_dt_reset!(PI.ODEIntegrator)
@@ -197,7 +197,7 @@ function advance!(PI::AbstractParticleInstance,
                         winds.v(PI.position_xy[1], PI.position_xy[2], t_end)))::Tuple{Float64,Float64}
                 @show winds_start
 
-                ui = ResetParticleVector(default_particle, PI, winds_start, DT)
+                ui = ResetParticleValues(default_particle, PI, winds_start, DT)
                 set_u!(PI.ODEIntegrator, ui)
                 @show PI.ODEIntegrator.u
                 u_modified!(PI.ODEIntegrator,true)
@@ -211,7 +211,7 @@ function advance!(PI::AbstractParticleInstance,
                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
-                ui = ResetParticleVector(default_particle, PI, winds_start, DT)
+                ui = ResetParticleValues(default_particle, PI, winds_start, DT)
                 set_u!(PI.ODEIntegrator, ui)
                 u_modified!(PI.ODEIntegrator, true)
                 auto_dt_reset!(PI.ODEIntegrator)
@@ -224,7 +224,7 @@ function advance!(PI::AbstractParticleInstance,
                                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
-                ui = ResetParticleVector(default_particle, PI, winds_start, DT)
+                ui = ResetParticleValues(default_particle, PI, winds_start, DT)
                 set_u!(PI.ODEIntegrator, ui)
                 u_modified!(PI.ODEIntegrator, true)
                 auto_dt_reset!(PI.ODEIntegrator)
@@ -318,17 +318,17 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
                 # test if particle is below energy threshold, or
                 #      if particle is at the boundary
 
-                ui = ResetParticleVector(default_particle, PI, wind_tuple, DT)
+                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
 
                 # #if winds are too small, reinit particle with default values
                 # if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
                 #         # winds are large eneough, reinit
                 # else
                 #         # winds are too small, reinit particle with minimal values
-                #         ui = ResetParticleVector(minimal_particle, PI, wind_tuple, DT)
+                #         ui = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
                 # end
 
-                #ui = ResetParticleVector(default_particle, PI, wind_tuple, DT)
+                #ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
 
                 # ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
@@ -339,7 +339,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
                 PI.on = true
 
         else    
-                #PI.ODEIntegrator.u = ResetParticleVector(minimal_particle, PI, wind_tuple, DT)
+                #PI.ODEIntegrator.u = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
                 # if ~PI.boundary
                 #         @info u_state
                 # end

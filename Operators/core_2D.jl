@@ -9,7 +9,7 @@ using DocStringExtensions
 
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults, InitParticleInstance
-export InitParticleVector
+export InitParticleValues
 
 #include("../Utils/FetchRelations.jl")
 using FetchRelations
@@ -211,7 +211,7 @@ end
 
 
 """
-InitParticleVector(defaults:: Dict{Num, Float64}, ij::Tuple, gridnote::OneDGridNotes, u, v, DT)
+InitParticleValues(defaults:: Dict{Num, Float64}, ij::Tuple, gridnote::OneDGridNotes, u, v, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
@@ -221,9 +221,9 @@ Find initial conditions for particle. Used at the beginning of the experiment.
         winds           NamedTuple (u,v) with interp. functions for wind values
         DT              time step of model, used to determine fetch laws
 """
-function InitParticleVector(
+function InitParticleValues(
         defaults::PP,
-        ij::Tuple{Int, Int},
+        ij::Tuple{Int, Int}, ## < ------------------- remove this arguemnt. it is not used!
         xy::Tuple{Float64, Float64},
         uv::Tuple{TT, TT}, 
         DT) where {PP<:Union{Dict,Nothing}, TT<:Union{Float64,Num}}
@@ -269,7 +269,7 @@ function InitParticleVector(
 end
 
 """
-ResetParticleVector(PI::AbstractParticleInstance, particle_defaults::Dict{Num,Float64}, ODE_settings::ODESettings, gridnote::OneDGridNotes, winds, DT)
+ResetParticleValues(PI::AbstractParticleInstance, particle_defaults::Dict{Num,Float64}, ODE_settings::ODESettings, gridnote::OneDGridNotes, winds, DT)
 
 Reset the state of a particle instance
         inputs:
@@ -282,7 +282,7 @@ Reset the state of a particle instance
 returns:
         dict or vector
 """
-function ResetParticleVector(defaults::PP,
+function ResetParticleValues(defaults::PP,
         PI::AbstractParticleInstance,
         wind_tuple,
         DT, vector=true) where {PP<:Union{Dict,Nothing,Vector{Float64}}}
@@ -364,7 +364,7 @@ function SeedParticle!(
         uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
 
         # define initial condition
-        z_i, particle_on = InitParticleVector(particle_defaults, ij, (xx,yy), uv, DT)
+        z_i, particle_on = InitParticleValues(particle_defaults, ij, (xx,yy), uv, DT)
         # check if point is boundary point
         boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
         #@info "boundary?", boundary_point

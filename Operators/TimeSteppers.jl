@@ -45,7 +45,7 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
                                     model.ODEsettings.log_energy_maximum, 
                                     model.ODEsettings.wind_min_squared,
                                     model.periodic_boundary,
-                                    model.boundary_defaults)
+                                    model.ODEdefaults)
     end
     if debug
             model.FailedCollection = FailedCollection
@@ -63,7 +63,7 @@ function time_step!(model::Abstract1DModel, Δt; callbacks=nothing, debug=false)
                                     model.ODEsettings, Δt,
                                     model.minimal_particle,
                                     model.minimal_state,
-                                    default_particle=model.ODEdefaults)
+                                    model.ODEdefaults)
     end
 
     if debug
@@ -110,7 +110,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
                                 model.ODEsettings.log_energy_maximum, 
                                 model.ODEsettings.wind_min_squared,
                                 model.periodic_boundary,
-                                model.boundary_defaults)
+                                model.ODEdefaults)
     end
     
     print("mean energy after advance ", mean_of_state(model), "\n")
@@ -130,7 +130,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
                         model.ODEsettings, Δt,
                         model.minimal_particle, 
                         model.minimal_state,
-                        default_particle=model.ODEdefaults)
+                        model.ODEdefaults)
     end
 
     if debug
@@ -169,7 +169,7 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
             model.ODEsettings.log_energy_maximum,
             model.ODEsettings.wind_min_squared,
             model.periodic_boundary,
-            model.boundary_defaults)
+            model.ODEdefaults)
     end
 
     model.MovieState = copy(model.State)

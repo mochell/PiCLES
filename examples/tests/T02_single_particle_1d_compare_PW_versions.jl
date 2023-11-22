@@ -9,7 +9,7 @@ using PiCLES.ParticleSystems: particle_waves_v5 as PW5
 import PiCLES: FetchRelations
 
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleVector, InitParticleInstance
+using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleValues, InitParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
 
 using ModelingToolkit, DifferentialEquations
@@ -92,10 +92,12 @@ grid1d = OneDGrid(1, 3, 3)
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
 #particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
 
+xx = OneDGridNotes(grid1d).x[2]
 # initialize particle given the wind conditions:
-ParticleState = InitParticleVector(copy(particle_defaults), 2, OneDGridNotes(grid1d), u, DT)
+ParticleState, particle_on = InitParticleValues(copy(particle_defaults), xx, u(xx, 0), DT)
 
 
+Revise.retry()
 
 typeof(particle_system)
 typeof(particle_system4)
@@ -202,11 +204,11 @@ PID5 = ParticleTools.ParticleToDataframe(PI5)
 
 gr(display_type=:inline)
 # plit each row in PID and a figure
-p1 = plot(PID[1:3:end, 4] / 1e3, exp.(PID[1:3:end, 2]), marker=1, title="e", xlabel="x (km)", ylabel="e", label="PW3", ylim=(0.0025, maximum(exp.(PID[:, 2]))))
+p1 = plot(PID[1:3:end, 4] / 1e3, exp.(PID[1:3:end, 2]), marker=1, title="e", xlabel="x (km)", ylabel="e", label="PW3")#, ylim=(0.0025, maximum(exp.(PID[:, 2]))))
 plot!(p1, PID4[1:3:end, 4] / 1e3, exp.(PID4[1:3:end, 2]), color=:red, marker=2, label="PW4") #|> display
 plot!(p1, PID5[1:3:end, 4] / 1e3, exp.(PID5[1:3:end, 2]), color=:green, marker=2, label="PW5") #|> display
 
-p2 = plot(PID[1:3:end, 4] / 1e3, PID[1:3:end, 3], marker=1, title="cg", ylabel="cg", xlabel="x (km)", label="PW3", ylim=(1.5, maximum(PID[1:3:end, 3]))) #|> display
+p2 = plot(PID[1:3:end, 4] / 1e3, PID[1:3:end, 3], marker=1, title="cg", ylabel="cg", xlabel="x (km)", label="PW3")#, ylim=(1.5, maximum(PID[1:3:end, 3]))) #|> display
 plot!(p2, PID4[1:3:end, 4] / 1e3, PID4[1:3:end, 3], color=:red, marker=2, label="PW4") #|> display
 plot!(p2, PID5[1:3:end, 4] / 1e3, PID5[1:3:end, 3], color=:green, marker=2, label="PW5") #|> display
 

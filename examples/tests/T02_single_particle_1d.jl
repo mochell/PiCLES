@@ -8,7 +8,7 @@ using PiCLES.ParticleSystems: particle_waves_v5 as PW5
 import PiCLES: FetchRelations
 
 push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleVector, InitParticleInstance
+using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleValues, InitParticleInstance
 using ParticleMesh: OneDGrid, OneDGridNotes
 
 using DifferentialEquations
@@ -38,7 +38,6 @@ T = 24 * 2 * 60 * 60 # seconds
 
 ## u must be always a function of x and t !!!
 u(x, t) = x .* 0 + t * 0 + U10
-u_x(x, t) = x .* 0 + t * 0
 
 Revise.retry()
 particle_system = PW5.particle_equations(u, γ=γ)
@@ -92,7 +91,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 
 ij = 2
 xx = OneDGridNotes(grid1d).x[ij]
-ParticleState, particle_on = InitParticleVector(particle_defaults, ij, xx, u(xx, 0), DT)
+ParticleState, particle_on = InitParticleValues(particle_defaults, xx, u(xx, 0), DT)
 PI4 = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij, false, particle_on)
 
 # %%
@@ -159,7 +158,7 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 
 ij = 2
 xx = OneDGridNotes(grid1d).x[ij]
-ParticleState, particle_on = InitParticleVector(copy(particle_defaults), ij, xx, u(xx, 0), DT)
+ParticleState, particle_on = InitParticleValues(copy(particle_defaults), xx, u(xx, 0), DT)
 PI4 = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij, false, particle_on)
 
 clock_time = 0
@@ -207,95 +206,89 @@ savefig(plot_path_base* "PW4_negtive4.png")
 @info "c_g min,max", minimum(PID4[:, 3]), maximum(PID4[:, 3])
 
 
+
+
+####################################
 # %% test with PIC remeshing algorithm ####
 # define model -
-using PiCLES: WaveGrowthModels1D
+using PiCLES: WaveGrowthModels1D, reset_boundary!
 using Oceananigans.Units
 using PiCLES.Simulations
 using PiCLES.Plotting
 
 Revise.retry()
 
+u10 = 10
+u(x, t) = x .* 0 + t * 0 + u10
+
 # redefine model 
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid= OneDGrid(0, 30e3, 50),
     winds=u,
-    ODEsys=particle_system,
-    ODEvars=nothing, #PW5.init_vars_1D(),
-    layers=1,
+    ODEsys=PW5.particle_equations(u, γ=γ),
     ODEsets=ODE_settings,  # ODE_settings
-    ODEdefaults=particle_defaults,  # default_ODE_parameters
-    minimal_particle=FetchRelations.MinimalParticle(U10, 0, DT), #
-    periodic_boundary=false,
-    boundary_type="wind_sea"#"wind_sea"  # "default" #
-)
-
-
-# %%
+    ODEinit_type="wind_sea",  # default_ODE_parameters
+    minimal_particle=FetchRelations.MinimalParticle(2, 0, DT), #
+    periodic_boundary=true,
+    boundary_type="same"  # "default" #
+    )
 
 plot_path_base = "plots/tests/T02_1D_fetch/with_merge_rule/"
 #mkdir(plot_path_base)
-Revise.retry()
 @info "experiment 1: positive winds, periodic \n"
-u10 = 10
-u(x, t) = x .* 0 + t * 0 + u10
-wave_model.periodic_boundary = true 
-
-#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
-WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
-wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
-
 
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
-initialize_simulation!(wave_simulation, particle_initials=nothing)#wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
+
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 #title!("titlde")
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png") )
 
+
 # %%
 @info "experiment 1: positive winds, non-periodic \n"
-u10 = 10
-u(x, t) = x .* 0 + t * 0 + u10
-wave_model.periodic_boundary = false
+Revise.retry()
 
-#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
-WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
-wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
+wave_model.periodic_boundary = false
+# reset boundary array in model
+reset_boundary!(wave_model)
+
+
 
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
+
 
 # %%
 @info "experiment 1: nagative winds, perodic \n"
 u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = true
+# reset boundary array in model
+reset_boundary!(wave_model)
 
-#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
-WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
-wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 # %%
+#Revise.retry()
 @info "experiment 1: nagative winds, non-perodic \n"
 u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
 wave_model.periodic_boundary = false
+# reset boundary array in model
+reset_boundary!(wave_model)
 
-#WindSeamin = FetchRelations.(u(0, 0), 5minutes)
-WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0), DT)
-wave_model.ODEdefaults = copy(ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0))
 
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=3hours)
-initialize_simulation!(wave_simulation, particle_initials=wave_model.ODEdefaults)
+initialize_simulation!(wave_simulation)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))

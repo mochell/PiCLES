@@ -1,5 +1,3 @@
-
-using ModelingToolkit: Num
 using PiCLES.Operators.core_1D: ParticleDefaults
 
 using PiCLES.Operators.core_1D: SeedParticle! as SeedParticle1D!
@@ -115,16 +113,17 @@ end
 
 
 """
-initialize_simulation!(sim::Simulation; particle_initials::T=nothing )
+initialize_simulation!(sim::Simulation)
 initialize the simulation sim by calling init_particles! to initialize the model.ParticleCollection.
+-particle_initials::T=nothing  was removed from arguments
 """
-function initialize_simulation!(sim::Simulation; particle_initials::T=nothing) where {T<:Union{Dict{Num,Float64},Nothing}}
+function initialize_simulation!(sim::Simulation)# where {PP<:Union{ParticleDefaults,Nothing}}
         # copy(ParticleDefaults(log(4e-8), 1e-2, 0.0)))
 
         if sim.verbose
                 @info "init particles..."
         end
-        init_particles!(sim.model, defaults=particle_initials, verbose=sim.verbose)
+        init_particles!(sim.model, defaults=sim.model.ODEdefaults, verbose=sim.verbose)
         
         if sim.model.clock.iteration != 0
                 sim.model.clock.iteration = 0
@@ -138,10 +137,11 @@ end
 
 
 """
-reset_simulation!(sim::Simulation; particle_initials::Dict{Num, Float64} = copy(ParticleDefaults(log( 4e-8 ), 1e-2, 0.0)) )
+reset_simulation!(sim::Simulation)
 reset the simulation sim by calling init_particles! to reinitialize the model.ParticleCollection, sets the model.clock.time, model.clock.iteration, and model.state to 0.
+- particle_initials::Dict{Num, Float64} was removed from arguments
 """
-function reset_simulation!(sim::Simulation; particle_initials::T=nothing) where {T<:Union{Dict,Nothing}}
+function reset_simulation!(sim::Simulation)# where {PP<:Union{ParticleDefaults,Nothing}}
 
         sim.running = false
         sim.run_wall_time = 0.0
@@ -154,7 +154,7 @@ function reset_simulation!(sim::Simulation; particle_initials::T=nothing) where 
                 @info "reset time..."
                 @info "re-init particles..."
         end
-        init_particles!(sim.model, defaults=particle_initials, verbose=sim.verbose)
+        init_particles!(sim.model, defaults=sim.model.ODEdefaults, verbose=sim.verbose)
 
         # state
         if sim.verbose
@@ -179,13 +179,13 @@ SeedParticle_mapper(f, p, s, b1, b2, b3, c1, c2, c3, d1, d2) = x -> f(p, s, x, b
 
 
 """
-init_particle!(model ; defaults::Dict{Num, Float64} = nothing, verbose::Bool=false )
+init_particle!(model ; defaults::PP, verbose::Bool=false )
 
 initialize the model.ParticleCollection based on the model.grid and the defaults. 
 If defaults is nothing, then the model.ODEdev is used.
 usually the initilization uses wind constitions to seed the particles.
 """
-function init_particles!(model::Abstract2DModel; defaults::T=nothing, verbose::Bool=false) where {T<:Union{Dict,Nothing}}
+function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::Bool=false) where {PP<:Union{ParticleDefaults,Nothing}}
         #defaults        = isnothing(defaults) ? model.ODEdev : defaults
         if verbose
                 @info "seed PiCLES ... \n"
@@ -236,13 +236,13 @@ end
 
 
 """
-init_particle!(model ; defaults::Dict{Num, Float64} = nothing, verbose::Bool=false )
+init_particle!(model ; defaults::PP, verbose::Bool=false )
 
 initialize the model.ParticleCollection based on the model.grid and the defaults. 
 If defaults is nothing, then the model.ODEdev is used.
 usually the initilization uses wind constitions to seed the particles.
 """
-function init_particles!(model::Abstract1DModel; defaults::T=nothing, verbose::Bool=false) where {T<:Union{Dict,Nothing}}
+function init_particles!(model::Abstract1DModel; defaults::PP=nothing, verbose::Bool=false) where {PP<:Union{ParticleDefaults,Nothing}}
         #defaults        = isnothing(defaults) ? model.ODEdev : defaults
         if verbose
                 @info "seed PiCLES ... \n"
