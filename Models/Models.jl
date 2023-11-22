@@ -1,6 +1,6 @@
 module Models
 
-export WaveGrowthModels1D, WaveGrowthModels2D
+export WaveGrowthModels1D, WaveGrowthModels2D, reset_boundary!
 
 include("WaveGrowthModels1D.jl")
 include("WaveGrowthModels2D.jl")

@@ -8,7 +8,7 @@ using SharedArrays
 using DocStringExtensions
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
-export InitParticleVector, ResetParticleVector
+export InitParticleValues, ResetParticleValues
 
 
 using FetchRelations
@@ -36,7 +36,7 @@ Structure holds default particles
 # Fields  
 $(DocStringExtensions.FIELDS)
 """
-mutable struct ParticleDefaults
+struct ParticleDefaults
     "log energy"
     lne::Float64
     "horizontal velocity"
@@ -47,7 +47,7 @@ end
 
 
 Base.copy(s::ParticleDefaults) = ParticleDefaults(s.lne, s.c̄_x, s.x)
-init(s::ParticleDefaults) = [s.lne, s.c̄_x, s.x]
+initParticleDefaults(s::ParticleDefaults) = [s.lne, s.c̄_x, s.x]
 
 # """
 # ParticleDefaults
@@ -155,11 +155,12 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
     # convert to ordered particle state
     
     #z_initials = [z_initials[lne], z_initials[c̄_x], z_initials[x]]
+    z_initials = initParticleDefaults(z_initials)
     # converty to ordered named tuple
     ODE_parameters = NamedTuple{Tuple(Symbol.(keys(ODE_settings.Parameters)))}(values(ODE_settings.Parameters))
 
     # create ODEProblem
-    problem = ODEProblem(model, init(z_initials) , (0.0, ODE_settings.total_time), ODE_parameters)
+    problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_parameters)
     # inialize problem
     # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
     integrator = init(
@@ -179,7 +180,7 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
 end
 
 
-# ODESystem version
+# ODESystem version, will be depriciated
 """
 InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing)
 wrapper function to initalize a particle instance
@@ -192,6 +193,7 @@ wrapper function to initalize a particle instance
 """
 function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
 
+    z_initials = initParticleDefaults(z_initials)
     # create ODEProblem
     problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
     # inialize problem
@@ -209,25 +211,23 @@ function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, bo
         reltol=ODE_settings.reltol,
         callback=ODE_settings.callbacks,
         save_everystep=ODE_settings.save_everystep)
-    return ParticleInstance1D(ij, z_initials[x], integrator, boundary_flag, particle_on)
+    return ParticleInstance1D(ij, z_initials[3], integrator, boundary_flag, particle_on)
 end
 
 
 
 """
-InitParticleVector(defaults:: Dict{Number, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
+InitParticleValues(defaults:: Dict{Number, Float64}, i::Int64, gridnote::OneDGridNotes, u, DT)
 
 Find initial conditions for particle. Used at the beginning of the experiment.
         inputs:
         defaults        Dict with variables of the state vector, these will be replaced in this function
-        i               index of the grid point
         gridnote        grid to determine the position in the grid
         uu              wind value
         DT              time step of model, used to determine fetch laws
 """
-function InitParticleVector(
+function InitParticleValues(
     defaults::PP,
-    ii::Int64,
     xx::Float64,
     uu::Number,
     DT) where {PP<:Union{Nothing,ParticleDefaults}}
@@ -235,9 +235,8 @@ function InitParticleVector(
 
     if defaults == nothing
         #@info "init particles from fetch relations: $z_i"
-        #particle_defaults = Dict{Num,Float64}()
 
-        if uu > sqrt(2)
+        if abs(uu) > sqrt(2)
             # defaults are not defined and there is wind
 
             # take in local wind velocities
@@ -252,7 +251,7 @@ function InitParticleVector(
         else
 
             # defaults are not defined and there is no wind
-            u_min = FetchRelations.MinimalParticle(uu,0.0, DT)
+            u_min = FetchRelations.MinimalParticle(uu,0.0, DT) # takes u just for the sign.
             lne = u_min[1]
             c̄_x = u_min[2]
             
@@ -272,7 +271,7 @@ function InitParticleVector(
 end
 
 """
-ResetParticleVector(defaults:: Dict{Number, Float64}, PI::AbstractParticleInstance, u_rn, DT)
+ResetParticleValues(defaults:: Dict{Number, Float64}, PI::AbstractParticleInstance, u_rn, DT)
 
 resets the particle state to the default values if they given, otherwise it will use the fetch relations
         inputs:
@@ -281,32 +280,30 @@ resets the particle state to the default values if they given, otherwise it will
         u_rn            u value at the particle position
         DT              time step of model, used to determine fetch laws
 """
-function ResetParticleVector(
+function ResetParticleValues(
     defaults::PP,
     PI::AbstractParticleInstance,
-    u_rn::Number, DT; vector=true) where {PP<:Union{Dict,Nothing}}
+    u_rn::Number, DT; vector=true) where {PP<:Union{Nothing,ParticleDefaults}}
     # take in local wind velocities
 
     if defaults == nothing # this is boundary_defaults = "wind_sea"
-        particle_defaults = Dict{Number,Float64}()
+        #particle_defaults = Dict{Number,Float64}()
         #@info "init particles from fetch relations: $z_i"
         # seed particle given fetch relations
         WindSeaMin = FetchRelations.get_initial_windsea(u_rn, DT) # takes u_init just for the sign.
-        particle_defaults[c̄_x] = WindSeaMin["cg_bar"]
-        particle_defaults[lne] = log(WindSeaMin["E"])
+        particle_defaults = ParticleDefaults(log(WindSeaMin["E"]), WindSeaMin["cg_bar"], PI.position_xy[1])
+
     else
         particle_defaults = defaults#deepcopy(defaults)
     end
 
     # initalize state based on state vector
-    particle_defaults[x] = PI.position_xy[1]
-
+    
     if vector
-        return [particle_defaults[lne], particle_defaults[c̄_x], particle_defaults[x]]
+        return initParticleDefaults(particle_defaults)
     else
         return particle_defaults
     end
-    #@show defaults
     
 end
 
@@ -344,17 +341,24 @@ function SeedParticle!(
     DT::Float64,
     
     boundary::Vector{T},
-    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{Dict,Nothing,},SS<:Union{ODESystem,Any}}
+    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
 
     # get x position
     x = GridNotes.x[i]
     u = winds(x, 0.0)::Float64
 
     # define initial condition
-    z_i, particle_on = InitParticleVector(particle_defaults, i, x, u, DT)
+    z_i, particle_on = InitParticleValues(particle_defaults, x, u, DT)
 
     # check if point is boundary point
     boundary_point = check_boundary_point(i, boundary, periodic_boundary)
+
+
+    # if boundary_point
+    #     #@info "boundary point", boundary_point, particle_on
+    #     # if boundary point, then set particle to off
+    #     particle_on = false
+    # end
 
     # add initial state to State vector
     #@info z_i
