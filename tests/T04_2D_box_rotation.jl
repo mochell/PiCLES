@@ -4,8 +4,6 @@ ENV["JULIA_INCREMENTAL_COMPILE"]=true
 import Plots as plt
 using Setfield, IfElse
 
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
-
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 #using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 

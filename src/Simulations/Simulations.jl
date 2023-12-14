@@ -11,7 +11,7 @@ include("simulation.jl")
 include("storing.jl")
 include("run.jl")
 
-#push!(LOAD_PATH,   joinpath(pwd(), "code/")       )
+
 using ..ParticleMesh: OneDGrid, OneDGridNotes
 using ..Operators.core_1D: SeedParticle!
 using ..Operators.TimeSteppers

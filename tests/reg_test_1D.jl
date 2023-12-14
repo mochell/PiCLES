@@ -5,10 +5,6 @@ using ModelingToolkit#: @register_symbolic
 import Plots as plt
 using Setfield
 
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
-push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
-push!(LOAD_PATH, joinpath(pwd(), "code/Simulations"))
-
 import particle_waves_v4#: particle_equations, ODESettings
 PW4 = particle_waves_v4
 

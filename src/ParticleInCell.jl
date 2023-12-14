@@ -4,10 +4,8 @@ using Statistics
 
 using SharedArrays
 
-push!(LOAD_PATH,   joinpath(pwd(), "MIC/")   )
 
 # %%
-using Revise
 using ..ParticleMesh
 # Tolerance for comparison of real numbers: set it here!
 
