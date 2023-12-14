@@ -1,11 +1,10 @@
 ENV["JULIA_INCREMENTAL_COMPILE"]=true
-#using ModelingToolkit, DifferentialEquations
-#using Plots
+
 import Plots as plt
 using Setfield, IfElse
 
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
-#using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
+
 
 import PiCLES: FetchRelations, ParticleTools
 using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, GetGroupVelocity
@@ -22,7 +21,7 @@ using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
 
-using Architectures
+using PiCLES.Architectures
 using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
@@ -30,7 +29,6 @@ using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 # debugging:
 #using ProfileView
-
 
 # %%
 save_path = "plots/tests/T04_box_2d/"
