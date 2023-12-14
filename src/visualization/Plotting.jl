@@ -2,7 +2,6 @@ module Plotting
 
 export movie
 
-#push!(LOAD_PATH, joinpath(pwd(), "code/Simulations"))
 # include("../Simulations/Simulations.jl")
 # using .Simulations
 

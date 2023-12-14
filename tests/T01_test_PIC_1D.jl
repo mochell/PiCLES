@@ -1,7 +1,6 @@
 using Statistics
 using Plots
 
-push!(LOAD_PATH, joinpath(pwd(), "src/"))
 using PiCLES.ParticleMesh: OneDGrid, OneDGridNotes
 import PiCLES.ParticleInCell
 

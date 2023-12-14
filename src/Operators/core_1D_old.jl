@@ -5,7 +5,6 @@ using SharedArrays
 
 using DocStringExtensions
 
-#push!(LOAD_PATH,   joinpath(pwd(), "code/")       )
 using ParticleMesh
 
 using particle_waves_v3: init_vars_1D

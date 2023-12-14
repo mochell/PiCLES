@@ -1,6 +1,5 @@
 import Plots
 
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
 
 using PiCLES.ParticleSystems: particle_waves_v3beta as PW3
 using PiCLES.ParticleSystems: particle_waves_v4 as PW4
@@ -8,7 +7,6 @@ using PiCLES.ParticleSystems: particle_waves_v5 as PW5
 
 import PiCLES: FetchRelations
 
-push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 using PiCLES.Operators.core_1D: ParticleDefaults, InitParticleValues, InitParticleInstance
 using PiCLES.ParticleMesh: OneDGrid, OneDGridNotes
 

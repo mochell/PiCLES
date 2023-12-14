@@ -1,4 +1,4 @@
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
+
 using PiCLES: FetchRelations as FR
 
 plot_path_base = "plots/tests/FetchRelations/"

@@ -2,9 +2,6 @@ using DifferentialEquations
 using Plots
 using Setfield
 
-#push!(LOAD_PATH, joinpath(pwd(), "code/"))
-push!(LOAD_PATH, pwd())
-# push!(LOAD_PATH, joinpath(pwd(), "code/Core"))
 
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
@@ -81,6 +78,7 @@ ODE_settings = PW.ODESettings(
 
 grid = TwoDGrid(3, 3, 3, 3)
 ParticleState = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
+
 
 # initialize particle given the wind conditions:
 #ParticleState = InitParticleValues(copy(particle_defaults), TwoDGridNotes(grid), winds, DT)

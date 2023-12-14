@@ -10,7 +10,7 @@ using JLD2, Printf,IfElse
 using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 
 # %%
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
+#push!(LOAD_PATH, joinpath(pwd(), "code/"))
 using ParticleMesh: OneDGrid, OneDGridNotes
 using PiCLES.Operators.core_1D: ParticleDefaults
 using PiCLES: Simulation, WindEmulator, WaveGrowthModels1D, FetchRelations

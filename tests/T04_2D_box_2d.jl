@@ -6,8 +6,6 @@ ENV["JULIA_INCREMENTAL_COMPILE"]=true
 import Plots as plt
 using Setfield, IfElse
 
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
-
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
 import PiCLES: FetchRelations, ParticleTools
@@ -24,7 +22,7 @@ import Oceananigans: fields
 using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
-using Architectures
+using PiCLES.Architectures
 using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed

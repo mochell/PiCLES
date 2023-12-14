@@ -11,7 +11,6 @@ using HDF5, JLD2
 using DocStringExtensions
 using DifferentialEquations
 
-push!(LOAD_PATH, joinpath(pwd(), "code/"))
 using PiCLES.ParticleMesh: OneDGrid, OneDGridNotes
 using PiCLES.Operators.core_1D: ParticleDefaults
 using PiCLES: Simulation, WindEmulator, WaveGrowthModels1D, FetchRelations
