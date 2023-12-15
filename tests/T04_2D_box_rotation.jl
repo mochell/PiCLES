@@ -20,7 +20,6 @@ import Oceananigans: fields
 using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
-
 using PiCLES.Architectures
 using GLMakie
 
