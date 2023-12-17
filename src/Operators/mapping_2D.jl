@@ -93,7 +93,7 @@ function advance!(PI::AbstractParticleInstance,
         savevalues!(PI.ODEIntegrator)
         
         # advance particle
-        if PI.on & ~PI.boundary # if Particle is on and not boundary
+        if PI.on #& ~PI.boundary # if Particle is on and not boundary
         
                 try
                         step!(PI.ODEIntegrator, DT, true)
@@ -116,7 +116,7 @@ function advance!(PI::AbstractParticleInstance,
 
                 end
         
-        elseif ~PI.on & ~PI.boundary # particle is off, test if there was windsea
+        elseif ~PI.on #& ~PI.boundary # particle is off, test if there was windsea
 
                 t_end = t_start + DT
                 wind_end = convert(Tuple{Float64,Float64},
@@ -228,6 +228,8 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
         default_particle::PP, 
         e_min_log::Number, 
         DT::Float64,) where {PP<:Union{ParticleDefaults,Nothing}}
+
+
         # load data from shared array
         u_state = Get_u_FromShared(PI, S)
 
@@ -267,7 +269,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
                 # test if particle is below energy threshold, or
                 #      if particle is at the boundary
 
-                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
+                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
 
                 # #if winds are too small, reinit particle with default values
                 # if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
@@ -287,7 +289,30 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
 
                 PI.on = true
 
-        else    
+        elseif PI.boundary & (speed_square(wind_tuple[1], wind_tuple[2]) >= wind_min_squared) # at the boundary, reset particle if winds are strong enough
+
+                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
+
+                # #if winds are too small, reinit particle with default values
+                # if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
+                #         # winds are large eneough, reinit
+                # else
+                #         # winds are too small, reinit particle with minimal values
+                #         ui = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
+                # end
+
+                #ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
+
+                # ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
+                reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
+                set_t!(PI.ODEIntegrator, last_t)
+                u_modified!(PI.ODEIntegrator, true)
+                auto_dt_reset!(PI.ODEIntegrator)
+
+                PI.on = true
+
+ 
+        else # particle is below energy threshold & on boundary
                 #PI.ODEIntegrator.u = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
                 # if ~PI.boundary
                 #         @info u_state

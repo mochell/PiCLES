@@ -21,7 +21,7 @@ import Oceananigans: fields
 using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
-using Architectures
+using PiCLES.Architectures
 #using GLMakie
 
 # %%

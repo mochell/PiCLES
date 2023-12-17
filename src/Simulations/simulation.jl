@@ -7,7 +7,7 @@ using Oceananigans.Units
 
 using ..Architectures: AbstractStore
 
-#using Architectures: StateOrNothing, StateStore, AbstractStore, EmptyStore
+#using PiCLES.Architectures: StateOrNothing, StateStore, AbstractStore, EmptyStore
 
 mutable struct Simulation{ML, TS, DT, ST, DI, OW, CB}
                 model            :: ML
