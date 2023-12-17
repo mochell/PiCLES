@@ -20,7 +20,7 @@ import Oceananigans: fields
 using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
-using Architectures
+using PiCLES.Architectures
 using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
@@ -29,6 +29,8 @@ using PiCLES.Plotting.movie: init_movie_2D_box_plot
 using NCDatasets
 using Interpolations
 using Dates: Dates as Dates
+
+using Revise
 
 # %%
 using Distributions
@@ -64,8 +66,8 @@ function interpolate_winds(ds)
     T = 1day#hours#time_rel[end]
 
     nodes = (ds["x"][:], ds["y"][:], time_rel)
-    u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"][:], [1, 2, 3]), extrapolation_bc=Periodic())
-    v_grid = LinearInterpolation(nodes, permutedims(ds["v10m"][:] .+ 0.1, [1, 2, 3]), extrapolation_bc=Periodic())
+    u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"][:], [1, 2, 3]), extrapolation_bc=Flat())
+    v_grid = LinearInterpolation(nodes, permutedims(ds["v10m"][:] .+ 0.1, [1, 2, 3]), extrapolation_bc=Flat())
 
     return grid, grid_mesh, gn, T, u_grid, v_grid
 end
@@ -96,9 +98,10 @@ function make_reg_test(wave_model, save_path; plot_name="dummy", N=36)
     #run!(wave_simulation, cash_store=true, debug=true)
     run!(wave_simulation, store=true, cash_store=false, debug=false)
     close_store!(wave_simulation)
-    # # or, alternatively, make movie
-    # fig, n = init_movie_2D_box_plot(wave_simulation, name_string="T01")
 
+    # # or, alternatively, make movie
+
+    # fig, n = init_movie_2D_box_plot(wave_simulation, name_string="T01")
     # #wave_simulation.stop_time += 1hour
     # #N = 36
     # #plot_name = "dummy"
@@ -115,9 +118,9 @@ end
 
 # %%
 # loop over U10 and V10 range
-#case_list = ["Test02_2D", "Test03_2D", "Test04_2D"]
+#case_list = ["Test01_2D"]#, "Test03_2D"]#, "Test04_2D"]
 #case_list = ["Test01_2D", "Test02_2D"]#, "Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
-case_list = ["Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
+case_list = ["Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
     # load netCDF file
@@ -163,7 +166,14 @@ for case in case_list
         movie=true)
 
 
-    NN = Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
-    mkpath(save_path_data * case)
-    make_reg_test(wave_model, save_path_data * case, plot_name=case, N=NN)
+    NN =Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
+    
+    # for saving data
+    #when saving data
+    save_path_select = save_path_data
+    mkpath(save_path_select * case)
+    
+    #when plotting data
+    #save_path_select = save_path
+    make_reg_test(wave_model, save_path_select * case, plot_name=case, N=NN)
 end
