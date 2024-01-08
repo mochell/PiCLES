@@ -14,6 +14,9 @@ using ..Operators.mapping_1D
 using ..Operators.mapping_2D
 using Statistics
 
+
+#using ThreadsX
+
 function mean_of_state(model::Abstract2DModel)
         return mean(model.State[:, :, 1])
 end
@@ -206,16 +209,16 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
                 gridnotes, model.winds, model.ODEsettings.timestep,
                 model.boundary, model.periodic_boundary)
 
+        # ThreadsX.map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
         map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
 
-
-
         # print(defaults)
-        # ParticleCollection=[]
-        # for i in range(1,length = grid1d.Nx)
-        #         SeedParticle!(ParticleCollection, model.State, i,
+        #ParticleCollection=[]
+        # for i in 1:model.grid.Nx, j in 1:model.grid.Ny
+        #         SeedParticle2D!(ParticleCollection, model.State,
+        #                         (i, j),
         #                         model.ODEsystem, defaults , model.ODEsettings,
-        #                         gridnotes, model.winds, model.ODEsettings.timestep, model.grid.Nx,
+        #                         gridnotes, model.winds, model.ODEsettings.timestep,
         #                         model.boundary, model.periodic_boundary  )
         # end
 

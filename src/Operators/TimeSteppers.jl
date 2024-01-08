@@ -7,6 +7,8 @@ using ..mapping_2D
 
 # for debugging
 using Statistics
+using Base.Threads
+using Printf
 
 using Oceananigans.TimeSteppers: tick!
 
@@ -103,7 +105,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         model.FailedCollection = FailedCollection
     end 
 
-    for a_particle in model.ParticleCollection
+    @threads for a_particle in model.ParticleCollection
         #@info a_particle.position_ij
         mapping_2D.advance!(    a_particle, model.State, FailedCollection,
                                 model.grid, model.winds, Δt,
@@ -113,9 +115,10 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
                                 model.ODEdefaults)
     end
     
-    print("mean energy after advance ", mean_of_state(model), "\n")
 
     if debug
+        print("mean energy after advance ", mean_of_state(model), "\n")
+
         @info "advanced: "
         @info maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
         #@info model.State[8:12, 1], model.State[8:12, 2]
@@ -124,7 +127,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     end
 
     #@printf "re-mesh"
-    for a_particle in model.ParticleCollection
+    @threads for a_particle in model.ParticleCollection
         mapping_2D.remesh!(a_particle, model.State, 
                         model.winds, model.clock.time, 
                         model.ODEsettings, Δt,
@@ -140,10 +143,17 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         @info model.clock.time, model.ParticleCollection[10].ODEIntegrator.t
 
     end
-    print("mean energy after remesh ", mean_of_state(model), "\n")
+    #print("mean energy after remesh ", mean_of_state(model), "\n")
+    @printf("mean energy %.6f", mean_of_state(model))
 
     tick!(model.clock, Δt)
 end
+
+
+#build wrapper
+advance_wrapper(f, state, Fcol, grid, winds, dt, emax, windmin, boundary, defaults) = x -> f(x, state, Fcol, grid, winds, dt, emax, windmin, boundary, defaults)
+remesh_wrapper(f, state, winds, time, sets, dt, minpar, minstate, defaults) = x -> f(x, state, winds, time, sets, dt, minpar, minstate, defaults)
+#global ParticleCollection
 
 
 """
