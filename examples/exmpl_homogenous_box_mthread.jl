@@ -132,7 +132,6 @@ wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=6hour);#1hours
 @btime begin
     reset_simulation!(wave_simulation)
     run!(wave_simulation, cash_store=false, debug=false);
-end
 
 istate = wave_simulation.model.State;
 p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
@@ -145,3 +144,8 @@ p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 
 #istate = wave_simulation.store.store[end];
 #p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])`
+
+# %%
+Nmax = sqrt(gn.Nx * gn.Ny * 20)
+
+360 / Nmax
