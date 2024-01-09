@@ -1,5 +1,6 @@
 using Pkg
-Pkg.activate("../")
+
+Pkg.activate("PiCLES/")
 
 using Base.Threads
 @info "Num. of threads", nthreads()
@@ -128,8 +129,10 @@ initialize_simulation!(wave_simulation)
 # end
 # # %%
 
+
 run!(wave_simulation, cash_store=false, debug=false);
 reset_simulation!(wave_simulation)
+wave_simulation.stop_time = 6hour
 @time run!(wave_simulation, cash_store=false, debug=false);
 
 # istate = wave_simulation.model.State;
