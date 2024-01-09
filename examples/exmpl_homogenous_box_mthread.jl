@@ -1,12 +1,10 @@
-
 using Pkg
-Pkg.activate(".")
+Pkg.activate("../")
 
 using Base.Threads
 @info "Num. of threads", nthreads()
 
-import Plots as plt
-
+# import Plots as plt
 using Setfield
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 
@@ -24,15 +22,17 @@ using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
 using PiCLES.Architectures
-using GLMakie
-using PiCLES.Plotting.movie: init_movie_2D_box_plot
+#using GLMakie
+#using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
-using ProfileView
+#using ProfileView
 using BenchmarkTools
-using Revise
+#using Revise
+
 # debugging:
 #using ProfileView
 
+@info "precompiled!"
 # %%
 save_path = "plots/examples/homogenous_box/"
 mkpath(save_path)
@@ -59,7 +59,7 @@ grid = TwoDGrid(100e3, 51, 100e3, 51)
 #grid = TwoDGrid(20e3, 21, 20e3, 21)
 mesh = TwoDGridMesh(grid, skip=1)
 gn = TwoDGridNotes(grid)
-Revise.retry()
+#Revise.retry()
 
 
 # define variables based on particle equation
@@ -98,7 +98,7 @@ ODE_settings = PW.ODESettings(
 
 default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
 
-Revise.retry()
+#Revise.retry()
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
@@ -114,7 +114,7 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=6hour);#1hours)
-@time initialize_simulation!(wave_simulation)
+initialize_simulation!(wave_simulation)
 
 # # %% single time steps
 # import PiCLES.Operators.TimeSteppers: time_step!
@@ -129,19 +129,17 @@ wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=6hour);#1hours
 # end
 # # %%
 
-@btime begin
-    reset_simulation!(wave_simulation)
-    run!(wave_simulation, cash_store=false, debug=false);
-end
+run!(wave_simulation, cash_store=false, debug=false);
+reset_simulation!(wave_simulation)
+@time run!(wave_simulation, cash_store=false, debug=false);
 
-istate = wave_simulation.model.State;
-p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
+
+# istate = wave_simulation.model.State;
+# p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 
 #wave_simulation.model.ParticleCollection[10]
-
 # run simulation
 #ProfileView.@profview run!(wave_simulation, cash_store=true, debug=true)
-
 
 #istate = wave_simulation.store.store[end];
 #p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])`
