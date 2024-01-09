@@ -113,7 +113,7 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
 #global wave_model.ParticleCollection
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
-wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=6hour);#1hours)
+wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=1hour);#1hours)
 initialize_simulation!(wave_simulation)
 
 # # %% single time steps
@@ -128,7 +128,7 @@ initialize_simulation!(wave_simulation)
 #     sleep(0.5)
 # end
 # # %%
-
+Revise.retry()
 
 run!(wave_simulation, cash_store=false, debug=false);
 reset_simulation!(wave_simulation)
