@@ -144,9 +144,10 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
 
     end
     #print("mean energy after remesh ", mean_of_state(model), "\n")
-    @printf("mean energy %.6f", mean_of_state(model))
 
     tick!(model.clock, Δt)
+    @printf(" mean energy %.6f ", mean_of_state(model))
+
 end
 
 
