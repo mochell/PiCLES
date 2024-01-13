@@ -15,6 +15,7 @@ using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
 using ...Operators.mapping_2D
 
 using SharedArrays
+# using DistributedArrays
 using Printf
 
 import Oceananigans: fields
@@ -41,7 +42,7 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
                         Clo,
                         Int,
                         stat,
-                        PC,
+                        PCollection,
                         FPC,
                         Ovar,
                         Osys,
@@ -54,7 +55,8 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
                         bl_type,
                         wnds,
                         cur,
-                        Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}}
+                        Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}, PCollection<:Union{Vector,Array}}
+    #Union{Vector,DArray}
     grid::Grid
     layers::Lay      # number of layers used in the model, 1 is eneough
     timestepper::Tim      # silly Oceananigans
@@ -62,7 +64,7 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
     dims::Int      # number of dimensions
 
     State::stat     # state of of the model at each grid point, for each layer it contains, energy, positions, group speed
-    ParticleCollection::PC    # Collection (list) of Particles
+    ParticleCollection::PCollection    # Collection (list) of Particles
     FailedCollection::FPC      # Collection (list) of Particles that failed to integrate
 
     ODEvars::Ovar     # list of variables in ODE system, have type Num from OrdinaryDiffEq and ModelingToolkit
