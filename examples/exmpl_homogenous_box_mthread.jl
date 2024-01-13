@@ -2,8 +2,8 @@ using Pkg
 
 Pkg.activate("PiCLES/")
 
-using Base.Threads
-@info "Num. of threads", nthreads()
+# using Base.Threads
+# @info "Num. of threads", nthreads()
 
 # import Plots as plt
 using Setfield
@@ -30,8 +30,9 @@ using PiCLES.Architectures
 using BenchmarkTools
 #using Revise
 
+using Profile
 # debugging:
-#using ProfileView
+using ProfileView
 
 @info "precompiled!"
 # %%
@@ -128,13 +129,35 @@ initialize_simulation!(wave_simulation)
 #     sleep(0.5)
 # end
 # # %%
+
 Revise.retry()
-
 run!(wave_simulation, cash_store=false, debug=false);
-reset_simulation!(wave_simulation)
-wave_simulation.stop_time = 6hour
-@time run!(wave_simulation, cash_store=false, debug=false);
 
+# %%
+reset_simulation!(wave_simulation)
+wave_simulation.stop_time = 20minutes
+#ProfileView.@profview run!(wave_simulation, cash_store=false, debug=false);
+
+@time @allocated run!(wave_simulation, cash_store=false, debug=false);
+
+wave_simulation.stop_time = 40minutes
+@time @allocated run!(wave_simulation, cash_store=false, debug=false);
+
+# %%
+
+reset_simulation!(wave_simulation)
+Profile.clear()
+wave_simulation.stop_time = 10minutes
+#ProfileView.@profview run!(wave_simulation, cash_store=false, debug=false);
+
+@profile run!(wave_simulation, cash_store=false, debug=false);
+
+# step!(integrator, 2)
+#ProfileView.view(expand_tasks= true, expand_threads=true)
+
+Profile.print(mincount=30, groupby=:thread)
+
+# %%
 # istate = wave_simulation.model.State;
 # p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 
@@ -144,3 +167,10 @@ wave_simulation.stop_time = 6hour
 
 #istate = wave_simulation.store.store[end];
 #p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])`
+
+
+# %% loook at particle system:
+
+wave_model.ParticleCollection[1].ODEIntegrator.sol.t
+
+wave_model.ODEsettings.save_everystep
