@@ -3,9 +3,6 @@ uuid = "79df3bd2-fdbb-4cb7-a58f-f9c8092d6d68"
 authors = ["Momme C. Hell"]
 version = "0.1.0-DEV"
 
-[compat]
-julia = "1.9.3"
-
 [deps]
 AbstractPlotting = "537997a7-5e4e-5d89-9595-2241ea00577e"
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -16,7 +13,6 @@ Callbacks = "db1e321a-d383-57b4-a664-0144fd54e973"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 GEMPIC = "b6d65c3a-4a4e-11e9-25d0-d309dc85ddeb"
@@ -28,10 +24,8 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Juno = "e5e0dc1b-0480-54bc-9374-aad01c23163d"
 LaTeXStrings = "b964fa9f-0449-5b57-a5c2-d3ea65f4040f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-Meshes = "eacbb407-ea5a-433e-ab97-5258b1ca43fa"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
-NamedTuples = "73a701b4-84e1-5df0-88ff-1968ee2ee8dc"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Pandas = "eadc2687-ae89-51f9-a5d9-86b5a6373a9c"
@@ -49,6 +43,9 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
 WebIO = "0f1e0344-ec1d-5b48-a673-e5cf874b6c29"
+
+[compat]
+julia = "1.10.0"
 
 [extras]
 CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"

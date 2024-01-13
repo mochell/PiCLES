@@ -26,7 +26,7 @@ using PiCLES.Operators.core_2D: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 # %%
-using Distributions
+
 
 save_path = "plots/tests/T04_2D_particle_on_off/"
 mkpath(save_path)

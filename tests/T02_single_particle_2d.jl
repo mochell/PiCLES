@@ -35,7 +35,6 @@ v(x, y, t) = - (V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 
 winds = (u=u, v=v)
 
-
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 typeof(particle_system)
 

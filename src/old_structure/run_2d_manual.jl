@@ -684,25 +684,25 @@ end
 
 # %% Parallel version
 
-# @everywhere carrier(f, y, g, d) = x -> f(x,y, g, d)
-# @everywhere carrier(f, y, t)    = x -> f(x,y, t)
-# global ParticleCollection
-#
-# @time for t in t_range[2:end]
-#
-#         @show t
-#
-#         @show "advance"
-#         @time ParticleCollection = fetch(pmap(carrier( advance!, State, grid2d, DT) ,advance_workers,  ParticleCollection));
-#
-#         @show "re-mesh"
-#         @time ParticleCollection = fetch(pmap(carrier( remesh!, State, t) ,advance_workers, ParticleCollection));
-#         #@show mean(State)
-#
-#         @show "push"
-#         push!(State_collect, State )
-#
-# end
+@everywhere carrier(f, y, g, d) = x -> f(x,y, g, d)
+@everywhere carrier(f, y, t)    = x -> f(x,y, t)
+global ParticleCollection
+
+@time for t in t_range[2:end]
+
+        @show t
+
+        @show "advance"
+        @time ParticleCollection = fetch(pmap(carrier( advance!, State, grid2d, DT) ,advance_workers,  ParticleCollection));
+
+        @show "re-mesh"
+        @time ParticleCollection = fetch(pmap(carrier( remesh!, State, t) ,advance_workers, ParticleCollection));
+        #@show mean(State)
+
+        @show "push"
+        push!(State_collect, State )
+
+end
 
 
 # %%
