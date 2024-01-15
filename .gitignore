@@ -23,6 +23,7 @@ docs/site/
 # environment.
 Manifest.toml
 
+config/config.json
 
 plots/*
 .DS_Store
