@@ -93,7 +93,7 @@ end
 # Paramter functions
 # ------------------------------------------------------
 
-function magic_fractions(q::Number=-1 / 4.0)
+function magic_fractions(q::Float64=-1 / 4.0)
     # returns universal exponent relations
     p = (-1 - 10 * q) / 2
     n = 2 * q / (p + 4 * q)
@@ -158,15 +158,29 @@ end
 αₚ(u::Number, v::Number, cx::Number, cy::Number) = @. (u .* cx + v .* cy) ./ (2 .* max(speed(cx, cy), 1e-4)^2)
 
 #α_func(u_speed::Number, c_gp_speed::Number) = @. min( u_speed / (2.0 * c_gp_speed), 500)
-function α_func(u_speed, c_gp_speed)
+function α_func(u_speed::Float64, c_gp_speed::Float64)
     a = @. u_speed / (2.0 * c_gp_speed)
-    # if isnan(a) | isinf(a)
-    #         return 500
+    return IfElse.ifelse( a > 500, 500, a)
+    #return IfElse.ifelse(u_speed / (2.0 * c_gp_speed) > 500, 500, u_speed / (2.0 * c_gp_speed))
+    # if u_speed / (2.0 * c_gp_speed) > 500
+    #     return 500.0
     # else
-    return min(a, 500)
+    #     return u_speed / (2.0 * c_gp_speed)
     # end
+    # return min(u_speed / (2.0 * c_gp_speed), 500)::Float64
 end
 
+function α_func(u_speed, c_gp_speed)
+    a = @. u_speed / (2.0 * c_gp_speed)
+    return IfElse.ifelse(a > 500, 500, a)
+    #return IfElse.ifelse(u_speed / (2.0 * c_gp_speed) > 500, 500, u_speed / (2.0 * c_gp_speed))
+    # if u_speed / (2.0 * c_gp_speed) > 500
+    #     return 500.0
+    # else
+    #     return u_speed / (2.0 * c_gp_speed)
+    # end
+    # return min(u_speed / (2.0 * c_gp_speed), 500)::Float64
+end
 
 #sin2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  4 * sb * cb * (sa^2 -0.5) - 4 * sa * ca * (sb^2 -0.5)
 # sign(cx) *
@@ -196,23 +210,31 @@ function sin2_a_plus_b(u::NamedTuple, c::NamedTuple)
 end
 
 
-
 #cos2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  (1 - 2 .* (sa .* cb - ca .* cb).^2 )
-e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = @. sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
 
 
-H_β(α::Number, p::Float64; α_thresh::Float64=0.85) = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
+H_β(α::Number, p::Float64; α_thresh::Float64=0.85) = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))  # <--------------- tanh is slow 
 Δ_β(α::Number; α_thresh::Float64=0.85) = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
 
 """
-function c_g_conversions(c̄::Number; g::Number=9.81, r_g::Number=0.9)
+function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.9)
 returns a vecotr with conversions between c̄, c_gp, kₚ, and ωₚ
 """
-function c_g_conversions(c̄::Number; g::Float64=9.81, r_g::Number=0.9)
-    c_gp = @. c̄ / r_g
-    kₚ = @. g / (4.0 * max(c_gp^2, 1e-2))
-    ωₚ = @. g / (2.0 * max(sign(c_gp) * c_gp, 0.1))
-    [c_gp, kₚ, ωₚ]
+function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.9) # this is a slow function
+    c_gp = c_g_conversions(c̄, r_g=r_g)
+    kₚ = g / (4.0 * max(c_gp^2, 1e-2))  # < ---------- the power is slow 
+    ωₚ = g / (2.0 * max(abs(c_gp), 0.1))
+    #@SVector [c_gp, kₚ, ωₚ]
+    c_gp, kₚ, ωₚ
+end
+
+function c_g_conversions(c̄::Float64; r_g::Number=0.9) # this is a slow function
+    c̄ / r_g
+end
+
+function c_g_conversions(c̄; r_g::Number=0.9) # this is a slow function
+    c̄ / r_g
 end
 
 speed(cx::Number, cy::Number) = @. sqrt(cx^2 + cy^2)
@@ -262,9 +284,8 @@ S_cg(lne::Number, Δₚ::Number, kₚ::Number, C_α::Number) = @. C_α * Δₚ *
 
 
 # Peak direction shift
-function S_dir(u::Number, v::Number, cx::Number, cy::Number, C_φ::Number, Hₚ)
-    alpha = α_func(speed(u, v), speed(cx, cy))
-    return @. alpha^2 * C_φ * Hₚ * sin2_a_min_b(u, v, cx, cy)::Number
+function S_dir(u::Number, v::Number, cx::Number, cy::Number, C_φ::Number, Hₚ::Number)
+    return α_func(speed(u, v), speed(cx, cy))^2 * C_φ * Hₚ * sin2_a_min_b(u, v, cx, cy)#::Number
     #alpha^2 * C_φ * Hₚ * sin2_a_min_b(cx, cy, u.u, u.v)
 
     #alpha^2 * C_φ * sin2_a_min_b(u, cx, cy)
@@ -307,79 +328,151 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     dissipation=true,
     peak_shift=true,
     direction=true,
-    debug_output=false)
+    debug_output=false,
+    static= false
+    )
     #t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
     p, q, n = magic_fractions(q)
     e_T = e_T_func(γ, p, q, n)#, C_e=C_e)
 
-    function partice_system(dz, z, params, t)#::MVector{5, Number}
-    
-        # forcing fields
-        #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
-        lne, c̄_x, c̄_y, x, y = z
-
-        r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
-        #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
-        u = u_wind(x, y, t)#::Number
-        v = v_wind(x, y, t)#::Number
-
-        c̄ = speed(c̄_x, c̄_y)
-        u_speed = speed(u, v)
-
-        # peak parameters
-        c_gp_speed, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
-        c_gp_x, _, _ = c_g_conversions(c̄_x, r_g=r_g)
-        c_gp_y, _, _ = c_g_conversions(c̄_y, r_g=r_g)
-
-        # direction equations
-        α = α_func(u_speed, c_gp_speed)
-        Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
-        Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
-
-        # Source terms
-        Ĩ = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
-        D̃ = dissipation ? D̃_func_lne(lne, kₚ, e_T, n) : 0.0
-        S_cg_tilde = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
-        S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
-
-        #particle_equations::Vector{Number} = [
-        # energy
-        dz[1] = +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
-
-        # peak group velocity vector
-        dz[2] = -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
-        dz[3] = -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
-
-        # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
-        # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
-
-        # propagation
-        dz[4] = propagation ? c̄_x : 0.0
-        dz[5] = propagation ? c̄_y : 0.0
+    if static
         
+        function particle_system_static(z, params, t)
 
-        if debug_output
-            #@variables Input, Dissp, H_p, alpha, alpha_p, Scg, Delta_p, Sdir, c_y
+            
+            # forcing fields
+            #lne, c̄_x, c̄_y, x, y = z
 
-            additional_output = [
-                Ĩ,
-                -D̃,
-                r_g^2 * S_cg_tilde,
-                #alpha_p ~ αₚ(u, c_gp_x, c_gp_y),
-                Hₚ,
-                #alpha ~ α,
-                S_dir_tilde,
-                Δₚ,
-                c_gp_y]
-            append!(dz, additional_output)
+            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
+            u = u_wind(z[4], z[5], t)#::Number
+            v = v_wind(z[4], z[5], t)#::Number
+
+            c̄ = speed(z[2], z[3])
+            u_speed = speed(u, v)
+
+            # peak parameters
+            c_gp_speed, kₚ, ωₚ = c_g_conversions_vector(abs(c̄), r_g=r_g)
+            c_gp_x = c_g_conversions(z[2], r_g=r_g)
+            c_gp_y = c_g_conversions(z[3], r_g=r_g)
+
+            # direction equations
+            α = α_func(u_speed, c_gp_speed)
+            Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
+            Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
+
+            # Source terms
+            Ĩ = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
+            D̃ = dissipation ? D̃_func_lne(z[1], kₚ, e_T, n) : 0.0
+            S_cg_tilde = peak_shift ? S_cg(z[1], Δₚ, kₚ, C_α) : 0.0
+            S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
+
+            z = @SVector [
+                # energy
+                +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃),
+
+                # peak group velocity vector
+                -z[2] .* ωₚ .* r_g^2 .* S_cg_tilde + z[3] .* S_dir_tilde,
+                -z[3] .* ωₚ .* r_g^2 .* S_cg_tilde - z[2] .* S_dir_tilde,
+
+                # D(z[2]) ~ -z[2] .* ωₚ .* r_g^2 .* S_cg_tilde + (z[3] + 0.001) .* S_dir_tilde, #* (-1),
+                # D(z[3]) ~ -z[3] .* ωₚ .* r_g^2 .* S_cg_tilde - (z[2]  + 0.001) .* S_dir_tilde, #* (1),
+                
+                # propagation
+                propagation ? z[2] : 0.0,
+                propagation ? z[3] : 0.0
+                ]
+
+            if debug_output
+                additional_output = @SVector [
+                    Ĩ,
+                    -D̃,
+                    r_g^2 * S_cg_tilde,
+                    Hₚ,
+                    S_dir_tilde,
+                    Δₚ,
+                    c_gp_y
+                ]
+                z = vcat(z, additional_output)
+            end
+
+            return z
+
         end
+        return particle_system_static
 
-        return dz
+    else
+        
+        function particle_system(dz, z, params, t)#::MVector{5, Number}
+
+            # forcing fields
+            #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
+            lne, c̄_x, c̄_y, x, y = z
+
+            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
+            u = u_wind(z[4], y, t)#::Number
+            v                 = v_wind(x, y, t)#::Number
+
+            c̄                 = speed(c̄_x, c̄_y)
+            u_speed           = speed(u, v)
+
+            # peak parameters
+            c_gp_speed, kₚ, ωₚ = c_g_conversions_vector(abs(c̄), r_g=r_g) ## <--- this one is slow!!
+            c_gp_x             = c_g_conversions(c̄_x, r_g=r_g)
+            c_gp_y             = c_g_conversions(c̄_y, r_g=r_g)
+
+            # direction equations
+            α = α_func(u_speed, c_gp_speed)
+            Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
+            Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
+
+            # Source terms
+            Ĩ           = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
+            D̃           = dissipation ? D̃_func_lne(lne, kₚ, e_T, n) : 0.0
+            S_cg_tilde  = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
+            S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
+
+            #particle_equations::Vector{Number} = [
+            # energy
+            dz[1] = +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
+
+            # peak group velocity vector
+            dz[2] = -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
+            dz[3] = -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
+
+            # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
+            # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
+
+            # propagation
+            dz[4] = propagation ? c̄_x : 0.0
+            dz[5] = propagation ? c̄_y : 0.0
+
+
+            if debug_output
+                additional_output = [
+                    Ĩ,
+                    -D̃,
+                    r_g^2 * S_cg_tilde,
+                    #alpha_p ~ αₚ(u, c_gp_x, c_gp_y),
+                    Hₚ,
+                    #alpha ~ α,
+                    S_dir_tilde,
+                    Δₚ,
+                    c_gp_y]
+                append!(dz, additional_output)
+            end
+
+            return dz
+
+        end
+        
+        return particle_system
 
     end
 
-    return partice_system
+
 end
 
 # ------------ 1D ------------
@@ -431,7 +524,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
         u_speed = abs(u)
 
         # peak parameters
-        c_gp_speed, kₚ, ωₚ = c_g_conversions(abs(c̄), r_g=r_g)
+        c_gp_speed, kₚ, ωₚ = c_g_conversions_vector(abs(c̄), r_g=r_g)
 
         # direction equations
         α = α_func(u_speed, c_gp_speed)
