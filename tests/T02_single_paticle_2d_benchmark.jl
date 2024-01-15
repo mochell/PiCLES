@@ -10,11 +10,24 @@ using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleValues, InitPartic
 using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes
 using Oceananigans.Units
 
+using BenchmarkTools
+#using Revise
+using Profile
+# debugging:
+
+# %%
+
 plot_path_base = "plots/tests/T04_2D_single_particle/"
 mkpath(plot_path_base)
 
+function set_u_and_t!(integrator, u_new, t_new)
+    integrator.u = u_new
+    integrator.t = t_new
+end
+
+
 # %% Parameters
-U10, V10 =  + 10.0, + 10.0
+U10, V10 = +10.0, +10.0
 
 # version 3
 r_g0 = 0.85
@@ -23,28 +36,29 @@ Const_ID = PW.get_I_D_constant()
 #@set Const_ID.γ = 0.88
 Const_Scg = PW.get_Scg_constants()
 
-# %%
+
 #u(x, y, t) = 0.01 - U10 * sin(t / (6 * 60 * 60 * 2π))
 #v(x, y, t) = 0.01 - V10 * cos(t / (6 * 60 * 60 * 2π))
 
 #u(x, y, t) = - U10 + 0.01 + x * 0 + y * 0 + t *0
 #v(x, y, t) = + V10 + 0.01 + x * 0 + y * 0 + t *0
 
-u(x, y, t) =   (U10 * cos(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
-v(x, y, t) = - (V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
+u(x, y, t) = (U10 * cos(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
+v(x, y, t) = -(V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 
 winds = (u=u, v=v)
 
+Revise.retry()
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 typeof(particle_system)
 
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = (
-    r_g = r_g0,
-    C_α = Const_Scg.C_alpha,
-    C_φ = Const_ID.c_β,
-    C_e = Const_ID.C_e,
-    g = 9.81,
+    r_g=r_g0,
+    C_α=Const_Scg.C_alpha,
+    C_φ=Const_ID.c_β,
+    C_e=Const_ID.C_e,
+    g=9.81,
 )
 
 # define simple callback
@@ -54,7 +68,7 @@ cb = ContinuousCallback(condition, affect!)
 
 # define standard initial conditions
 DT = 4hours
-WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/2)
+WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
 #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), 20minutes)
 
 ODE_settings = PW.ODESettings(
@@ -63,7 +77,7 @@ ODE_settings = PW.ODESettings(
     log_energy_minimum=log(WindSeamin["E"]),
     #maximum energy threshold
     log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
-    saving_step=2minutes,
+    saving_step=300hours,
     timestep=DT,
     total_time=T = 6days,
     callbacks=cb,
@@ -77,23 +91,16 @@ ODE_settings = PW.ODESettings(
 
 grid = TwoDGrid(3, 3, 3, 3)
 ParticleState = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
+ParticleState2 = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 1.0)
 
 
 # initialize particle given the wind conditions:
 #ParticleState = InitParticleValues(copy(particle_defaults), TwoDGridNotes(grid), winds, DT)
-PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
 
 
-function set_u_and_t!(integrator, u_new, t_new)
-    integrator.u = u_new
-    integrator.t = t_new
-end
 
-#clock_time = 0.0
-for i in Base.Iterators.take(PI.ODEIntegrator, 25)
-    #@info "t:", PI.ODEIntegrator.t
-    #@info "u:", PI.ODEIntegrator.u
-    #@info "i:", i
+function time_step_local!(PI, DT)
+    "take 1 step over DT"
 
     @info "proposed dt", get_proposed_dt(PI.ODEIntegrator) / 60
 
@@ -120,58 +127,56 @@ for i in Base.Iterators.take(PI.ODEIntegrator, 25)
     # #set_t!(PI.ODEIntegrator, last_t )
     u_modified!(PI.ODEIntegrator, true)
 
+    add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t)
+    savevalues!(PI.ODEIntegrator)
+
+    return PI
 end
+
+# %%
+@time @allocated PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
+@time @allocated PI = InitParticleInstance(particle_system, ParticleState2, ODE_settings, (0, 0), false, true)
+@time @allocated time_step_local!(PI, DT)
+
+#@time @allocated time_step_local_replace!(PI, DT)
+
+# %%
+#using ProfileCanvas
+@time @allocated PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
+
+DT = 10minutes
+DT = 3hours
+@profview_allocs @time @allocated time_step_local!(PI, DT)
+
+@profview_allocs for i in Base.Iterators.take(PI.ODEIntegrator, 30)
+    #@info "t:", PI.ODEIntegrator.t
+    #@info "u:", PI.ODEIntegrator.u
+    #@info "i:", i
+    time_step_local!(PI, DT)
+
+end
+
+
+# %% Profiling single time step:
+using ProfileView
+Revise.retry()
+@time @allocated PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
+@time @allocated time_step_local!(PI, DT)
+Revise.retry()
+DT = 10minutes
+ProfileView.@profview for i in Base.Iterators.take(PI.ODEIntegrator, 10)
+    #@info "t:", PI.ODEIntegrator.t
+    #@info "u:", PI.ODEIntegrator.u
+    #@info "i:", i
+    @time @allocated time_step_local!(PI, DT)
+
+end
+
+
+
 
 # %
 
-PID = ParticleTools.ParticleToDataframe(PI)
+# ODEProblem(particle_system, z_initials, (0.0, ODE_settings.total_time), ODE_parameters)
 
-gr(display_type=:inline)
-# plit each row in PID and a figure
-
-tsub = range(start=1, stop=length(PID[:, 1]), step=5)
-
-subtitle="u=$U10 v=$V10 \n reset to windsea every $DT seconds\n"
-p1 = plot(PID[tsub, 1] / (60 * 60), exp.(PID[tsub, 2]), marker=3, title=subtitle * "energy", xlabel="time (hours)", ylabel="e", label="V4") #|> display
-p2 = plot(PID[tsub, 3], PID[tsub, 4], marker=3, markershape=:square, title="cg vector", xlabel="x", ylabel="y", label="V4") #|> display
-
-
-# plot!(p1, PID[tsub, 1] / (60 * 60), FetchRelations.Eⱼ.(0.3 * abs(U10), PID[tsub, 1]) , marker=2, title="e", xlabel="time", ylabel="e", label="Fetch relations") #|> display
-
-# plot!(p1, PID[tsub, 1] / (60 * 60), u.(0, 0, PID[tsub, 1]), marker=2, title="e", xlabel="time", ylabel="e", label="Fetch relations") #|> display
-#plot!(p2, PID3[tsub3, 3], PID3[tsub3, 4], marker=2, title="cg vector", xlabel="x", ylabel="y", label="V3") #|> display
-
-axlim = 10
-plot!(p2, xlims=(-axlim, axlim), ylims=(-axlim, axlim))
-plot!(p2, [0, 0], [-axlim, axlim], color=:black, linewidth=1, label=nothing)
-plot!(p2, [-axlim, axlim], [0, 0], color=:black, linewidth=1, label=nothing)
-
-tsubx = range(start=1, stop=length(PID[:, 1]), step=200)
-time_sub = PID[tsubx, 1]
-#plot quivers every qstep2
-quiver!(p2, PID[tsubx, 3], PID[tsubx, 4], quiver=(u.(0, 0, time_sub) / 2, v.(0, 0, time_sub) / 2), color=:red, linewidth=2)#, label="wind")
-
-
-#quiver!(p2, [0], [0], quiver=( [u.(0, 0, 0)], [v.(0, 0, 0)]), color=:red, linewidth=2, scale_units=:data, label="wind")
-
-p3 = plot(PID[tsub, 5] / 1e3, PID[tsub, 6] / 1e3, marker=3, title="position", ylabel="postition", label="v4") #|> display
-
-axlim = 200#1300
-plot!(p3, xlims=(-axlim, axlim), ylims=(-axlim, axlim))
-plot!(p3, [0, 0], [-axlim, axlim], color=:black, linewidth=1, label=nothing)
-plot!(p3, [-axlim, axlim], [0, 0], color=:black, linewidth=1, label=nothing)
-
-p4 = plot(PID[tsub, 5] / 1e3, exp.(PID[tsub, 2]), marker=3, title="e (x)", xlabel="x (km)", ylabel="e", label="V4") #|> display
-
-plot(p1, p2, p3, p4, layout=(4, 1), legend=true, size=(600, 1600))
-
-
-subtitle = "u$(U10)_v$(V10)_reset_to_windsea_dt$(DT)"
-savefig(joinpath(plot_path_base, subtitle*"_continous_foreward.png"))
-
-
-
-
-# # add legend ot p1
-# plot!(p1, legend=:topleft)
-
+# %%

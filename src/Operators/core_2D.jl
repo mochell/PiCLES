@@ -419,7 +419,7 @@ function SeedParticle(
         xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
         
         #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
-        uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
+        uv = winds.u(xx, yy, 0.0)::Float64, winds.v(xx, yy, 0.0)::Float64
 
         # define initial condition
         z_i, particle_on = InitParticleValues(particle_defaults, (xx,yy), uv, DT)
