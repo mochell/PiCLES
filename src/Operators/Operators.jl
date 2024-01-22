@@ -3,12 +3,13 @@ module Operators
 export core_1D, core_2D, custom_structures, mapping_1D, mapping_2D, TimeSteppers
 export init_z0_to_State!
 using SharedArrays
+using StaticArrays
 
 
 #include("custom_structures.jl")
 #using .custom_structures
 
-using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
+using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1
 
 #include("custom_structures.jl")
 using ..custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
