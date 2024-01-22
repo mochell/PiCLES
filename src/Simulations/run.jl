@@ -15,6 +15,7 @@ using ..Operators.mapping_2D
 using Statistics
 
 
+
 #using ThreadsX
 
 function mean_of_state(model::Abstract2DModel)
@@ -69,7 +70,11 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
         while sim.running
 
                 #reset State
-                sim.model.State .= 0.0
+                if isa(sim.model.State, SharedArray)
+                        sim.model.State[:,:,:] .= 0.0
+                else
+                        sim.model.State .= 0.0
+                end
                 # do time step
                 
                 time_step!(sim.model, sim.Δt, debug=debug)

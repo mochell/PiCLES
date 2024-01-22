@@ -1,6 +1,7 @@
 module mapping_2D
 
 using SharedArrays
+using StaticArrays
 using DifferentialEquations
 using Printf
 
@@ -14,7 +15,7 @@ using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedPartic
 using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
 
-using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
+using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings, StateTypeL1
 ###### remeshing routines ############
 
 
@@ -35,15 +36,19 @@ S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
 
-function ParticleToNode!(PI::AbstractParticleInstance, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
+function ParticleToNode!(PI::AbstractParticleInstance, S::StateTypeL1, G::TwoDGrid, periodic_boundary::Bool)
 
         #u[4], u[5] are the x and y positions of the particle
-        index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
+        #index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
+        weights_and_index = PIC.compute_weights_and_index_mininal(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
+
         #ui[1:2] .= PI.position_xy
         #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state
-        PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
+
+        #PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
+        PIC.push_to_grid!(S, u_state , weights_and_index, G.Nx, G.Ny , periodic_boundary)
         nothing
 end
 
@@ -57,13 +62,13 @@ function ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, u_state:
         nothing
 end
 
-function set_u_and_t!(integrator, u_new, t_new)
+function set_u_and_t!(integrator, u_new::CC, t_new::Number) where CC <:Union{Vector{Float64},MVector}
         integrator.u = u_new
         integrator.t = t_new
 end
 
 
-function reset_PI_u!(PI::AbstractParticleInstance; ui::Vector{Float64})
+function reset_PI_u!(PI::AbstractParticleInstance; ui::CC) where CC<:Union{Vector{Float64},MVector{Float64}}  
         # this method keeps the correct time for time varying forcing (~may 2023)
         set_u!(PI.ODEIntegrator, ui)
         u_modified!(PI.ODEIntegrator, true)
@@ -71,7 +76,7 @@ function reset_PI_u!(PI::AbstractParticleInstance; ui::Vector{Float64})
 end
 
 
-function reset_PI_ut!(PI::AbstractParticleInstance; ui::Vector{Float64}, ti::Number)
+function reset_PI_ut!(PI::AbstractParticleInstance; ui::CC, ti::Number) where CC <:Union{Vector{Float64},MVector}
         # this method keeps the correct time for time varying forcing (~may 2023)
         set_u_and_t!(PI.ODEIntegrator, ui, ti)
         u_modified!(PI.ODEIntegrator, true)
@@ -91,7 +96,7 @@ end
         advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::TwoDGrid, DT::Float64)
 """
 function advance!(PI::AbstractParticleInstance,
-                        S::SharedArray,
+                        S::StateTypeL1,
                         Failed::Vector{AbstractMarkedParticleInstance},
                         G::TwoDGrid,
                         winds::NamedTuple{(:u, :v)},
@@ -208,7 +213,7 @@ end
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64,3}, 
+function remesh!(PI::ParticleInstance2D, S::StateTypeL1,
                 winds::NamedTuple{(:u, :v)}, 
                 ti::Number, 
                 ODEs::AbstractODESettings, DT::Float64,  #
@@ -236,7 +241,7 @@ Pushes node value to particle:
 - If Node value is okey, it is converted to state variable and pushed to particle.
 - The particle position is set to the node positions
 """
-function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray, 
+function NodeToParticle!(PI::AbstractParticleInstance, S::StateTypeL1,
         wind_tuple::Tuple{Float64,Float64}, 
         minimal_particle::Vector{Float64}, 
         minimal_state::Vector{Float64},

@@ -15,6 +15,7 @@ using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
 using ...Operators.mapping_2D
 
 using SharedArrays
+using StaticArrays
 # using DistributedArrays
 using Printf
 
@@ -143,7 +144,8 @@ function WaveGrowth2D(; grid::TwoDGrid,
     if layers > 1
         State = SharedArray{Float64,4}(grid.Nx, grid.Ny, Nstate, layers)
     else
-        State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate)
+        #State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate) # StateTypeL1
+        State = @MArray zeros(grid.Nx, grid.Ny, Nstate)
     end
 
     if ODEinit_type isa ParticleDefaults2D
