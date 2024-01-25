@@ -63,8 +63,24 @@ function set_u_and_t!(integrator, u_new, t_new)
 end
 
 
-function reset_PI!(PI::AbstractParticleInstance, ui::Vector{Float64})
+function reset_PI_u!(PI::AbstractParticleInstance; ui::Vector{Float64})
+        # this method keeps the correct time for time varying forcing (~may 2023)
         set_u!(PI.ODEIntegrator, ui)
+        u_modified!(PI.ODEIntegrator, true)
+        auto_dt_reset!(PI.ODEIntegrator)
+end
+
+
+function reset_PI_ut!(PI::AbstractParticleInstance; ui::Vector{Float64}, ti::Number)
+        # this method keeps the correct time for time varying forcing (~may 2023)
+        set_u_and_t!(PI.ODEIntegrator, ui, ti)
+        u_modified!(PI.ODEIntegrator, true)
+        auto_dt_reset!(PI.ODEIntegrator)
+end
+
+function reset_PI_t!(PI::AbstractParticleInstance; ti::Number)
+        # this method keeps the correct time for time varying forcing (~may 2023)
+        set_t!(PI.ODEIntegrator, ti)
         u_modified!(PI.ODEIntegrator, true)
         auto_dt_reset!(PI.ODEIntegrator)
 end
@@ -127,7 +143,7 @@ function advance!(PI::AbstractParticleInstance,
                 if speed_square(wind_end[1], wind_end[2]) >= wind_min_squared
                         # winds are large eneough, reinit
                         ui = ResetParticleValues(default_particle, PI, wind_end, DT)
-                        reset_PI!(PI, ui)
+                        reset_PI_u!(PI, ui =ui)
                         PI.on = true
                 end
 
@@ -153,7 +169,7 @@ function advance!(PI::AbstractParticleInstance,
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
                 @show PI.ODEIntegrator.u
-                reset_PI!(PI, ui)
+                reset_PI_u!(PI, ui=ui)
 
         elseif  sum(isinf.(PI.ODEIntegrator.u[1:3])) > 0
                 @info "position or Energy is inf"
@@ -164,7 +180,7 @@ function advance!(PI::AbstractParticleInstance,
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-                reset_PI!(PI, ui)
+                reset_PI_u!(PI, ui=ui)
 
         elseif PI.ODEIntegrator.u[1] > log_energy_maximum
                 @info "e_max_log is reached"
@@ -175,7 +191,7 @@ function advance!(PI::AbstractParticleInstance,
                                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
                 ui = ResetParticleValues(default_particle, PI, winds_start, DT)
-                reset_PI!(PI, ui)
+                reset_PI_u!(PI, ui=ui)
 
         end
 
@@ -241,14 +257,8 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
                 #@show "get vertex variable"
                 #@show "u_state", u_state
                 ui = GetVariablesAtVertex(u_state, PI.position_xy[1], PI.position_xy[2])
-                #@info exp(ui[1]), ui[2], ui[4]/1e3, ui[5]/1e3
-
-
-                # this method keeps the correct time for time varying forcing (~may 2023)
-                set_u_and_t!(PI.ODEIntegrator, ui, last_t)
-                u_modified!(PI.ODEIntegrator, true)
-                auto_dt_reset!(PI.ODEIntegrator)
-
+                #@info exp(ui[1]), ui[2], ui[4]/1e3, ui[5]/1e3              
+                reset_PI_ut!(PI; ui=ui, ti=last_t)
                 PI.on = true
 
                 # this method is more robust than the set_u! method (~february 2023)
@@ -270,44 +280,16 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::SharedArray,
                 #      if particle is at the boundary
 
                 ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
-
-                # #if winds are too small, reinit particle with default values
-                # if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
-                #         # winds are large eneough, reinit
-                # else
-                #         # winds are too small, reinit particle with minimal values
-                #         ui = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
-                # end
-
-                #ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
-
-                # ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
-                set_t!(PI.ODEIntegrator, last_t)
-                u_modified!(PI.ODEIntegrator, true)
-                auto_dt_reset!(PI.ODEIntegrator)
+                reset_PI_t!(PI, ti=last_t)
 
                 PI.on = true
 
         elseif PI.boundary & (speed_square(wind_tuple[1], wind_tuple[2]) >= wind_min_squared) # at the boundary, reset particle if winds are strong enough
 
                 ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
-
-                # #if winds are too small, reinit particle with default values
-                # if (wind_tuple[1] > 1e-1) | (wind_tuple[2] > 1e-1)
-                #         # winds are large eneough, reinit
-                # else
-                #         # winds are too small, reinit particle with minimal values
-                #         ui = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
-                # end
-
-                #ui = ResetParticleValues(default_particle, PI, wind_tuple, DT)
-
-                # ui             = [lne_local, cg_x_local, cg_y_local, PI.position_xy[1], PI.position_xy[2]]
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
-                set_t!(PI.ODEIntegrator, last_t)
-                u_modified!(PI.ODEIntegrator, true)
-                auto_dt_reset!(PI.ODEIntegrator)
+                reset_PI_t!(PI, ti=last_t)
 
                 PI.on = true
 

@@ -335,6 +335,120 @@ end
 
 
 
+# """
+# SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
+#                 particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+#                 GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
+
+# Seed Pickles to ParticleColletion and State
+# """
+# function SeedParticle!(
+#         ParticleCollection::Vector{Any},
+#         State::SharedArray,
+#         ij::Tuple{Int, Int},
+
+#         particle_system::SS,
+#         particle_defaults::PP,
+#         ODE_settings, #particle_waves_v3.ODESettings type
+
+#         GridNotes, # ad type of grid note
+#         winds,     # interp winds
+#         DT::Float64,
+
+#         boundary::Vector{T},
+#         periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+
+#         xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
+
+        
+#         #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
+#         uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
+
+#         # define initial condition
+#         z_i, particle_on = InitParticleValues(particle_defaults, (xx,yy), uv, DT)
+#         # check if point is boundary point
+#         boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
+#         #@info "boundary?", boundary_point
+
+#         # if boundary_point
+#         #     #@info "boundary point", boundary_point, particle_on
+#         #     # if boundary point, then set particle to off
+#         #     particle_on = false
+#         # end
+
+#         # add initial state to State vector
+#         if particle_on
+#                 init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
+#         end
+
+#         # Push Inital condition to collection
+#         push!(ParticleCollection,
+#         InitParticleInstance(
+#                 particle_system,
+#                 z_i,
+#                 ODE_settings,
+#                 ij,
+#                 boundary_point,
+#                 particle_on))
+#         nothing
+# end
+
+
+"""
+SeedParticle(State::SharedMatrix, i::Int64,
+                particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+                GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
+
+return ParicleInstance that can be pushed to ParticleColletion
+"""
+function SeedParticle(
+        State::SharedArray,
+        ij::Tuple{Int, Int},
+
+        particle_system::SS,
+        particle_defaults::PP,
+        ODE_settings, #particle_waves_v3.ODESettings type
+
+        GridNotes, # ad type of grid note
+        winds,     # interp winds
+        DT::Float64,
+
+        boundary::Vector{T},
+        periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+
+        xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
+        
+        #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
+        uv = winds.u(xx, yy, 0.0)::Float64, winds.v(xx, yy, 0.0)::Float64
+
+        # define initial condition
+        z_i, particle_on = InitParticleValues(particle_defaults, (xx,yy), uv, DT)
+        # check if point is boundary point
+        boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
+        #@info "boundary?", boundary_point
+
+        # if boundary_point
+        #     #@info "boundary point", boundary_point, particle_on
+        #     # if boundary point, then set particle to off
+        #     particle_on = false
+        # end
+
+        # add initial state to State vector
+        if particle_on
+                init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
+        end
+
+        return InitParticleInstance(
+                particle_system,
+                z_i,
+                ODE_settings,
+                ij,
+                boundary_point,
+                particle_on)
+
+        end
+
+
 """
 SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
                 particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
@@ -358,40 +472,15 @@ function SeedParticle!(
         boundary::Vector{T},
         periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
 
-        xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
-
-        
-        #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
-        uv = winds.u(xx, yy, 0)::Float64, winds.v(xx, yy, 0)::Float64
-
-        # define initial condition
-        z_i, particle_on = InitParticleValues(particle_defaults, (xx,yy), uv, DT)
-        # check if point is boundary point
-        boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
-        #@info "boundary?", boundary_point
-
-        # if boundary_point
-        #     #@info "boundary point", boundary_point, particle_on
-        #     # if boundary point, then set particle to off
-        #     particle_on = false
-        # end
-
-        # add initial state to State vector
-        if particle_on
-                init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
-        end
-
         # Push Inital condition to collection
         push!(ParticleCollection,
-        InitParticleInstance(
-                particle_system,
-                z_i,
-                ODE_settings,
-                ij,
-                boundary_point,
-                particle_on))
+                SeedParticle(State, ij,
+                        particle_system, particle_defaults, ODE_settings, #particle_waves_v3.ODESettings type
+                        GridNotes, winds, DT,
+                        boundary, periodic_boundary))
         nothing
 end
+
 
 
 # end of module
