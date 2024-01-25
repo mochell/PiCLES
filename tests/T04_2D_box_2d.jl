@@ -1,4 +1,6 @@
 ENV["JULIA_INCREMENTAL_COMPILE"]=true
+using Pkg
+Pkg.activate(".")
 
 #using ModelingToolkit, DifferentialEquations
 #using ModelingToolkit#: @register_symbolic
@@ -28,6 +30,7 @@ using GLMakie
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
+using Revise
 # debugging:
 #using ProfileView
 
