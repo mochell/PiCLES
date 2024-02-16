@@ -26,7 +26,7 @@ export
     ParticleMesh,
 
     # utils
-    Utils, Debugging, FetchRelations, ParticleTools, WindEmulator
+    Utils, Debugging, FetchRelations, ParticleTools, WindEmulator, visualization
 
     #externals
 
@@ -65,7 +65,7 @@ using .Simulations
 include("Models/Models.jl")
 using .Models
 
-# include("visualization/Plotting.jl")
-# using .Plotting
+include("visualization/Plotting.jl")
+using .Plotting
 
 end

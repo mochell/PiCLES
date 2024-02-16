@@ -22,9 +22,11 @@ import Oceananigans.Utils: prettytime
 
 using PiCLES.Architectures
 using GLMakie
-
+using Revise
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
+
+using Revise
 
 # debugging:
 #using ProfileView

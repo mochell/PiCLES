@@ -27,3 +27,5 @@ config/config.json
 
 plots/*
 .DS_Store
+
+.ipynb*
