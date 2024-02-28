@@ -1,6 +1,6 @@
 module GeometricalOpticsModels
 
-export WaveGrowth2D, init_particles!
+export GeometricalOptics, init_particles!
 export fields
 
 using ...Architectures
@@ -119,7 +119,7 @@ This is the constructor for the WaveGrowth2D model. The inputs are:
     periodic_boundary: if true we use a periodic boundary (default true),
     CBsets           : the callback settings (not implimented yet).
 """
-function WaveGrowth2D(; grid::TwoDGrid,
+function GeometricalOptics(; grid::TwoDGrid,
     winds::NamedTuple{(:u, :v)}, 
     ODEsys, 
     ODEvars=nothing, #needed for MTK for ODEsystem. will be depriciated later
@@ -214,7 +214,7 @@ function WaveGrowth2D(; grid::TwoDGrid,
     end
 
     # return WaveGrowth2D structure
-    return WaveGrowth2D(
+    return GeometricalOptics(
         grid,
         layers,
         nothing,
@@ -242,13 +242,13 @@ end
 """
     fields(model::WaveGrowth)
 
-Return a flattened `NamedTuple` of the State vector for a `WaveGrowth2D` model.
+Return a flattened `NamedTuple` of the State vector for a `GeometricalOptics` model.
 """
-fields(model::WaveGrowth2D) = (State=model.State,)
+fields(model::GeometricalOptics) = (State=model.State,)
 # # Oceananigans.Simulations interface
 # fields(m::ContinuumIceModel) = merge(m.velocities, m.stresses)
 
-function reset_boundary!(model::WaveGrowth2D)
+function reset_boundary!(model::GeometricalOptics)
 
     if model.periodic_boundary  # if false, define boundary points here:
         boundary = []
@@ -259,14 +259,14 @@ function reset_boundary!(model::WaveGrowth2D)
 end
 
 
-function Base.show(io::IO, ow::WaveGrowth2D)
+function Base.show(io::IO, ow::GeometricalOptics)
 
     if ow.ODEsystem isa ODESystem
         sys_print = get_states(ow.ODEsystem)
     else
         sys_print = ow.ODEsystem
     end
-    print(io, "WaveGrowth2D ", "\n",
+    print(io, "GeometricalOptics ", "\n",
         "├── grid: ", ow.grid, "\n",
         "├── layers: ", ow.layers, "\n",
         "├── clock: ", ow.clock,
