@@ -35,7 +35,7 @@ using Revise
 #using ProfileView
 
 # %%
-save_path = "plots/tests/T04_box_2d/"
+save_path = "plots/tests/T04_box_2d_2/"
 mkpath(save_path)
 
 # % Parameters
@@ -58,8 +58,8 @@ v_std= 2e3 *1
 #u_func(x, y, t) = U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  sin(t*2 / (1 * 60 * 60 * 2π))
 #v_func(x, y, t) = V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  cos(t*2 / (1 * 60 * 60 * 2π) )
 
-u_func(x, y, t) = 0
-v_func(x, y, t) = 0
+u_func(x, y, t) = 0.
+v_func(x, y, t) = 0.
 
 # u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 6 / (1 * 60 * 60 * 2π)) > 0 , 
 #                 sin(t * 6 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
@@ -134,7 +134,7 @@ ODE_settings    = PW.ODESettings(
     save_everystep=false)
 
 
-default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
+default_particle = ParticleDefaults(1, 0, 2, 5000.0, 1500.0)
 
 # Define grid
 #grid = TwoDGrid(150e3, 50, 150e3, 50)
@@ -157,7 +157,9 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
     ODEsets=ODE_settings,  # ODE_settings
-    ODEinit_type="wind_sea",  # default_ODE_parameters
+    #ODEinit_type="wind_sea",   # default_ODE_parameters
+    #ODEinit_type="mininmal",
+    ODEinit_type=default_particle,
     periodic_boundary=false,
     boundary_type="same",
     #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
@@ -210,6 +212,7 @@ end
 
 plot_state_and_error_points(wave_simulation, DD_stats)
 # %%
+plt.savefig(joinpath([save_path, "energy_plot_no_spread.png"]))
 
 ## testing single ODES
 PF = wave_simulation.model.FailedCollection[end]
