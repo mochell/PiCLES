@@ -1,7 +1,7 @@
 
 using PiCLES: FetchRelations as FR
 
-plot_path_base = "plots/tests/FetchRelations/"
+plot_path_base = "plots/tests/T01_TemoporalFetchRelatoins/"
 mkpath(plot_path_base)
 
 FR.X_tilde_time_and_fetch

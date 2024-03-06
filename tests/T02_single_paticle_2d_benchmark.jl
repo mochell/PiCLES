@@ -1,3 +1,5 @@
+
+# %%
 using DifferentialEquations
 using Plots
 using Setfield
@@ -36,7 +38,6 @@ Const_ID = PW.get_I_D_constant()
 #@set Const_ID.γ = 0.88
 Const_Scg = PW.get_Scg_constants()
 
-
 #u(x, y, t) = 0.01 - U10 * sin(t / (6 * 60 * 60 * 2π))
 #v(x, y, t) = 0.01 - V10 * cos(t / (6 * 60 * 60 * 2π))
 
@@ -52,6 +53,7 @@ Revise.retry()
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 typeof(particle_system)
 
+particle_system
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = (
     r_g=r_g0,
