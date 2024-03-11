@@ -1,5 +1,4 @@
 using Pkg
-
 Pkg.activate("PiCLES/")
 
 using Base.Threads
@@ -24,7 +23,7 @@ import Oceananigans.Utils: prettytime
 
 using PiCLES.Architectures
 #using GLMakie
-#using PiCLES.Plotting.movie: init_movie_2D_box_plot
+using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 #using ProfileView
 using BenchmarkTools

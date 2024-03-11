@@ -64,7 +64,7 @@ using .Simulations
 include("Models/Models.jl")
 using .Models
 
-# include("visualization/Plotting.jl")
-# using .Plotting
+include("visualization/Plotting.jl")
+using .Plotting
 
 end
