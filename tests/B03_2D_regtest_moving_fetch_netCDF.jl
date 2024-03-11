@@ -1,6 +1,9 @@
 
 
 #using Plots
+using Pkg
+Pkg.activate("PiCLES/")
+
 import Plots as plt
 using Setfield, IfElse
 
@@ -33,27 +36,26 @@ using Dates: Dates as Dates
 using Revise
 
 # %%
-
-save_path = "plots/tests/T04_2D_regtest_netCDF/"
+save_path = "plots/tests/B03_2D_regtest_moving_fetch_netCDF/"
 mkpath(save_path)
 
-save_path_data = "data/work/T04_2D_regtest_netCDF/"
+save_path_data = "data/work/B03_2D_regtest_moving_fetch_netCDF/"
 mkpath(save_path_data)
 
-
-load_path = "data/work/wind_data/"
+load_path = "data/work/wind_data_moving_fetch/"
+#load_path = "data/work/wind_data_SWAMP/"
 
 ##### basic parameters
 # timestep
-DT = 20minutes
+DT = 10minutes
 # Characterstic wind velocities and std
 U10, V10 = 10.0, 10.0
 
 # Define basic ODE parameters
-r_g0            = 0.85
-Const_ID        = PW.get_I_D_constant()
+r_g0 = 0.85
+Const_ID = PW.get_I_D_constant()
 @set Const_ID.γ = 0.88
-Const_Scg       = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
+Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
 
 function interpolate_winds(ds, multiplyer=0)
@@ -68,7 +70,7 @@ function interpolate_winds(ds, multiplyer=0)
 
     # define time
     time_rel = (ds["time"][:] - ds["time"][1]) ./ convert(Dates.Millisecond, Dates.Second(1))
-    T = 1day#hours#time_rel[end]
+    T = time_rel[end]
 
     nodes = (ds["x"][:], ds["y"][:], time_rel)
     u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"], [1, 2, 3]), extrapolation_bc=Flat())
@@ -79,7 +81,7 @@ end
 
 # define ODE system and parameters
 #particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
- 
+
 
 default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
@@ -110,7 +112,7 @@ function make_reg_test_movie(wave_model, save_path_name; N=36)
     wave_simulation = Simulation(wave_model, Δt=DT, stop_time=wave_model.ODEsettings.total_time)#1hours)
     initialize_simulation!(wave_simulation)
 
-    fig, n = init_movie_2D_box_plot(wave_simulation, name_string="T01")
+    fig, n = init_movie_2D_box_plot(wave_simulation, resolution=(1800, 1200), name_string="T01")
     #wave_simulation.stop_time += 1hour
     #N = 36
     #plot_name = "dummy"
@@ -126,15 +128,14 @@ end
 
 
 # %%
-case = "Test01_2D"
-ncfile = load_path * case * ".nc"
-ds = Dataset(ncfile, "r")
+# case = "SWAMP_Case_III"
+# ncfile = load_path * case * ".nc"
+# ds = Dataset(ncfile, "r")
 
 # %%
 # loop over U10 and V10 range
-#case_list = ["Test01_2D"]#, "Test03_2D"]#, "Test04_2D"]
-#case_list = ["Test01_2D", "Test02_2D"]#, "Test03_2D", "Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
-case_list = ["Test04_2D", "Test05_2D", "Test06_2D", "Test07_2D"]
+case_list = ["MF_Case_I", "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
+#case_list = [ "SWAMP_Case_VIII"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
     # load netCDF file
@@ -144,6 +145,8 @@ for case in case_list
 
     grid, grid_mesh, gn, T, u_grid, v_grid = interpolate_winds(ds)
 
+    @info "total time ", T
+
     u(x, y, t) = u_grid(x, y, t)
     v(x, y, t) = v_grid(x, y, t)
     winds = (u=u, v=v)
@@ -152,7 +155,7 @@ for case in case_list
     particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
 
     # ... and ODESettings
-    ODE_settings =  PW.ODESettings(
+    ODE_settings = PW.ODESettings(
         Parameters=default_ODE_parameters,
         # define mininum energy threshold
         log_energy_minimum=WindSeamin["lne"],
@@ -181,16 +184,16 @@ for case in case_list
         movie=true)
 
 
-    NN =Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
-    
+    NN = Int(floor(wave_model.ODEsettings.total_time / wave_model.ODEsettings.timestep))
+
     # for saving data
     # when saving data
     save_path_select = save_path_data
     mkpath(save_path_select * case)
-    
-    #when plotting data
-    #save_path_select = save_path
-    #make_reg_test_store(wave_model, save_path_select * case)
+    make_reg_test_store(wave_model, save_path_select * case)
 
-    make_reg_test_movie(wave_model, save_path * case, N=NN)
+    # when plotting data
+    # save_path_select = save_path
+    # make_reg_test_movie(wave_model, save_path * case, N=NN)
 end
+
