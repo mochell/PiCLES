@@ -207,6 +207,7 @@ end
 
 ## 2D versions
 function push_to_grid!(grid::Matrix{Float64},
+                            particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                             charge::Float64,
                             index_pos::Tuple{Int, Int},
                             weights::Tuple{Float64, Float64},
@@ -218,6 +219,7 @@ function push_to_grid!(grid::Matrix{Float64},
 end
 
 function push_to_grid!(grid::SharedArray{Float64, 3},
+                            particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                             charge::Vector{Float64},
                             index_pos::Tuple{Int, Int},
                             weights::Tuple{Float64, Float64},
@@ -229,7 +231,8 @@ function push_to_grid!(grid::SharedArray{Float64, 3},
         if sum(test_domain(index_pos, Nx, Ny)) != 2
             return
         else
-            grid[ index_pos[1] , index_pos[2], : ] += weights[1] * weights[2] * charge
+            push!(particlesAtNode[index_pos[1]][index_pos[2]], [weights[1] * weights[2], charge[4]])
+            grid[ index_pos[1] , index_pos[2], 1:3 ] += weights[1] * weights[2] * charge[1:3]
         end
     end
 
@@ -250,6 +253,7 @@ end
 
 # wrapping over vectors of charges, index positions and weights
 function push_to_grid!(grid::SharedArray{Float64,3},
+                            particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                             charge::Vector{Float64},
                             index_pos::Vector{Tuple{Int, Int}},
                             weights::Vector{Tuple{Float64, Float64}},
@@ -257,7 +261,7 @@ function push_to_grid!(grid::SharedArray{Float64,3},
                             periodic::Bool=true)
     #@info "this is version D"
     for (i, w) in zip(index_pos, weights)
-        push_to_grid!(grid, charge , i, w , Nx, Ny, periodic)
+        push_to_grid!(grid, particlesAtNode, charge , i, w , Nx, Ny, periodic)
     end
 end
 
@@ -270,6 +274,7 @@ end
 
 # wrapper over 1D Vecors of chanegs and (nested) index positions and weights
 function push_to_grid!(grid::SharedMatrix{Float64},
+    particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
     charge::Vector{Float64},
     index_pos::Vector{Any},
     weights::Vector{Any},
@@ -278,7 +283,7 @@ function push_to_grid!(grid::SharedMatrix{Float64},
     #@info "this is version C"
     for (im, wm, c) in zip(index_pos, weights, charge)
         for (i, w) in zip(im, wm)
-            push_to_grid!(grid, c, i, w, Nx, periodic)
+            push_to_grid!(grid, particlesAtNode, c, i, w, Nx, periodic)
         end
     end
 end
@@ -287,6 +292,7 @@ end
 
 # multiple index positions and 1 charge
 function push_to_grid!(grid::MM,
+                            particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                             charge::Vector{Float64},
                             index_pos::Vector{Int},
                             weights::Vector{Float64},
@@ -318,6 +324,7 @@ end
 
 # only 1 index position and 1 charge
 function push_to_grid!(grid::MM,
+                            particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                             charge::Float64,
                             index_pos::Int,
                             weights::Float64,

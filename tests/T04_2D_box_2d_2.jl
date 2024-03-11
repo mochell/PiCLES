@@ -8,16 +8,16 @@ Pkg.activate(".")
 import Plots as plt
 using Setfield, IfElse
 
-using PiCLES.ParticleSystems: particle_waves_v5 as PW
+using PiCLES.ParticleSystems: particle_waves_v6 as PW
 
 import PiCLES: FetchRelations, ParticleTools
-using PiCLES.Operators.core_2D: ParticleDefaults, InitParticleInstance, GetGroupVelocity
+using PiCLES.Operators.core_2D_spread: ParticleDefaults, InitParticleInstance, GetGroupVelocity
 using PiCLES.Operators: TimeSteppers
 using PiCLES.Simulations
 using PiCLES.Operators.TimeSteppers: time_step!, movie_time_step!
 
 using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
-using PiCLES.Models.WaveGrowthModels2D
+using PiCLES.Models.GeometricalOpticsModels
 
 using Oceananigans.TimeSteppers: Clock, tick!
 import Oceananigans: fields
@@ -27,7 +27,7 @@ import Oceananigans.Utils: prettytime
 using PiCLES.Architectures
 using GLMakie
 
-using PiCLES.Operators.core_2D: GetGroupVelocity, speed
+using PiCLES.Operators.core_2D_spread: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 using Revise
@@ -134,7 +134,7 @@ ODE_settings    = PW.ODESettings(
     save_everystep=false)
 
 
-default_particle = ParticleDefaults(1, 0, 2, 5000.0, 1500.0)
+default_particle = ParticleDefaults(1, 0, 2, 5000.0, 1500.0, π/8)
 
 # Define grid
 #grid = TwoDGrid(150e3, 50, 150e3, 50)
@@ -153,7 +153,7 @@ default_particle = ParticleDefaults(1, 0, 2, 5000.0, 1500.0)
 Revise.retry()
 
 
-wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
+wave_model = GeometricalOpticsModels.GeometricalOptics(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
     ODEsets=ODE_settings,  # ODE_settings
@@ -175,7 +175,7 @@ initialize_simulation!(wave_simulation)
 #init_state_store!(wave_simulation, save_path)
 #wave_simulation.model.MovieState = wave_simulation.model.State
 
-@time run!(wave_simulation, cash_store=true, debug=true)
+@time run!(wave_simulation, cash_store=true, debug=false)
 #reset_simulation!(wave_simulation)
 # run simulation
 #ProfileView.@profview run!(wave_simulation, cash_store=true, debug=true)
@@ -224,7 +224,7 @@ PF.Particle.ODEIntegrator.sol.t
 PF.Particle.ODEIntegrator.sol.u
 PF.Particle.ODEIntegrator.sol.prob.u0
 
-using PiCLES.Operators.core_2D: Get_u_FromShared, GetVariablesAtVertex
+using PiCLES.Operators.core_2D_spread: Get_u_FromShared, GetVariablesAtVertex
 S_state = Get_u_FromShared(PF.Particle, wave_simulation.model.MovieState)
 ui = GetVariablesAtVertex(S_state, PF.Particle.position_xy[1], PF.Particle.position_xy[2])
 
@@ -312,7 +312,7 @@ plt.contour(p1, gn.x / 1e3, gn.y / 1e3, u.(mesh.x, mesh.y, wave_simulation.model
 
 # %%
 Revise.retry()
-wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
+wave_model = GeometricalOpticsModels.GeometricalOptics(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
     ODEsets=ODE_settings,  # ODE_settings

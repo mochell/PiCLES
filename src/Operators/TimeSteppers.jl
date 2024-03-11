@@ -107,7 +107,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
 
     @threads for a_particle in model.ParticleCollection
         #@info a_particle.position_ij
-        mapping_2D.advance!(    a_particle, model.State, FailedCollection,
+        mapping_2D.advance!(    a_particle, model.ParticlesAtNode, model.State, FailedCollection,
                                 model.grid, model.winds, Δt,
                                 model.ODEsettings.log_energy_maximum, 
                                 model.ODEsettings.wind_min_squared,
@@ -115,6 +115,17 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
                                 model.ODEdefaults)
     end
     
+    for (i,j) in [(i,j) for i in 1:model.grid.Nx for j in 1:model.grid.Ny]
+        weights = [model.ParticlesAtNode[i][j][k][1] for k in 1:length(model.ParticlesAtNode[i][j])]
+        values = [model.ParticlesAtNode[i][j][k][2] for k in 1:length(model.ParticlesAtNode[i][j])]
+        if length(weights) > 0
+            model.State[i,j,4] = sum(weights .* values) / sum(weights)
+        
+            for k in 1:length(model.ParticlesAtNode[i][j])
+                pop!(model.ParticlesAtNode[i][j])
+            end
+        end
+    end    
 
     if debug
         print("mean energy after advance ", mean_of_state(model), "\n")

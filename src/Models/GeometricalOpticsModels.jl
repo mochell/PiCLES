@@ -10,7 +10,7 @@ using ModelingToolkit: get_states, ODESystem
 #using core_1D: MarkedParticleInstance
 using ...ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
-using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
+using ...Operators.core_2D_spread: ParticleDefaults as ParticleDefaults2D
 #using core_2D: SeedParticle! as SeedParticle2D!
 using ...Operators.mapping_2D
 
@@ -40,6 +40,7 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
                         Clo,
                         Int,
                         stat,
+                        Pan,
                         PCollection,
                         FPC,
                         Ovar,
@@ -61,7 +62,8 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
     clock::Clo
     dims::Int      # number of dimensions
 
-    State::stat     # state of of the model at each grid point, for each layer it contains, energy, positions, group speed
+    State::stat     # state of of the model at each grid point, for each layer it contains, energy, positions, group speed and directional spreading
+    ParticlesAtNode::Pan      # list of the particles to regrid at each node
     ParticleCollection::PCollection    # Collection (list) of Particles
     FailedCollection::FPC      # Collection (list) of Particles that failed to integrate
 
@@ -137,11 +139,32 @@ function GeometricalOptics(; grid::TwoDGrid,
 
     # initialize state {SharedArray} given grid and layers
     # Number of state variables 
-    Nstate = 3
+    Nstate = 4
     if layers > 1
         State = SharedArray{Float64,4}(grid.Nx, grid.Ny, Nstate, layers)
     else
         State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate)
+    end
+
+    if layers > 1
+        ParticlesAtNode = Array{Array{Array{Array{Vector{Float64},1},1},1},1}()
+        for i in 1:grid.Nx
+            push!(ParticlesAtNode, [])
+            for j in 1:grid.Ny
+                push!(ParticlesAtNode[i], [])
+                for _ in 1:layers
+                    push!(ParticlesAtNode[i][j], [])
+                end
+            end
+        end
+    else
+        ParticlesAtNode = Array{Array{Array{Vector{Float64},1},1},1}()
+        for i in 1:grid.Nx
+            push!(ParticlesAtNode, [])
+            for _ in 1:grid.Ny
+                push!(ParticlesAtNode[i], [])
+            end
+        end
     end
 
     if ODEinit_type isa ParticleDefaults2D
@@ -221,6 +244,7 @@ function GeometricalOptics(; grid::TwoDGrid,
         clock, # ???
         2, # This is a 2D model
         State,
+        ParticlesAtNode,
         ParticleCollection,
         FailedCollection, 
         ODEvars,

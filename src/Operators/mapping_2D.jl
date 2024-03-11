@@ -3,6 +3,7 @@ module mapping_2D
 using SharedArrays
 using DifferentialEquations
 using Printf
+using Random, Distributions
 
 using ...ParticleMesh: TwoDGrid, TwoDGridNotes
 import ...ParticleInCell as PIC
@@ -11,7 +12,7 @@ using ...FetchRelations
 
 using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
 
-using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
+using ..core_2D_spread: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
 
 using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
@@ -35,7 +36,7 @@ S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
 
-function ParticleToNode!(PI::AbstractParticleInstance, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
+function ParticleToNode!(PI::AbstractParticleInstance, particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1}, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
 
         #u[4], u[5] are the x and y positions of the particle
         index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
@@ -43,7 +44,7 @@ function ParticleToNode!(PI::AbstractParticleInstance, S::SharedArray, G::TwoDGr
         #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state
-        PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
+        PIC.push_to_grid!(S, particlesAtNode, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
         nothing
 end
 
@@ -58,6 +59,14 @@ function ParticleToNode!(PI::AbstractParticleInstance, S::SharedMatrix, u_state:
 end
 
 function set_u_and_t!(integrator, u_new, t_new)
+        # adding a small deviation due to directional spreading
+        d = Normal(0, u_new[6]^2)
+        delta_phi = rand(d,1)
+        #delta_phi = 0.15
+        c_x = u_new[2] * cos(delta_phi[1]) - u_new[3] * sin(delta_phi[1])
+        c_y = u_new[2] * sin(delta_phi[1]) + u_new[3] * cos(delta_phi[1])
+        u_new[2] = c_x
+        u_new[3] = c_y
         integrator.u = u_new
         integrator.t = t_new
 end
@@ -91,6 +100,7 @@ end
         advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::TwoDGrid, DT::Float64)
 """
 function advance!(PI::AbstractParticleInstance,
+                        particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
                         S::SharedArray,
                         Failed::Vector{AbstractMarkedParticleInstance},
                         G::TwoDGrid,
@@ -197,7 +207,7 @@ function advance!(PI::AbstractParticleInstance,
 
         #if PI.ODEIntegrator.u[1] > -13.0 #ODEs.log_energy_minimum # the minimum enerçy is distributed to 4 neighbouring particles
         if PI.on 
-                ParticleToNode!(PI, S, G, periodic_boundary)
+                ParticleToNode!(PI, particlesAtNode, S, G, periodic_boundary)
         end
 
         #return PI

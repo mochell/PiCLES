@@ -408,7 +408,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
             # forcing fields
             #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
-            lne, c̄_x, c̄_y, x, y = z
+            lne, c̄_x, c̄_y, x, y, angular_σ = z
 
             r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
@@ -448,6 +448,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             # propagation
             dz[4] = propagation ? c̄_x : 0.0
             dz[5] = propagation ? c̄_y : 0.0
+            dz[6] = 0
 
 
             if debug_output

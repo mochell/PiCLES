@@ -1,7 +1,7 @@
-using ..Operators.core_2D: ParticleDefaults
+using ..Operators.core_2D_spread: ParticleDefaults
 
 using ..Operators.core_1D: SeedParticle! as SeedParticle1D!
-using ..Operators.core_2D: SeedParticle! as SeedParticle2D!
+using ..Operators.core_2D_spread: SeedParticle! as SeedParticle2D!
 
 using ..Architectures: Abstract2DModel, Abstract1DModel
 using ..ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
