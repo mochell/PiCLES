@@ -185,6 +185,32 @@ function E_JONSWAP(f_m::Number, alpha_j::Number)
     return 0.31 * 9.81^2 * alpha_j * (f_m * 2 * pi)^(-4)
 end
 
+
+
+## non-dimensional fetch relations
+
+function c_p_fetch(X_tilde, U10, X_t_0=2.2 * 10^4)
+    return U10 * 1.2 * min_fetch(X_tilde, X_t_0)^(0.33)
+end
+
+function H_s_fetch(X_tilde, U10, X_t_0=2.2 * 10^4)
+    return 0.26 * U10^2 * min_fetch(X_tilde, X_t_0)^(0.5) / 9.81
+end
+
+function E_fetch(X_tilde, U10, X_t_0=2.2 * 10^4)
+    return 4.23 * 10^(-3) * U10^4 * min_fetch(X_tilde, X_t_0) / 9.81^2
+end
+
+function E_fetch_tilde(X_tilde, X_t_0=2.2 * 10^4)
+    return 4.23 * 10^(-3) * min_fetch(X_tilde, X_t_0)
+end
+
+function min_fetch(X_tilde, X_t_0)
+    return [min(fi / X_t_0, 1) for fi in X_tilde]
+end
+
+
+
 ## function that define default wind_sea
 
 """
