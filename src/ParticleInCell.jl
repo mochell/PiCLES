@@ -1,9 +1,12 @@
 module ParticleInCell
 
+using ..Architectures: StateTypeL1
 using Statistics
 
 using SharedArrays
+using StaticArrays
 
+using ..custom_structures: wni
 
 # %%
 using ..ParticleMesh
@@ -36,8 +39,17 @@ function get_i_and_w(zp_normed::Float64)
 
     dxp_ceil = zp_normed - ip_base   # floor weight
     dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # ceil weight
-    return [ip_floor , ip_floor+1] , [dxp_floor, dxp_ceil]
+    return SVector{2, Int64}(ip_floor , ip_floor+1) , SVector{2, Float64}(dxp_floor, dxp_ceil)
 end
+
+"""
+norm_distance(xp::T, xmin::T, dx::T) 
+returns normalized distance
+"""
+function norm_distance(xp::T, xmin::T, dx::T) where {T<:AbstractFloat}
+    return (xp - xmin) / dx
+end
+
 
 """
 compute_weights_and_index(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
@@ -48,8 +60,8 @@ function compute_weights_and_index(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
     2d wrapper for 1d function
     """
 
-    xp_normed = (xp - g_pars.xmin) / g_pars.dx # multiples of grid spacing
-    yp_normed = (yp - g_pars.ymin) / g_pars.dy # multiples of grid spacing
+    xp_normed = norm_distance(xp, g_pars.xmin, g_pars.dx)
+    yp_normed = norm_distance(yp, g_pars.ymin, g_pars.dy)
 
     xi, xw = get_i_and_w(xp_normed)
     yi, yw = get_i_and_w(yp_normed)
@@ -59,6 +71,26 @@ function compute_weights_and_index(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
 
     return idx, wtx
 end
+
+
+"""
+compute_weights_and_index_mininal(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
+returns indexes and weights as FieldVector for in 2D for single x,y point
+"""
+function compute_weights_and_index_mininal(g_pars::TwoDGrid, xp::Float64, yp::Float64)
+    """
+    2d wrapper for 1d function
+    """
+
+    xp_normed = norm_distance(xp, g_pars.xmin, g_pars.dx)  # multiples of grid spacing
+    yp_normed = norm_distance(yp, g_pars.ymin, g_pars.dy)  # multiples of grid spacing
+
+    xi, xw = get_i_and_w(xp_normed)
+    yi, yw = get_i_and_w(yp_normed)
+
+    return wni(xi, xw, yi, yw)
+end
+
 
 """
 compute_weights_and_index(g_pars::OneDGrid, xp::Float64 )
@@ -217,12 +249,12 @@ function push_to_grid!(grid::Matrix{Float64},
 
 end
 
-function push_to_grid!(grid::SharedArray{Float64, 3},
-                            charge::Vector{Float64},
+function push_to_grid!(grid::StateTypeL1,
+                            charge::CC, 
                             index_pos::Tuple{Int, Int},
                             weights::Tuple{Float64, Float64},
                             Nx::Int,  Ny::Int,
-                            periodic::Bool = true)
+                            periodic::Bool = true) where CC <: Union{Vector{Float64}, SVector{3, Float64}}
     if periodic
         grid[ wrap_index!(index_pos[1], Nx) , wrap_index!(index_pos[2], Ny), : ] += weights[1] * weights[2] * charge
     else
@@ -234,6 +266,37 @@ function push_to_grid!(grid::SharedArray{Float64, 3},
     end
 
 end
+
+
+## MVector and SharedVector version
+function push_to_grid!(grid::AA,
+    charge::MVector{3,TzF},
+    index_pos::SVector{2, Int64},
+    weights::SVector{2,Float16},
+    Nx::Tx, Ny::Ty,
+    periodic::Bool=true) where {AA<:StateTypeL1,Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+    
+    if periodic
+    
+        grid[wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny), :] += weights[1] * weights[2] * charge
+        #set_to_grid!(grid, charge, [wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny)], weights)
+
+    else
+
+        if sum(test_domain(index_pos, Nx, Ny)) != 2
+            return
+        else
+            grid[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+            #set_to_grid!(grid, charge, index_pos, weights)
+        end
+    end
+
+end
+
+function set_to_grid!(S, charge, index_pos, weights)
+    S[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+end
+
 
 
 """
@@ -249,7 +312,7 @@ end
 
 
 # wrapping over vectors of charges, index positions and weights
-function push_to_grid!(grid::SharedArray{Float64,3},
+function push_to_grid!(grid::StateTypeL1,
                             charge::Vector{Float64},
                             index_pos::Vector{Tuple{Int, Int}},
                             weights::Vector{Tuple{Float64, Float64}},
@@ -263,6 +326,40 @@ end
 
 #push_to_grid!(charges_grid, 1.0 , index_positions[3], weights[3] , grid2d.Nx , grid2d.Ny )
 
+## allocation optimized:
+
+"""
+function construct_loop(wni::FieldVector{4,SVector})
+    constructs loop over index positions and weights
+"""
+# function construct_loop(wni::FieldVector{4,SVector})
+#     idx = [(wni.xi[1], wni.yi[1]), (wni.xi[2], wni.yi[1]), (wni.xi[1], wni.yi[2]), (wni.xi[2], wni.yi[2])]
+#     wtx = [(wni.xw[1], wni.yw[1]), (wni.xw[2], wni.yw[1]), (wni.xw[1], wni.yw[2]), (wni.xw[2], wni.yw[2])]
+#     return zip(idx, wtx)
+# end
+
+function construct_loop(wni::FieldVector{4,SVector})
+    idx = SVector{4,Tuple{Int,Int}}(                    (wni.xi[1], wni.yi[1]), (wni.xi[2], wni.yi[1]), (wni.xi[1], wni.yi[2]), (wni.xi[2], wni.yi[2]))
+    wtx = SVector{4,Tuple{AbstractFloat,AbstractFloat}}((wni.xw[1], wni.yw[1]), (wni.xw[2], wni.yw[1]), (wni.xw[1], wni.yw[2]), (wni.xw[2], wni.yw[2]))
+    return zip(idx, wtx)
+end
+
+
+"""
+wrapper over FieldVector weight&index (wni), 
+"""
+function push_to_grid!(grid::StateTypeL1,
+    charge::CC,
+    wni::FieldVector,
+    Nx::Int, Ny::Int,
+    periodic::Bool=true) where CC <: Union{Vector{Float64}, SVector{3, Float64}}
+    #@info "this is version D"
+    for (i, w) in construct_loop(wni)
+        push_to_grid!(grid, charge, i, w, Nx, Ny, periodic)
+    end
+end
+
+
 
 
 
@@ -270,11 +367,11 @@ end
 
 # wrapper over 1D Vecors of chanegs and (nested) index positions and weights
 function push_to_grid!(grid::SharedMatrix{Float64},
-    charge::Vector{Float64},
+    charge::CC,
     index_pos::Vector{Any},
     weights::Vector{Any},
     Nx::Int,
-    periodic::Bool=true)
+    periodic::Bool=true) where CC <: Union{Vector{Float64}, SVector{Float64}}
     #@info "this is version C"
     for (im, wm, c) in zip(index_pos, weights, charge)
         for (i, w) in zip(im, wm)
@@ -287,11 +384,11 @@ end
 
 # multiple index positions and 1 charge
 function push_to_grid!(grid::MM,
-                            charge::Vector{Float64},
+                            charge::CC,
                             index_pos::Vector{Int},
                             weights::Vector{Float64},
                             Nx::Int,
-                            periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
+                            periodic::Bool=true) where {MM<:Union{SharedArray{Float64},Matrix{Float64}} , CC<:Union{Vector{Float64},SVector{Float64}}}
     #@info "this is version B"
     if periodic
         for (im, wm) in zip(index_pos, weights)
@@ -322,7 +419,7 @@ function push_to_grid!(grid::MM,
                             index_pos::Int,
                             weights::Float64,
                             Nx::Int,
-                            periodic::Bool = true) where MM <: Union{SharedMatrix{Float64}, Matrix{Float64}}
+                            periodic::Bool=true) where {MM<:Union{SharedArray{Float64},Matrix{Float64}}}
         #@info "this is version A"
         if periodic
             #grid[ wrap_index!(index_pos[1], Nx) ] += weights * charge

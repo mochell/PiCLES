@@ -1,5 +1,8 @@
 module FetchRelations
 
+using StaticArrays
+using Parameters
+
 # non-dimensionalizations
 """
     X_tilde(X, U10)
@@ -70,9 +73,15 @@ end
 
 #### functions to transform non-dim time to non-dim fetch ####
 # defining paramters from Dulov et al. See fetch_relations.ipynb for details
-xi_0 = 11.0
-R = 0.76
-q = 0.379
+# xi_0 = 11.0
+# R = 0.76
+# q = 0.379
+@with_kw struct Dulov_constants{T<:AbstractFloat} <: FieldVector{3,AbstractFloat}
+    xi_0::T = 11.0
+    R::T = 0.76
+    q::T = 0.379
+end
+
 
 """
 function get_A(qx::Float64, R::Float64)
@@ -82,15 +91,25 @@ function get_A(qx::Float64, R::Float64)
     return (4 * pi) / (R * (1 - qx))
 end
 
+function get_A(qx::Float64; R::Float64=Dulov_constants.R)
+    return (4 * pi) / (R * (1 - qx))
+end
+
 """
 function get_q_x(q::Float64)
 Helping function to get q for the translation between fetch and tau
 """
-function get_q_x(q::Float64)
+function get_q_x(; q::Float64 = Dulov_constants.q)
     return q / (q + 1)
 end
 
 # predefined because they don't really change
+@with_kw struct Dulov_fetch_constants{T<:AbstractFloat} <: FieldVector{3,AbstractFloat}
+    q_x::T = 0.2748
+    A::T = 22.8013
+    xi_0x::T = 2.4097
+end
+
 q_x = 0.2748
 A = 22.8013
 xi_0x = 2.4097
@@ -106,9 +125,8 @@ function X_tilde_from_tau(tau::Float64)
     returns non-dimensional fetch given non-dim tau (m^2/s^2)
     The parameters q_x, A, xi_0X are are from Dulov et al. 2020
 """
-function X_tilde_from_tau(tau::Float64)#, R::Float64, q::Float64, xi_0::Float64)
-    X     = (tau / (A * xi_0x))^(1 / (1 - q_x))
-    return X
+function X_tilde_from_tau(tau::Float64; c=Dulov_fetch_constants() )
+    return (tau / (c.A * c.xi_0x))^(1 / (1 - c.q_x)) 
 end
 
 """
@@ -116,9 +134,8 @@ function tau_from_tilde_X(tau::Float64)
     returns non-dimensional tau given non-dimensional fetch (m^2/s^2)
     The parameters q_x, A, xi_0X are are from Dulov et al. 2020
 """
-function tau_from_tilde_X(X::Float64)#, R::Float64, q::Float64, xi_0::Float64)
-    new_tau = A * xi_0x * X^(1 - q_x)
-    return new_tau
+function tau_from_tilde_X(X::Float64; c=Dulov_fetch_constants() )#, R::Float64, q::Float64, xi_0::Float64)
+    return  c.A * c.xi_0x * X^(1 - c.q_x)
 end
 
 # tau1 = tau_from_tilde_X(1e3)
@@ -131,22 +148,22 @@ end
 
 # JONSWAP fetch relations
 # fetch relations following JONSWAP
-fetch_grouth_parameter= 3.5#3.622#3.5
+#fetch_grouth_parameter= 3.5#3.622#3.5
 
 """
 function fₘ_from_X(U10::Float64, X::Float64)
     returns peak frequency using JONSWAP given U10 (m/s) and fetch (m)
 """
-function fₘ_from_X(U10::Number, X::Number, g::Number=9.81)
-    fetch_grouth_parameter * (g / U10) * X_tilde(U10, X)^(-0.33)
+function fₘ_from_X(U10::Number, X::Number; g::Number=9.81, fgp::Number=3.5)
+    fgp * (g / U10) * X_tilde(U10, X)^(-0.33)
 end
 
 """
 function fₘ_from_X_tilde(U10::Float64, ::Float64)
     returns peak frequency using JONSWAP given U10 (m/s) and non-dim fetch (m)
 """
-function fₘ_from_X_tilde(U10, X_tilde, g=9.81)
-    return fetch_grouth_parameter * (g / U10) *  X_tilde^(-0.33)
+function fₘ_from_X_tilde(U10::Number, X_tilde::Number; g::Number=9.81, fgp::Number=3.5)
+    return fgp * (g / U10) * X_tilde^(-0.33)
 end
 
 
@@ -164,7 +181,7 @@ Calculate the spectral peak enhancement factor.
 - `alpha_j::Number`: Spectral peak enhancement factor.
 
 """
-function alpha_j(U10::Number, f_m::Number, g::Number = 9.81)
+function alpha_j(U10::Number, f_m::Number; g::Number = 9.81)
     return 0.033 * (f_m * U10 / g)^0.67
 end
 
@@ -294,7 +311,7 @@ Calculate the initial windsea parameters based on the given U10 and V10 wind com
     - `m_y::Number`: Y-component of momentum.
 
 """
-function get_initial_windsea(U10::Number, V10::Number, time_scale::Number, type::String="JONSWAP")
+function get_initial_windsea(U10::Number, V10::Number, time_scale::Number; type::String="JONSWAP", particle_state::Bool=false)
     U_amp       = sqrt(U10^2 + V10^2)
     U_amp       = ifelse(U_amp < 0.1, 0.1, U_amp)
 
@@ -320,19 +337,30 @@ function get_initial_windsea(U10::Number, V10::Number, time_scale::Number, type:
         E_      = (Hs_/4)^2
     end
 
-    T_bar       = 0.9 * (1/f_peak)
+    # mean period
+    T_bar = 0.9 * (1 / f_peak)
     cg_bar_amp  = 9.81 * T_bar / (4 * pi)
     cg_bar_x    = cg_bar_amp * U10 / U_amp
     cg_bar_y    = cg_bar_amp * V10 / U_amp
 
-    # momentum
-    mom_x       = (U10 / U_amp) * E_ / (2 * cg_bar_amp)
-    mom_y       = (V10 / U_amp) * E_ / (2 * cg_bar_amp)
 
-    # return dictionary with E, Hs, cg_bar_x, cg_bar_y, cg_bar, f_peak, T_bar, X_tilde, m_x, m_y
-    return Dict("E" => E_, "lne" => log(E_), "Hs" => Hs_, "cg_bar_x" => cg_bar_x, "cg_bar_y" => cg_bar_y,
-        "cg_bar" => cg_bar_amp, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m_x" => mom_x, "m_y" => mom_y)
+    if particle_state
+        return [log(E_), cg_bar_x, cg_bar_y, 0.0, 0.0]
+    else
+        # momentum
+        mom_x = (U10 / U_amp) * E_ / (2 * cg_bar_amp)
+        mom_y = (V10 / U_amp) * E_ / (2 * cg_bar_amp)
+
+
+
+        # return dictionary with E, Hs, cg_bar_x, cg_bar_y, cg_bar, f_peak, T_bar, X_tilde, m_x, m_y
+        return Dict("E" => E_, "lne" => log(E_), "Hs" => Hs_, "cg_bar_x" => cg_bar_x, "cg_bar_y" => cg_bar_y,
+            "cg_bar" => cg_bar_amp, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m_x" => mom_x, "m_y" => mom_y)
+    end
+
 end
+
+
 
 
 u_min = 2.0
@@ -356,7 +384,7 @@ function get_minimal_windsea(U10::Number, V10::Number, time_scale::Number, type:
     U10 = U10 == 0 ? rand_sign() : U10 
     V10 = V10 == 0 ? rand_sign() : V10
     Uamp =  sqrt(U10^2 + V10^2)
-    return get_initial_windsea(u_min * U10 / Uamp, u_min * V10 / Uamp, time_scale, type)
+    return get_initial_windsea(u_min * U10 / Uamp, u_min * V10 / Uamp, time_scale; type=type)
 end
 
 """

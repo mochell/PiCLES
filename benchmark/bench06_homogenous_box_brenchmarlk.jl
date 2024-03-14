@@ -34,6 +34,10 @@ using Profile
 # debugging:
 using ProfileView
 
+using DataFrames
+
+using DifferentialEquations
+
 @info "precompiled!"
 # %%
 save_path = "plots/examples/homogenous_box/"
@@ -72,8 +76,9 @@ particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true,
 default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
 
+
 # define setting and standard initial conditions
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT)
+WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT;)
 #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
 #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
 lne_local = log(WindSeamin["E"])
@@ -83,15 +88,16 @@ cg_v_local = WindSeamin["cg_bar_y"]
 ODE_settings = PW.ODESettings(
     Parameters=default_ODE_parameters,
     # define mininum energy threshold
-    log_energy_minimum=lne_local,#log(FetchRelations.Eⱼ(0.1, DT)),
+    log_energy_minimum=log(WindSeamin["E"]),#log(FetchRelations.Eⱼ(0.1, DT)),
     #maximum energy threshold
+    solver=DP5(),
     log_energy_maximum=log(27),#log(17),  # correcsponds to Hs about 16 m
-    saving_step= 300hours,
+    saving_step=6days,
     timestep=DT,
     total_time=T = 6days,
     adaptive=true,
-    dt=1e-3, #60*10, 
-    dtmin=1e-4, #60*5, 
+    dt=10, #60*10, 
+    dtmin=1, #60*5, 
     force_dtmin=true,
     callbacks=nothing,
     save_everystep=false)
@@ -99,7 +105,7 @@ ODE_settings = PW.ODESettings(
 
 default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
 
-#Revise.retry()
+Revise.retry()
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
@@ -110,6 +116,7 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
     movie=true);
 
+#wave_model.State
 
 Revise.retry()
 
@@ -143,16 +150,22 @@ wave_simulation.stop_time = 20minutes
 @time @allocated run!(wave_simulation, cash_store=false, debug=false); 
 # org: 01/13/2024: 5.926792 seconds (54.35 M allocations: 1.434 GiB, 12.16% gc time)
 # 1st: 01/15/2024: 0.178086 seconds (573.16 k allocations: 37.163 MiB)
+# 2nd: 01/18/2024:  0.154943 seconds (413.15 k allocations: 23.212 MiB)
+# 3rd: 01/21/2024:0.829573 seconds (311.96 k allocations: 14.554 MiB)
 
 wave_simulation.stop_time = 40minutes
 @time @allocated run!(wave_simulation, cash_store=false, debug=false); 
-# org: 01/132024: 2.322934 seconds (18.59 M allocations: 566.626 MiB, 10.23% gc time)
+# org: 01/13/2024: 2.322934 seconds (18.59 M allocations: 566.626 MiB, 10.23% gc time)
 # 1st: 0.163212 seconds (368.23 k allocations: 23.530 MiB, 40.60% gc time)
+# 2nd: 0.106983 seconds (275.43 k allocations: 15.474 MiB)
+# 3rd: 0.561313 seconds (207.97 k allocations: 9.703 MiB)
 
 wave_simulation.stop_time = 60minutes
 @time @allocated run!(wave_simulation, cash_store=false, debug=false); 
 # org: 01/132024: 2.208400 seconds (18.73 M allocations: 570.800 MiB, 10.53% gc time)
 # 1st:   0.088965 seconds (369.62 k allocations: 23.595 MiB)
+# 2nd:  0.100938 seconds (275.44 k allocations: 15.475 MiB)
+# 3rd:  0.520794 seconds (207.98 k allocations: 9.704 MiB)
 
 wave_simulation.stop_time = 80minutes
 @time @allocated run!(wave_simulation, cash_store=false, debug=false); 
@@ -164,6 +177,8 @@ wave_simulation.stop_time = 80minutes
 @time @allocated initialize_simulation!(wave_simulation)
 # org: 0.391615 seconds (858.79 k allocations: 46.285 MiB)
 # 1st:   0.064669 seconds (705.31 k allocations: 42.911 MiB)
+# 2nd  0.052143 seconds (432.21 k allocations: 27.949 MiB)
+
 
 wave_simulation.stop_time = 20minutes
 @time @allocated run!(wave_simulation, cash_store=false, debug=false); # 5.772268 seconds (54.35 M allocations: 1.434 GiB, 10.11% gc time)
@@ -173,20 +188,15 @@ wave_simulation.stop_time = 40minutes
 ProfileView.@profview run!(wave_simulation, cash_store=false, debug=false);
 
 # run!(wave_simulation, cash_store=false, debug=false);
-
-wave_simulation.stop_time = 40minutes
+# %%
+wave_simulation.stop_time = 60minutes
 Profile.clear()
 @profile run!(wave_simulation, cash_store=false, debug=false);
 ProfileView.view(expand_tasks= true, expand_threads=true)
 Profile.print(mincount=10, groupby=:thread)
 # a few particle_system equations are slow because they require a lot of memory allocation? and they arre called when SciMLBase takes derivates! there are step funcions.. 
 
-#  29  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:335; 
-# 12╎    ╎    ╎    ╎    ╎    ╎ 12  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:342; 
-#  6╎    ╎    ╎    ╎    ╎    ╎ 25  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:343; 
-# 13╎    ╎    ╎    ╎    ╎    ╎  19  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:266;
-# 10╎    ╎    ╎    ╎    ╎    ╎ 10  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:347; 
-# 10╎    ╎    ╎    ╎    ╎    ╎ 14  @PiCLES/src/ParticleSystems/particle_waves_v5.jl:350; 
+
 
 # %% ---- allocation profile
 @time @allocated wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=1hour);#1hours)
@@ -198,4 +208,4 @@ wave_simulation.stop_time = 40minutes
 
 # %%
 wave_simulation.stop_time = 60minutes
-@profview_allocs @time @allocated run!(wave_simulation, cash_store=false, debug=false);
+@profview_allocs @time @allocated run!(wave_simulation, cash_store=false, debug=false)
