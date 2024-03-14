@@ -16,6 +16,19 @@ function mean_of_state(model::Abstract2DModel)
     return mean(model.State[:, :, 1])
 end
 
+function max_energy(model::Abstract2DModel)
+    return maximum(model.State[:, :, 1])
+end
+
+function max_cgx(model::Abstract2DModel)
+    return maximum(model.State[:, :, 2])
+end
+
+function max_cgy(model::Abstract2DModel)
+    return maximum(model.State[:, :, 3])
+end
+
+
 function mean_of_state(model::Abstract1DModel)
     return mean(model.State[:, 1])
 end
@@ -145,8 +158,9 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     end
     #print("mean energy after remesh ", mean_of_state(model), "\n")
 
+    @printf("------- max state E=%.4e cgx=%.4e cgy=%.4e \n", max_energy(model), max_cgx(model), max_cgy(model))
     tick!(model.clock, Δt)
-    @printf(" mean energy %.6f ", mean_of_state(model))
+
 
 end
 

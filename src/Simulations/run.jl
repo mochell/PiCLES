@@ -15,6 +15,7 @@ using ..Operators.mapping_2D
 using Statistics
 
 
+
 #using ThreadsX
 
 function mean_of_state(model::Abstract2DModel)
@@ -69,7 +70,11 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
         while sim.running
 
                 #reset State
-                sim.model.State .= 0.0
+                if isa(sim.model.State, SharedArray)
+                        sim.model.State[:,:,:] .= 0.0
+                else
+                        sim.model.State .= 0.0
+                end
                 # do time step
                 
                 time_step!(sim.model, sim.Δt, debug=debug)
@@ -89,7 +94,7 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                         sim.store.iteration += 1
                         if sim.verbose
                                 @info "write state to store..."
-                                #print("mean energy", mean(sim.store.store["data"][:, :, 1], dims=2), "\n")
+                                #@info "max energy ", maximum(sim.model.State[:,:,1])
                         end
 
                 end
@@ -99,7 +104,7 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                         sim.store.iteration += 1
                         if sim.verbose
                                 @info "write state to cash store..."
-                                print("mean energy ", mean_of_state(sim.model), "\n")
+                                #print("mean energy ", mean_of_state(sim.model), "\n")
                         end
 
                 end
