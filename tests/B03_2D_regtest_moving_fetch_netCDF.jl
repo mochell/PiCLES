@@ -38,7 +38,7 @@ using Revise
 save_path = "plots/tests/B03_2D_regtest_moving_fetch_netCDF/"
 mkpath(save_path)
 
-save_path_data = "data/work/B03_2D_regtest_moving_fetch_netCDF/"
+save_path_data = "data/work/B03_2D_regtest_moving_fetch_netCDF_local/"
 mkpath(save_path_data)
 
 # load_path = "data/work/wind_data_moving_fetch/"
@@ -47,9 +47,7 @@ load_path = "/glade/work/mhell/2022_particle_waves/wind_data_moving_fetch/"
 
 ##### basic parameters
 # timestep
-DT = 10minutes
-# Characterstic wind velocities and std
-U10, V10 = 10.0, 10.0
+DT = 30minutes
 
 # Define basic ODE parameters
 r_g0 = 0.85
@@ -57,6 +55,7 @@ Const_ID = PW.get_I_D_constant()
 @set Const_ID.γ = 0.88
 Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
+Revise.retry()
 
 function interpolate_winds(ds, multiplyer=0)
 
@@ -70,7 +69,7 @@ function interpolate_winds(ds, multiplyer=0)
 
     # define time
     time_rel = (ds["time"][:] - ds["time"][1]) ./ convert(Dates.Millisecond, Dates.Second(1))
-    T = time_rel[end]
+    T = 2days #time_rel[end]
 
     nodes = (ds["x"][:], ds["y"][:], time_rel)
     u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"], [1, 2, 3]), extrapolation_bc=Flat())
@@ -89,8 +88,7 @@ default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT)
-default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
+WindSeamin = FetchRelations.get_minimal_windsea(2, 2, DT)
 
 function make_reg_test_store(wave_model, save_path_name)
 
@@ -134,7 +132,7 @@ end
 
 # %%
 # loop over U10 and V10 range
-case_list = ["MF_Case_I", "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
+case_list = ["MF_Case_II"]#, "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
 #case_list = [ "SWAMP_Case_VIII"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
@@ -179,8 +177,7 @@ for case in case_list
         ODEinit_type="wind_sea",  # default_ODE_parameters
         periodic_boundary=false,
         boundary_type="same",
-        minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT), #
-        #minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
+        minimal_particle=FetchRelations.MinimalParticle(2, 2, DT), #
         movie=true)
 
 
@@ -196,4 +193,38 @@ for case in case_list
     # save_path_select = save_path
     # make_reg_test_movie(wave_model, save_path * case, N=NN)
 end
+# %%
 
+
+
+
+
+FetchRelations.MinimalParticle(2, 2, DT)
+wave_model
+
+# %%
+wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
+    winds=winds,
+    ODEsys=particle_system,
+    ODEsets=ODE_settings,  # ODE_settings
+    ODEinit_type="wind_sea",  # default_ODE_parameters
+    periodic_boundary=false,
+    boundary_type="same",
+    minimal_particle=FetchRelations.MinimalParticle(2, 2, DT), #
+    #minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
+    movie=true)
+
+model
+
+function max_of_state_str(model::Abstract2DModel)
+    return "E=%.3f cgx=%.3f cgy=%.3f", maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
+end
+
+
+# %%
+astring = "E=%.3f cgx=%.3f cgy=%.3f", maximum([4.453453534, 3]), maximum([4.453453534, 3]), maximum([4.453453534, 3])
+using Printf
+@info "mean energy " , astring  ,  "\n"
+
+@printf("mean energy %.3e %.3e %.4e \n", maximum([4.453453534, 3]), maximum([4.453453534, 3]), maximum([4.453453534, 3]) ) 
+# %
