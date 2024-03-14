@@ -1,4 +1,7 @@
-ENV["JULIA_INCREMENTAL_COMPILE"] = true
+#ENV["JULIA_INCREMENTAL_COMPILE"] = true
+
+using Pkg
+Pkg.activate("PiCLES/")
 
 using Pkg
 Pkg.activate(".")

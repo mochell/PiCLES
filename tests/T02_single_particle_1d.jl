@@ -80,7 +80,7 @@ ODE_settings = PW5.ODESettings(
 
 
 grid1d = OneDGrid(1, 3, 3)
-particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
+particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0, 0.0, 0.0)
 #particle_defaults = ParticleDefaults(ODE_settings.log_energy_minimum, cg_local, 1.51)
 
 # initialize particle given the wind conditions:
