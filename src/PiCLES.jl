@@ -52,7 +52,6 @@ include("Simulations/Simulations.jl")
 
 #include("Grids/Grids.jl")
 
-
 #include("Particles/Particles.jl")
 
 include("Utils/Utils.jl")
@@ -65,7 +64,7 @@ using .Simulations
 include("Models/Models.jl")
 using .Models
 
-# include("visualization/Plotting.jl")
-# using .Plotting
+include("visualization/Plotting.jl")
+using .Plotting
 
 end

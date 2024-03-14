@@ -4,6 +4,8 @@ using DifferentialEquations: OrdinaryDiffEq.ODEIntegrator, OrdinaryDiffEq.ODEPro
 using ModelingToolkit: ODESystem  ## depriciate when MTK is removed
 
 using SharedArrays
+using StaticArrays
+
 using DocStringExtensions
 
 # Particle-Node interaction
@@ -13,7 +15,7 @@ export InitParticleValues
 #include("../Utils/FetchRelations.jl")
 using ...FetchRelations
 
-using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
+using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1
 
 
 # using ..particle_waves_v3: init_vars
@@ -35,26 +37,25 @@ Structure holds default particles
 # Fields  
 $(DocStringExtensions.FIELDS)
 """
-mutable struct ParticleDefaults
+mutable struct ParticleDefaults{T<:AbstractFloat}
         "log energy"
-        lne::Float64
+        lne::T
         "zonal velocity"
-        c̄_x::Float64
+        c̄_x::T
         "meridional velocity"
-        c̄_y::Float64
+        c̄_y::T
         "x Position"
-        x::Float64
+        x::T
         "y Position"
-        y::Float64
+        y::T
 end
 
 Base.copy(s::ParticleDefaults) = ParticleDefaults(s.lne, s.c̄_x, s.c̄_y, s.x, s.y)
+#initParticleDefaults(s::ParticleDefaults) = MVector{5,Float64}([s.lne, s.c̄_x, s.c̄_y, s.x, s.y])
+#initParticleDefaults(s::ParticleDefaults) = MVector{5,Float64}(s.lne, s.c̄_x, s.c̄_y, s.x, s.y)
 initParticleDefaults(s::ParticleDefaults) = [s.lne, s.c̄_x, s.c̄_y, s.x, s.y]
 
-"""
 
-
-"""
 
 ######### Particle --> Node  |  2D  ##########
 
@@ -71,7 +72,7 @@ function GetParticleEnergyMomentum(PI)
         m_x = ui_c̄_x * ui_e / c_speed^2 / 2
         m_y = ui_c̄_y * ui_e / c_speed^2 / 2
 
-        return ui_e, m_x, m_y
+        return SVector{3,Float64}(ui_e, m_x, m_y)
 end
 
 function GetParticleEnergyMomentum(PI::AbstractParticleInstance)
@@ -90,15 +91,15 @@ end
 GetParticleEnergyMomentum(PI)
 
 """
-function GetParticleEnergyMomentum(z0::Vector{Float64})
+function GetParticleEnergyMomentum(z0::TT) where {TT<:Union{Vector{Float64},MVector{5,Float64}}}
 
-        ui_lne, ui_c̄_x, ui_c̄_y, ui_x, ui_y =z0
+        ui_lne, ui_c̄_x, ui_c̄_y, _, _ =z0
         ui_e = exp(ui_lne)
         c_speed = speed(ui_c̄_x, ui_c̄_y)
         m_x = ui_c̄_x * ui_e / c_speed^2 / 2
         m_y = ui_c̄_y * ui_e / c_speed^2 / 2
 
-        return [ui_e, m_x, m_y]
+        return SVector{3,Float64}(ui_e, m_x, m_y)
 end
 
 speed(x::Float64, y::Float64) = sqrt(x^2 + y^2)
@@ -111,18 +112,18 @@ i_state: [e, m_x, m_y] state vector at node
 x, y: coordinates of the vertex
 
 """
-function GetVariablesAtVertex(i_State::Vector{Float64}, x::Float64, y::Float64)
+function GetVariablesAtVertex(i_State::TT, x::Float64, y::Float64) where {TT<:Union{Vector{Float64},MVector{3,Float64}}}
     e, m_x, m_y = i_State
     m_amp = speed(m_x, m_y)
     c_x = m_x * e / (2 * m_amp^2)
     c_y = m_y * e / (2 * m_amp^2)
 
-    return [log(e), c_x, c_y, x, y]
+    return MVector{5,Float64}(log(e), c_x, c_y, x, y)
 end
 
 
 """ returns node state from shared array, given paritcle index """
-Get_u_FromShared(PI::AbstractParticleInstance, S::SharedArray,) = S[PI.position_ij[1], PI.position_ij[2], :]
+Get_u_FromShared(PI::AbstractParticleInstance, S::StateTypeL1,) = S[PI.position_ij[1], PI.position_ij[2], :]
 
 """
 GetGroupVelocity(i_State::Vector{Float64})
@@ -245,25 +246,25 @@ function InitParticleValues(
                         # defaults are not defined and there is wind
 
                         # take in local wind velocities
-                        WindSeaMin = FetchRelations.get_initial_windsea(uv[1], uv[2], DT)
+                        ui = FetchRelations.get_initial_windsea(uv[1], uv[2], DT; particle_state= true)
                         # seed particle given fetch relations
-                        lne = log(WindSeaMin["E"])
-                        c̄_x = WindSeaMin["cg_bar_x"]
-                        c̄_y = WindSeaMin["cg_bar_y"]
+                        # lne = log(WindSeaMin["E"])
+                        # c̄_x = WindSeaMin["cg_bar_x"]
+                        # c̄_y = WindSeaMin["cg_bar_y"]
 
                         particle_on = true
                 else
                         # defaults are not defined and there is no wind
-                        u_min = FetchRelations.MinimalParticle(uv[1], uv[2], DT)
-                        lne = u_min[1]
-                        c̄_x = u_min[2]
-                        c̄_y = u_min[3]
+                        ui = FetchRelations.MinimalParticle(uv[1], uv[2], DT)
+                        #lne = u_min[1]
+                        #c̄_x = u_min[2]
+                        #c̄_y = u_min[3]
                         
                         particle_on = false
                 end        
                 
                 # initialize particle instance based on above devfined values
-                particle_defaults = ParticleDefaults(lne, c̄_x, c̄_y, xx, yy)
+                particle_defaults = ParticleDefaults(ui[1], ui[2], ui[3] ,  xx, yy)
         else
                 particle_defaults = defaults
                 particle_on = true
@@ -304,9 +305,10 @@ function ResetParticleValues(
                 u_init, v_init = wind_tuple[1], wind_tuple[2] 
                 #winds.u(xx, yy, 0), winds.v(xx, yy, 0)
 
-                WindSeaMin = FetchRelations.get_initial_windsea(u_init, v_init, DT)
+                ui = FetchRelations.get_initial_windsea(u_init, v_init, DT, particle_state=true)
                 # seed particle given fetch relations
-                particle_defaults = ParticleDefaults(log(WindSeaMin["E"]), WindSeaMin["cg_bar_x"], WindSeaMin["cg_bar_y"], PI.position_xy[1], PI.position_xy[2])
+                particle_defaults = ParticleDefaults(ui[1], ui[2], ui[3], PI.position_xy[1], PI.position_xy[2])
+
         elseif typeof(defaults) == Vector{Float64} # this is for the case of minimal wind sea
                 particle_defaults = defaults
                 particle_defaults[4]    = PI.position_xy[1]
@@ -402,7 +404,7 @@ SeedParticle(State::SharedMatrix, i::Int64,
 return ParicleInstance that can be pushed to ParticleColletion
 """
 function SeedParticle(
-        State::SharedArray,
+        State::StateTypeL1,
         ij::Tuple{Int, Int},
 
         particle_system::SS,
@@ -458,7 +460,7 @@ Seed Pickles to ParticleColletion and State
 """
 function SeedParticle!(
         ParticleCollection::Vector{Any},
-        State::SharedArray,
+        State::StateTypeL1,
         ij::Tuple{Int, Int},
 
         particle_system::SS,

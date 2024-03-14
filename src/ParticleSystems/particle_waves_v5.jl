@@ -412,21 +412,21 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
             r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
-            u = u_wind(z[4], y, t)#::Number
+            u                 = u_wind(x, y, t)#::Number
             v                 = v_wind(x, y, t)#::Number
 
             c̄                 = speed(c̄_x, c̄_y)
             u_speed           = speed(u, v)
 
             # peak parameters
-            c_gp_speed, kₚ, ωₚ = c_g_conversions_vector(abs(c̄), r_g=r_g) ## <--- this one is slow!!
+            c_gp_speed, kₚ, ωₚ = c_g_conversions_vector(abs(c̄), r_g=r_g) 
             c_gp_x             = c_g_conversions(c̄_x, r_g=r_g)
             c_gp_y             = c_g_conversions(c̄_y, r_g=r_g)
 
             # direction equations
             α = α_func(u_speed, c_gp_speed)
             Hₚ = H_β(αₚ(u, v, c_gp_x, c_gp_y), p)
-            Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y))
+            Δₚ = Δ_β(αₚ(u, v, c_gp_x, c_gp_y)) ## <--- this one is slow!!
 
             # Source terms
             Ĩ           = input ? Ĩ_func(α, Hₚ, C_e) : 0.0
