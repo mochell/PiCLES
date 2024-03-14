@@ -24,15 +24,14 @@ using Oceananigans.Units
 import Oceananigans.Utils: prettytime
 
 using PiCLES.Architectures
-using GLMakie
+#using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
-using PiCLES.Plotting.movie: init_movie_2D_box_plot
+# using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 using NCDatasets
 using Interpolations
 using Dates: Dates as Dates
-
 using Revise
 
 # %%
@@ -42,7 +41,8 @@ mkpath(save_path)
 save_path_data = "data/work/B03_2D_regtest_moving_fetch_netCDF/"
 mkpath(save_path_data)
 
-load_path = "data/work/wind_data_moving_fetch/"
+# load_path = "data/work/wind_data_moving_fetch/"
+load_path = "/glade/work/mhell/2022_particle_waves/wind_data_moving_fetch/"
 #load_path = "data/work/wind_data_SWAMP/"
 
 ##### basic parameters
