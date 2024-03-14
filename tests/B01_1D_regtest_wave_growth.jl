@@ -20,31 +20,22 @@ plot_path_base = "plots/tests/plot_path_base/"
 mkpath(plot_path_base)
 
 # function to define constants 
-r_g0 = 0.85
-Const_ID = PW.get_I_D_constant()
-#@set Const_ID.γ = γ = 0.88
-# γ = Const_ID.γ
-Const_ID.γ
-γ = Const_ID.γ / r_g0
-@set Const_ID.γ = γ
-Const_ID.γ
 
-Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
-Const_ID
+# %%
 
-default_ODE_parameters = (
-    r_g=r_g0,
-    C_α=Const_Scg.C_alpha,
-    C_φ=Const_ID.c_β,
-    C_e=Const_ID.C_e,
-    g=9.81,
-)
-# typeof(default_ODE_parameters)
+Revise.retry()
 
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
+@info "org. gamma gamma= " Const_ID.γ
+Const_ID.γ = Const_ID.γ #/ ODEpars.r_g
+@info "gamma= " Const_ID.γ
+
+
+# typeof(ODEpars)
 T           = 1day
 DT          = 5minutes
 dt_ODE_save = 30minutes
-u10         = 5
+u10         = 10
 # define initial conditions
 WindSeamin  = FetchRelations.get_initial_windsea(u10, DT)
 #WindSeamin = FetchRelations.get_minimal_windsea( u(0, 0), 5minutes)
@@ -52,7 +43,7 @@ WindSeamin  = FetchRelations.get_initial_windsea(u10, DT)
 Revise.retry()
 
 ODE_settings = PW.ODESettings(
-    Parameters=default_ODE_parameters,
+    Parameters=ODEpars,
     # define mininum energy threshold
     log_energy_minimum=log(WindSeamin["E"]),#log(FetchRelations.Eⱼ(0.1, DT)),
     #maximum energy threshold
@@ -78,9 +69,9 @@ u(x, t) = x .* 0 + t * 0 + u10
 # redefine model 
 wave_model = WaveGrowthModels1D.WaveGrowth1D(; grid=OneDGrid(0, 30e4, 50),
     winds=u,
-    ODEsys=PW.particle_equations(u, γ=γ),
+    ODEsys=PW.particle_equations(u, γ=Const_ID.γ, q=Const_ID.q),
     ODEsets=ODE_settings,  # ODE_settings
-    ODEinit_type="wind_sea",  # default_ODE_parameters
+    ODEinit_type="wind_sea",  # ODEpars
     minimal_particle=FetchRelations.MinimalParticle(2, 0, DT), #
     periodic_boundary=false,
     boundary_type="same"  # "default" #
@@ -94,12 +85,11 @@ wave_simulation = Simulation(wave_model, Δt=DT, stop_time=10hours)
 initialize_simulation!(wave_simulation)
 run!(wave_simulation, store=false, cash_store=true, debug=false)
 
-Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
+#Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 #title!("titlde")
 #savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 
-# %%
 wave_simulation.store
 data = Simulations.convert_store_to_tuple(wave_simulation.store, wave_simulation)
 waves_energy = data.data[:, :, 1]
@@ -124,9 +114,7 @@ E_jon_tilde = FR.E_fetch_tilde(x_tilde)
 plot!(x_tilde, E_jon_tilde, label = "JONSWAP")
 
 
-
-# %% Single particle 1day
-
+# single particle
 xx = OneDGridNotes(wave_model.grid).x[1]
 particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
 ParticleState, particle_on = InitParticleValues(particle_defaults, xx, u(xx, 0), DT)
@@ -146,5 +134,3 @@ PI = ParticleTools.FormatParticleData(PI4)
 
 plot!(FR.X_tilde(PI.x, u10), FR.E_tilde(PI.E, u10), label="Sinlge Particle")
 
-T
-PI.time
