@@ -5,6 +5,8 @@ using DataFrames
 using ...Architectures: AbstractGrid, AbstractODESettings, AbstractParticleInstance
 using ...custom_structures: MarkedParticleInstance
 
+using ...Operators.core_1D: GetParticleEnergyMomentum
+
 using Plots
 
 function CreateIterationMask(time)
@@ -47,6 +49,31 @@ function ParticleToDataframe(Collection)
                 push!(DD, D[!, [1, 2, 3, 4]] ) # time, x(t), c_x(t), lne(t)
         end
         return DD
+end
+
+function FormatParticleData(PI4)
+        statelist = GetParticleEnergyMomentum.(PI4.ODEIntegrator.sol.u)
+
+        statematix = hcat(statelist...)
+        u_matrix = hcat(PI4.ODEIntegrator.sol.u...)
+
+        if (size(statematix)[1] == 3)
+                AA = (x=u_matrix[3, :],
+                        time=PI4.ODEIntegrator.sol.t,
+                        cgx=u_matrix[2, :],
+                        E=statematix[1, :],
+                        mx=statematix[2, :])
+        else
+                AA = (x=u_matrix[4, :],
+                        y=u_matrix[5, :],
+                        time=PI4.ODEIntegrator.sol.t,
+                        cgx=u_matrix[2, :],
+                        cgy=u_matrix[3, :],
+                        E=statematix[1, :],
+                        mx=statematix[2, :],
+                        my=statematix[3, :])
+        end
+        return AA
 end
 
 
