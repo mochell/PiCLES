@@ -75,19 +75,6 @@ $(DocStringExtensions.FIELDS)
 end
 
 
-# function init_vars()
-#     @variables t
-#     @variables x(t), y(t), c̄_x(t), c̄_y(t), lne(t), Δn(t), Δφ_p(t)
-#     @parameters r_g C_α C_φ g C_e
-#     return t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e
-# end
-
-# function init_vars_1D()
-#     @variables t
-#     @variables x(t), c̄_x(t), lne(t)
-#     @parameters r_g C_α g C_e
-#     return t, x, c̄_x, lne, r_g, C_α, g, C_e
-# end
 
 # ------------------------------------------------------
 # Paramter functions
@@ -122,6 +109,31 @@ function get_I_D_constant(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2
     return (c_D=c_D, c_β=c_β, c_e=c_e, c_alpha=c_alpha, r_w=r_w, C_e=C_e, γ=γ, p=p, q=q, n=n)
 end
 
+##  --------- test this -------------_
+mutable struct IDConstantswhere where {PP<:Union{Float64,Float16,Int}}
+    c_D::PP
+    c_β::PP
+    c_e::PP
+    c_alpha::PP
+    r_w::PP
+    C_e::PP
+    γ::PP
+    p::PP
+    q::PP
+    n::PP
+end
+
+function IDConstants(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, q=-1 / 4)
+    p = (-1 - 10 * q) / 2
+    n = 2 * q / (p + 4 * q)
+
+    C_e = r_w * c_β * c_D
+    γ = (p - q) * c_alpha^(-4) * C_e^(-1) / 2
+    return IDConstants(c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n)
+end
+# need to be reomoved later
+get_I_D_constant = IDConstants
+
 """
 get_Scg_constants(C_alpha=1.41, C_varphi  =1.81e-5)
 this function returns a NamedTuple with constants for peak frequency shift.
@@ -131,14 +143,6 @@ this function returns a NamedTuple with constants for peak frequency shift.
 function get_Scg_constants(; C_alpha=-1.41, C_varphi=1.81e-5)
     return (C_alpha=C_alpha, C_varphi=C_varphi)
 end
-
-
-
-# # test values
-# u = (u=1, v=-1)
-# cx = 1.0
-# cy = 1.0
-
 
 
 
