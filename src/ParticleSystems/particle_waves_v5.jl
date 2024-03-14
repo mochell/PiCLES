@@ -80,6 +80,10 @@ end
 # Paramter functions
 # ------------------------------------------------------
 
+"""
+This function returns the universal exponent relations
+[p, q, n] = magic_fractions(q::Float64=-1/4.0)
+"""
 function magic_fractions(q::Float64=-1 / 4.0)
     # returns universal exponent relations
     p = (-1 - 10 * q) / 2
@@ -88,29 +92,19 @@ function magic_fractions(q::Float64=-1 / 4.0)
 end
 
 """
-get_I_D_constant(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha= 11.8 , r_w = 2.35, q=-1/4)
-this function returns a named tuple with the constants for the growth and dissipation
+IDConstants(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha= 11.8 , r_w = 2.35, q=-1/4)
+this function returns a mutable struct with the constants for the growth and dissipation
 inputs:
-    c_D:    drag coefficient
+    c_D: drag coefficient
     c_β:    
     c_e:    
     c_alpha: 
     r_w:    
-    q:      
+    q:
 returns:
-    c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n    
+    c_D, c_β, c_e, c_alpha, r_w, C_e, γs, p, q, n    
 """
-function get_I_D_constant(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, q=-1 / 4)
-    p = (-1 - 10 * q) / 2
-    n = 2 * q / (p + 4 * q)
-
-    C_e = r_w * c_β * c_D
-    γ = (p - q) * c_alpha^(-4) * C_e^(-1) / 2
-    return (c_D=c_D, c_β=c_β, c_e=c_e, c_alpha=c_alpha, r_w=r_w, C_e=C_e, γ=γ, p=p, q=q, n=n)
-end
-
-##  --------- test this -------------_
-mutable struct IDConstantswhere where {PP<:Union{Float64,Float16,Int}}
+mutable struct IDConstants{PP} #where {PP<:Number}
     c_D::PP
     c_β::PP
     c_e::PP
@@ -131,19 +125,48 @@ function IDConstants(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, 
     γ = (p - q) * c_alpha^(-4) * C_e^(-1) / 2
     return IDConstants(c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n)
 end
-# need to be reomoved later
-get_I_D_constant = IDConstants
+
 
 """
-get_Scg_constants(C_alpha=1.41, C_varphi  =1.81e-5)
-this function returns a NamedTuple with constants for peak frequency shift.
-    C_alpha: 1.41   # constant for peak frequency shift (?)
-    C_varphi: 1.81e-5 # constant for peak frequency shift (?)
+    ScgConstants(C_alpha=1.41, C_varphi  =1.81e-5)
+
+    this function returns a NamedTuple with constants for peak frequency shift.
+        C_alpha: 1.41   # constant for peak frequency shift (?)
+        C_varphi: 1.81e-5 # constant for peak frequency shift (?)
 """
-function get_Scg_constants(; C_alpha=-1.41, C_varphi=1.81e-5)
-    return (C_alpha=C_alpha, C_varphi=C_varphi)
+mutable struct ScgConstants{PP} # where {PP<:Union{Float64,Float16,Int}}
+    C_alpha::PP
+    C_varphi::PP
 end
 
+
+function ScgConstants(; C_alpha=-1.41, C_varphi=1.81e-5)
+    return ScgConstants(C_alpha, C_varphi)
+end
+
+# need to be reomoved later
+get_I_D_constant = IDConstants
+get_Scg_constants = ScgConstants
+
+
+
+"""
+ODEParameters(; r_g=0.85,  q= -0.25)
+    wrapper function to define constants and parameters for the ODE system
+
+"""
+function ODEParameters(; r_g=0.85, q=-0.25)
+    Const_ID = IDConstants(q=q)
+    Const_Scg = ScgConstants()
+
+    parset = (
+        r_g=r_g,
+        C_α=Const_Scg.C_alpha,
+        C_φ=Const_ID.c_β,
+        C_e=Const_ID.C_e)
+
+    return parset, Const_ID, Const_Scg
+end
 
 
 """
@@ -348,7 +371,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             # forcing fields
             #lne, c̄_x, c̄_y, x, y = z
 
-            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u = u_wind(z[4], z[5], t)#::Number
             v = v_wind(z[4], z[5], t)#::Number
@@ -414,7 +437,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
             lne, c̄_x, c̄_y, x, y = z
 
-            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u = u_wind(z[4], y, t)#::Number
             v                 = v_wind(x, y, t)#::Number
@@ -516,8 +539,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
         #unpack0
         lne, c̄_x, x      = z
         #lne, c̄_x, x      = z.lne, z.c̄_x, z.x
-        #r_g, C_α, g, C_e = params
-        r_g, C_α, g, C_e = params.r_g, params.C_α, params.g, params.C_e
+        r_g, C_α, C_e = params.r_g, params.C_α, params.C_e
 
         # forcing fields, need to be global scope?
         u = u_wind(x, t)
