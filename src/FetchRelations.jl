@@ -207,7 +207,7 @@ end
 ## non-dimensional fetch relations
 
 function c_p_fetch(X_tilde, U10, X_t_0=2.2 * 10^4)
-    return U10 * 1.2 * min_fetch(X_tilde, X_t_0)^(0.33)
+    return U10 .* 1.2 .* min_fetch(X_tilde, X_t_0).^0.33
 end
 
 function H_s_fetch(X_tilde, U10, X_t_0=2.2 * 10^4)
@@ -222,7 +222,7 @@ function E_fetch_tilde(X_tilde, X_t_0=2.2 * 10^4)
     return 4.23 * 10^(-3) * min_fetch(X_tilde, X_t_0)
 end
 
-function min_fetch(X_tilde, X_t_0)
+function min_fetch(X_tilde, X_t_0=2.2 * 10^4)
     return [min(fi / X_t_0, 1) for fi in X_tilde]
 end
 
@@ -612,14 +612,16 @@ PMParameters(f::Vector, U10::Float64)
     ---- never tested!!
 """
 function PMParameters(U10::Float64)
-    f_peak = 0.816  * 9.81 / (2 * np.pi * U10)
+    f_peak = 0.816  * 9.81 / (2 * pi * U10)
     Hs     = 0.0246 * U10^2
     E      = (Hs/4) ^4
-    f_peak, Hs, E
+    return (f_peak = f_peak , Hs = Hs, E=E)
 end
 
 
-
+function PMlimits()
+    return (E_tilde= 0.00402, f_p_tilde=0.123)
+end
 
 
 end
