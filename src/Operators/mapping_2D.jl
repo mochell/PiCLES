@@ -12,10 +12,10 @@ using ...FetchRelations
 
 using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
 
-using ..core_2D_spread: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
+using ..core_2D_spread: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults, InitParticleInstance
 
 
-using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings
+using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings, Abstract2DModel
 ###### remeshing routines ############
 
 
@@ -235,6 +235,94 @@ function remesh!(PI::ParticleInstance2D, S::SharedArray{Float64,3},
                         ODEs.log_energy_minimum, 
                         DT)
         #return PI
+end
+
+"""
+        remesh!(PI::ParticleInstance2D, S::SharedMatrix{Float64, 3})
+        Wrapper function that does everything necessary to remesh the particles.
+        - pushes the Node State to particle instance
+"""
+function remesh!(i::Int64, j::Int64, model::Abstract2DModel, DT::Float64)
+        winds = model.winds
+        ti = model.clock.time
+        grid = model.grid
+        
+        x = grid.xmin + grid.dx*i
+        y = grid.ymin + grid.dy*j
+        winds_i::Tuple{Float64,Float64} = winds.u(x, y, ti), winds.v(x, y, ti)
+        
+        NodeToParticle!(i, j, x, y, model, winds_i, DT)
+end
+
+"""
+        NodeToParticle!(PI::AbstractParticleInstance, S::SharedMatrix)
+Pushes node value to particle:
+- If Node value is smaller than a minimal value, the particle is renintialized
+- If Node value is okey, it is converted to state variable and pushed to particle.
+- The particle position is set to the node positions
+"""
+function NodeToParticle!(i::Int64, j::Int64, x::Float64, y::Float64, model::Abstract2DModel, wind_tuple::Tuple{Float64,Float64}, DT::Float64)
+        S = model.State
+        minimal_particle = model.minimal_particle
+        minimal_state = model.minimal_state
+        wind_min_squared = model.ODEsettings.wind_min_squared
+        default_particle = model.ODEdefaults
+        e_min_log = model.ODEsettings.log_energy_minimum
+        current_is_boundary = i==0 || i==model.grid.Nx || j==0 || j==model.grid.Ny
+
+
+        # load data from shared array
+        u_state = S[i, j, :]
+
+        #last_t = ti 
+        last_t = model.clock.time
+        # minimal_state[1] is the minmal Energy  
+        # minimal_state[2] is the minmal momentum squared  
+        if ~current_is_boundary & (u_state[1] >= minimal_state[1]) & (speed_square(u_state[2], u_state[3]) >= minimal_state[2]) # all interior nodes: convert note to particle values and push to ODEIntegrator
+                nNewParticles = Int64((u_state[4] ÷ model.angular_spreading_thresh)*2+1)
+                if nNewParticles == 1
+                        nNewParticles = 3
+                end
+                midParticleInd = Int64(nNewParticles ÷ 2 + 1)
+                ui = GetVariablesAtVertex(u_state, x, y)
+                energies = [exp(-(k-midParticleInd)^2/(2*π*midParticleInd)^2) for k in 1:nNewParticles]
+                energies = energies ./ sum(energies) .* exp(ui[1])
+
+                for k in 1:nNewParticles
+                        delta_phi = (k-midParticleInd)/midParticleInd*u_state[4]
+                        c_x = ui[2] * cos(delta_phi) - ui[3] * sin(delta_phi)
+                        c_y = ui[2] * sin(delta_phi) + ui[3] * cos(delta_phi)
+                        z_init = ParticleDefaults(log(energies[k]), c_x, c_y, x, y, u_state[4]/nNewParticles)
+                        push!(model.ParticleCollection,InitParticleInstance(model.ODEsystem, z_init, model.ODEsettings, (i,j), false, true))
+                end
+                
+        elseif ~PI.boundary & (speed_square(wind_tuple[1], wind_tuple[2]) >= wind_min_squared) #minimal windsea is not big enough but local winds are strong enough  #(u_state[1] < exp(e_min_log)) | PI.boundary
+                # test if particle is below energy threshold, or
+                #      if particle is at the boundary
+
+                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
+                reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
+                reset_PI_t!(PI, ti=last_t)
+
+                PI.on = true
+
+        elseif PI.boundary & (speed_square(wind_tuple[1], wind_tuple[2]) >= wind_min_squared) # at the boundary, reset particle if winds are strong enough
+
+                ui = ResetParticleValues(default_particle, PI, wind_tuple, DT) # returns winds sea given DT and winds
+                reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
+                reset_PI_t!(PI, ti=last_t)
+
+                PI.on = true
+
+ 
+        else # particle is below energy threshold & on boundary
+                #PI.ODEIntegrator.u = ResetParticleValues(minimal_particle, PI, wind_tuple, DT)
+                # if ~PI.boundary
+                #         @info u_state
+                # end
+                PI.on = false
+        end
+
 end
 
 

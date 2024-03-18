@@ -138,13 +138,43 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     end
 
     #@printf "re-mesh"
-    @threads for a_particle in model.ParticleCollection
-        mapping_2D.remesh!(a_particle, model.State, 
-                        model.winds, model.clock.time, 
-                        model.ODEsettings, Δt,
-                        model.minimal_particle, 
-                        model.minimal_state,
-                        model.ODEdefaults)
+    if model.angular_spreading_type == "stochast"
+        @threads for a_particle in model.ParticleCollection
+            mapping_2D.remesh!(a_particle, model.State, 
+                            model.winds, model.clock.time, 
+                            model.ODEsettings, Δt,
+                            model.minimal_particle, 
+                            model.minimal_state,
+                            model.ODEdefaults)
+        end
+    elseif model.angular_spreading_type == "geometrical"
+        i = 1
+        particlesToBeReset = []
+        
+        for _ in 1:length(model.ParticleCollection)
+            pos_ij = model.ParticleCollection[i].position_ij
+            big_enough = model.State[pos_ij[1], pos_ij[2],2]^2+model.State[pos_ij[1], pos_ij[2],3]^2>model.minimal_state[2]
+            if model.ParticleCollection[i].boundary || ~big_enough
+                i=i+1
+            elseif !(model.ParticleCollection[i].position_ij in particlesToBeReset)
+                push!(particlesToBeReset, model.ParticleCollection[i].position_ij)
+                deleteat!(model.ParticleCollection, i)
+            end
+        end
+        @threads for a_particle in model.ParticleCollection
+            mapping_2D.remesh!(a_particle, model.State, 
+                            model.winds, model.clock.time, 
+                            model.ODEsettings, Δt,
+                            model.minimal_particle, 
+                            model.minimal_state,
+                            model.ODEdefaults)
+        end
+        @threads for (i,j) in particlesToBeReset
+            mapping_2D.remesh!(i, j, model, Δt)
+        end
+        @info particlesToBeReset
+    elseif model.angular_spreading_type == "nonparametric"
+        
     end
 
     if debug
