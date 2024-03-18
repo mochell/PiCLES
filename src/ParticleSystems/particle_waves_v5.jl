@@ -2,7 +2,7 @@ module particle_waves_v5
 
 using DifferentialEquations, IfElse
 
-using ...Architectures: AbstractODESettings, AbstractParticleSystem
+using ...Architectures: AbstractODESettings, AbstractParticleSystem, IDConstantsInstance, ScgConstantsInstance
 
 export particle_equations, ODESettings
 using LinearAlgebra
@@ -104,7 +104,7 @@ inputs:
 returns:
     c_D, c_β, c_e, c_alpha, r_w, C_e, γs, p, q, n    
 """
-mutable struct IDConstants{PP} #where {PP<:Number}
+mutable struct IDConstants{PP} <: IDConstantsInstance #where {PP<:Number}
     c_D::PP
     c_β::PP
     c_e::PP
@@ -128,6 +128,23 @@ function IDConstants(; r_g=0.85, c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=14.8, 
 end
 
 
+
+function Base.show(io::IO, ow::IDConstantsInstance)
+
+    print(io, "IDConstants ", "\n",
+        "├── c_D: ", ow.c_D, "\n",
+        "├── c_β: ", ow.c_β, "\n",
+        "├── c_e: ", ow.c_e, "\n",
+        "├── c_alpha: ", ow.c_alpha, "\n",
+        "├── r_w: ", ow.r_w, "\n",
+        "├── C_e: ", ow.C_e, "\n",
+        "├── γ: ", ow.γ, "\n",
+        "├── p: ", ow.p, "\n",
+        "├── q: ", ow.q, "\n",
+        "└── n: ", ow.n, "\n")
+end
+
+
 """
     ScgConstants(C_alpha=-1.41, C_varphi  =1.81e-5)
 
@@ -135,7 +152,7 @@ end
         C_alpha: 1.41   # constant for peak frequency shift (?)
         C_varphi: 1.81e-5 # constant for peak frequency shift (?)
 """
-mutable struct ScgConstants{PP} # where {PP<:Union{Float64,Float16,Int}}
+mutable struct ScgConstants{PP} <: ScgConstantsInstance # where {PP<:Union{Float64,Float16,Int}}
     C_alpha::PP
     C_varphi::PP
 end
@@ -144,6 +161,15 @@ end
 function ScgConstants(; C_alpha=-1.41, C_varphi=1.81e-5)
     return ScgConstants(C_alpha, C_varphi)
 end
+
+
+function Base.show(io::IO, ow::ScgConstantsInstance)
+
+    print(io, "ScgConstants ", "\n",
+        "├── C_alpha: ", ow.C_alpha, "\n",
+        "└── C_varphi: ", ow.C_varphi, "\n")
+end
+
 
 # need to be reomoved later
 get_I_D_constant = IDConstants

@@ -4,13 +4,17 @@ using SharedArrays
 using StaticArrays
 
 
-export AbstractGrid, AbstractODESettings, AbstractParticleInstance, AbstractMarkedParticleInstance, Abstract1DModel, Abstract2DModel, AbstractModel, AbstractStore, AbstractParticleSystem, StateTypeL1
+export AbstractGrid, AbstractODESettings, AbstractParticleInstance, AbstractMarkedParticleInstance, Abstract1DModel, Abstract2DModel, AbstractModel, AbstractStore, AbstractParticleSystem, StateTypeL1, IDConstantsInstance, ScgConstantsInstance
 
 abstract type AbstractGrid end
 
 abstract type AbstractODESettings end
 abstract type AbstractParticleInstance end
 abstract type AbstractMarkedParticleInstance end
+
+abstract type IDConstantsInstance end
+abstract type ScgConstantsInstance end
+
 
 """
     AbstractModel
