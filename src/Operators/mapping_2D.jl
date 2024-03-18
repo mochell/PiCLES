@@ -62,7 +62,6 @@ function set_u_and_t!(integrator, u_new, t_new)
         # adding a small deviation due to directional spreading
         d = Normal(0, u_new[6]^2)
         delta_phi = rand(d,1)
-        #delta_phi = 0.15
         c_x = u_new[2] * cos(delta_phi[1]) - u_new[3] * sin(delta_phi[1])
         c_y = u_new[2] * sin(delta_phi[1]) + u_new[3] * cos(delta_phi[1])
         u_new[2] = c_x

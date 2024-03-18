@@ -52,6 +52,10 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
                         bl_flag,
                         bl,
                         bl_type,
+                        as_type,
+                        as_thresh,
+                        plt_steps,
+                        plt_path,
                         wnds,
                         cur,
                         Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}, PCollection<:Union{Vector,Array}}
@@ -77,6 +81,12 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
     periodic_boundary::bl_flag # If true we use a period boundary 
     boundary::bl       # List of boundary points
     boundary_defaults::bl_type # Dict{NUm, Float64} ODE defaults
+
+    angular_spreading_thresh::as_thresh     # threshold for splitting
+    angular_spreading_type::as_type     # type of angular spreading used
+
+    plot_steps::plt_steps          # Whether or not to plot the steps 
+    plot_savepath::plt_path         # The path to use for saving plots
 
     winds::wnds     # u, v, if needed u_x, u_y
     currents::cur      # u, v, currents
@@ -134,6 +144,10 @@ function GeometricalOptics(; grid::TwoDGrid,
     currents=nothing,  # 
     periodic_boundary=true,
     boundary_type="same", # or "minimal", "same", default is same, only used if periodic_boundary is false
+    angular_spreading_thresh=π/8,
+    angular_spreading_type="stochast",  # or "geometrical" or "nonparametric"
+    plot_steps=false,
+    plot_savepath="",
     CBsets=nothing,
     movie=false) where {PP<:Union{ParticleDefaults2D,String}}
 
@@ -255,6 +269,10 @@ function GeometricalOptics(; grid::TwoDGrid,
         minimal_state,
         periodic_boundary,
         boundary, boundary_defaults,
+        angular_spreading_thresh,
+        angular_spreading_type,
+        plot_steps,
+        plot_savepath,
         winds,
         currents,
         Mstat)

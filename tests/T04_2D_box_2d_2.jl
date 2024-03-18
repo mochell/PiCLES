@@ -134,7 +134,7 @@ ODE_settings    = PW.ODESettings(
     save_everystep=false)
 
 
-default_particle = ParticleDefaults(1, 0, 2, 5000.0, 1500.0, π/8)
+default_particle = ParticleDefaults(1, 1, 1, 1000.0, 1000.0, π/4)
 
 # Define grid
 #grid = TwoDGrid(150e3, 50, 150e3, 50)
@@ -163,12 +163,16 @@ wave_model = GeometricalOpticsModels.GeometricalOptics(; grid=grid,
     periodic_boundary=false,
     boundary_type="same",
     #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
-    movie=true)
+    movie=true,
+    plot_steps=true,
+    plot_savepath="plots/tests/T04_box_2d_2/geometrical",
+    angular_spreading_type="geometrical"
+    )
 
 
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
-wave_simulation = Simulation(wave_model, Δt=20minutes, stop_time=1hour)#1hours)
+wave_simulation = Simulation(wave_model, Δt=2minutes, stop_time=30minutes)#1hours)
 initialize_simulation!(wave_simulation)
 
 
@@ -187,7 +191,7 @@ p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 
 # %%
 # show all Failed particles
-using PiCLES.Utils: ParticleTools
+using PiCLES.Utils: ParticleTools 
 
 Revise.retry()
 DD = ParticleTools.ParticleToDataframe(wave_simulation.model.FailedCollection)

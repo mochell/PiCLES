@@ -14,6 +14,7 @@ using ..Operators.mapping_1D
 using ..Operators.mapping_2D
 using Statistics
 
+import Plots as plt
 
 #using ThreadsX
 
@@ -25,12 +26,22 @@ function mean_of_state(model::Abstract1DModel)
         return mean(model.State[:, 1])
 end
 
+function plot_state_and_error_points(wave_simulation, gn)
+        plt.plot()
+
+        p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(wave_simulation.model.State[:, :, 1]))
+
+
+        plt.plot!(legend=:none, title="c_g", ylabel="cg m/s", xlabel="position index x") |> display
+end
+
 """
 run!(sim::Simulation; store = false, pickup=false)
 main method to run the Simulation sim.
 Needs time_step! to be defined for the model, and push_state_to_storage! to be defined for the store.
 """
 function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
+        save_path = sim.model.plot_savepath
 
         start_time_step = time_ns()
 
@@ -64,6 +75,8 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                         @info "write inital state to store..."
                 end
         end
+
+        grid_note = TwoDGridNotes(sim.model.grid)
 
 
         while sim.running
@@ -105,6 +118,15 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                 end
                 sim.running = sim.stop_time >= sim.model.clock.time ? true : false
                 @info sim.model.clock
+
+                if sim.model.plot_steps
+                        @info "plot"
+                        plot_state_and_error_points(sim, grid_note)
+                        plt.savefig(joinpath([save_path, "energy_plot_no_spread_"*string(Int64(floor((sim.model.clock.time)/60)))*".png"]))
+                else
+                        @info "not plot"
+                end
+
         end
 
         end_time_step = time_ns()
