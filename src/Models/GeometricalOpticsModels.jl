@@ -56,6 +56,7 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
                         as_thresh,
                         plt_steps,
                         plt_path,
+                        nPart,
                         wnds,
                         cur,
                         Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}, PCollection<:Union{Vector,Array}}
@@ -87,6 +88,7 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
 
     plot_steps::plt_steps          # Whether or not to plot the steps 
     plot_savepath::plt_path         # The path to use for saving plots
+    n_particles_launch::nPart       # Number of particles to launch from each node when using a nonparametric spreading type
 
     winds::wnds     # u, v, if needed u_x, u_y
     currents::cur      # u, v, currents
@@ -148,6 +150,7 @@ function GeometricalOptics(; grid::TwoDGrid,
     angular_spreading_type="stochast",  # or "geometrical" or "nonparametric"
     plot_steps=false,
     plot_savepath="",
+    n_particles_launch=5,
     CBsets=nothing,
     movie=false) where {PP<:Union{ParticleDefaults2D,String}}
 
@@ -273,6 +276,7 @@ function GeometricalOptics(; grid::TwoDGrid,
         angular_spreading_type,
         plot_steps,
         plot_savepath,
+        n_particles_launch,
         winds,
         currents,
         Mstat)
