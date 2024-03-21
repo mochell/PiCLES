@@ -117,7 +117,7 @@ mutable struct IDConstants{PP} <: IDConstantsInstance #where {PP<:Number}
     n::PP
 end
 
-function IDConstants(; r_g=0.85, c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=14.8, r_w=2.35, q=-1 / 4) #c_alpha changed from 11.8 to  14.8 #
+function IDConstants(; r_g=0.85, c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, q=-1 / 4) #c_alpha changed from 11.8 to 14.5 #
     p = (-1 - 10 * q) / 2
     n = 2 * q / (p + 4 * q)
 
@@ -126,7 +126,6 @@ function IDConstants(; r_g=0.85, c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=14.8, 
     γ = 1 - (p - q) / (c_alpha^4 * C_e * 2)
     return IDConstants(c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n)
 end
-
 
 
 function Base.show(io::IO, ow::IDConstantsInstance)
@@ -264,12 +263,15 @@ function sin2_a_plus_b(u::NamedTuple, c::NamedTuple)
 end
 
 
-#cos2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  (1 - 2 .* (sa .* cb - ca .* cb).^2 )
-e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+# old version
+#e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+
+# eq. A2.4 in Kudr. 2021 2D
+e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; c_β::Number=2.16e-4, c_D::Number=2e-3, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * c_β * c_D)^(1 / n))
 
 
-H_β(α::Number, p::Float64; α_thresh::Float64=0.85) = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))  # <--------------- tanh is slow 
-Δ_β(α::Number; α_thresh::Float64=0.85) = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
+H_β(α::Number, p::Float64; α_thresh::Float64=0.85)  = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
+Δ_β(α::Number; α_thresh::Float64=0.85)              = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
 
 """
 function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.9)
@@ -389,7 +391,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     #t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
     p, q, n = magic_fractions(q)
-    e_T = e_T_func(γ, p, q, n; C_e=IDConstants.C_e, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
+    e_T = e_T_func(γ, p, q, n, c_β=IDConstants.c_β, c_D=IDConstants.c_D, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
 
     if static
         
@@ -559,8 +561,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConst
 
     # Define basic constants for wave equation (invariant throughout the simulation)
     p, q, n = magic_fractions(q)
-    e_T = e_T_func(γ, p, q, n; C_e=IDConstants.C_e, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
-    #D = Differential(t)
+    e_T = e_T_func(γ, p, q, n, c_β=IDConstants.c_β, c_D=IDConstants.c_D, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
 
     ###  ---------------- start function here
     function partice_system(dz, z, params, t) #<: Vector{Number}
@@ -602,7 +603,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConst
         end
 
         # energy
-        dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
+        dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃)  #- c̄ .* G_n,
         # dz[1] = +0.5 * 9.81 * c̄_x^(-1) .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- e^3 *ξ / c̄ ,
         #e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
 
