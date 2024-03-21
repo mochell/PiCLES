@@ -86,7 +86,6 @@ particle_defaults = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"],
 # initialize particle given the wind conditions:
 
 
-
 ij = 2
 xx = OneDGridNotes(grid1d).x[ij]
 ParticleState, particle_on = InitParticleValues(particle_defaults, xx, u(xx, 0), DT)
