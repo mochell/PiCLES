@@ -82,12 +82,12 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     #scatter!(ax_wind, vec(gridmesh.* 1e-3), rotations=0, markersize=20, marker='↑')
 
 
-    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 1.5))
-    hm_x = heatmap!(ax_mx, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_x, colormap=:balance, colorrange=(-0.02, 0.02))
-    hm_y = heatmap!(ax_my, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_y, colormap=:balance, colorrange=(-0.02, 0.02))
+    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 4))
+    hm_x = heatmap!(ax_mx, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_x, colormap=:balance, colorrange=(-0.05, 0.05))
+    hm_y = heatmap!(ax_my, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_y, colormap=:balance, colorrange=(-0.05, 0.05))
 
-    hm_cx = heatmap!(ax_cx, 1e-3 * gn.x, 1e-3 * gn.y, cx, colormap=:balance, colorrange=(-4, 4))
-    hm_cy = heatmap!(ax_cy, 1e-3 * gn.x, 1e-3 * gn.y, cy, colormap=:balance, colorrange=(-4, 4))
+    hm_cx = heatmap!(ax_cx, 1e-3 * gn.x, 1e-3 * gn.y, cx, colormap=:balance, colorrange=(-5, 5))
+    hm_cy = heatmap!(ax_cy, 1e-3 * gn.x, 1e-3 * gn.y, cy, colormap=:balance, colorrange=(-5, 5))
     #colormaps
 
     #colorbar(ax_my)

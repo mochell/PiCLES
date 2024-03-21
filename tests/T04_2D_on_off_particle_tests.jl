@@ -40,7 +40,7 @@ U10, V10 = 10.0, 10.0
 # Define basic ODE parameters
 r_g0 = 0.85
 Const_ID = PW4.get_I_D_constant()
-@set Const_ID.γ = 0.88
+
 Const_Scg = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
 
@@ -61,7 +61,7 @@ winds = (u=u, v=v)
 
 # define ODE system and parameters
 Revise.retry()
-particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
  
 
 default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
@@ -119,7 +119,7 @@ winds = (u=u, v=v)
 
 #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 Revise.retry()
-particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
 
 
@@ -251,7 +251,7 @@ a
 
 #     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-#     particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+#     particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
 
 #     ## Define wave model
@@ -290,7 +290,7 @@ a
 
 #     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-#     particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+#     particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
 
 #     ## Define wave model

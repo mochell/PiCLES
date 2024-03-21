@@ -41,8 +41,8 @@ mkpath(save_path)
 save_path_data = "data/work/B03_2D_regtest_moving_fetch_netCDF_local/"
 mkpath(save_path_data)
 
-# load_path = "data/work/wind_data_moving_fetch/"
-load_path = "/glade/work/mhell/2022_particle_waves/wind_data_moving_fetch/"
+load_path = "data/work/wind_data_moving_fetch/"
+# load_path = "/glade/work/mhell/2022_particle_waves/wind_data_moving_fetch/"
 #load_path = "data/work/wind_data_SWAMP/"
 
 ##### basic parameters
@@ -50,11 +50,7 @@ load_path = "/glade/work/mhell/2022_particle_waves/wind_data_moving_fetch/"
 DT = 30minutes
 
 # Define basic ODE parameters
-r_g0 = 0.85
-Const_ID = PW.get_I_D_constant()
-@set Const_ID.γ = 0.88
-Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
-
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 Revise.retry()
 
 function interpolate_winds(ds, multiplyer=0)
@@ -69,7 +65,7 @@ function interpolate_winds(ds, multiplyer=0)
 
     # define time
     time_rel = (ds["time"][:] - ds["time"][1]) ./ convert(Dates.Millisecond, Dates.Second(1))
-    T = 2days #time_rel[end]
+    T = time_rel[end]
 
     nodes = (ds["x"][:], ds["y"][:], time_rel)
     u_grid = LinearInterpolation(nodes, permutedims(ds["u10m"], [1, 2, 3]), extrapolation_bc=Flat())
@@ -79,12 +75,7 @@ function interpolate_winds(ds, multiplyer=0)
 end
 
 # define ODE system and parameters
-#particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
-
-
-default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
-    C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
-
+#particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
@@ -133,6 +124,7 @@ end
 # %%
 # loop over U10 and V10 range
 case_list = ["MF_Case_II"]#, "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
+#case_list = ["MF_Case_I", "MF_Case_II", "MF_Case_III", "MF_Case_IV"]
 #case_list = [ "SWAMP_Case_VIII"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
@@ -150,11 +142,11 @@ for case in case_list
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
-    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
     # ... and ODESettings
     ODE_settings = PW.ODESettings(
-        Parameters=default_ODE_parameters,
+        Parameters=ODEpars,
         # define mininum energy threshold
         log_energy_minimum=WindSeamin["lne"],
         #maximum energy threshold
@@ -185,13 +177,13 @@ for case in case_list
 
     # for saving data
     # when saving data
-    save_path_select = save_path_data
-    mkpath(save_path_select * case)
-    make_reg_test_store(wave_model, save_path_select * case)
+    # save_path_select = save_path_data
+    # mkpath(save_path_select * case)
+    # make_reg_test_store(wave_model, save_path_select * case)
 
     # when plotting data
-    # save_path_select = save_path
-    # make_reg_test_movie(wave_model, save_path * case, N=NN)
+    save_path_select = save_path
+    make_reg_test_movie(wave_model, save_path * case, N=NN)
 end
 # %%
 

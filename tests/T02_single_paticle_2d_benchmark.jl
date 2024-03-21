@@ -34,8 +34,8 @@ U10, V10 = +10.0, +10.0
 # version 3
 r_g0 = 0.85
 # function to define constants for grouwth and dissipation
-Const_ID = PW.get_I_D_constant()
-#@set Const_ID.γ = 0.88
+
+#
 Const_Scg = PW.get_Scg_constants()
 
 #u(x, y, t) = 0.01 - U10 * sin(t / (6 * 60 * 60 * 2π))

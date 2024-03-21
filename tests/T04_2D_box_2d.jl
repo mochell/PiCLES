@@ -43,12 +43,12 @@ U10,V10           = 10.0, 10.0
 dt_ODE_save       = 30minutes
 DT                = 30minutes
 # version 3
-r_g0              = 0.85
+
 
 # function to define constants 
-Const_ID = PW.get_I_D_constant()
-@set Const_ID.γ = 0.88
-Const_Scg = PW.get_Scg_constants(C_alpha=- 1.41, C_varphi=1.81e-5)
+
+
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 
 # u(x, y, t) = 0.01 + U10 * sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
@@ -99,8 +99,8 @@ Revise.retry()
 
 #ProfileView.@profview 
 #ProfileView.@profview 
-particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true, dissipation=true);
-#particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=0.88, q=Const_ID.q);
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q, input=true, dissipation=true);
+#particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = (r_g = r_g0, C_α = Const_Scg.C_alpha, 
@@ -176,7 +176,7 @@ initialize_simulation!(wave_simulation)
 #ProfileView.@profview run!(wave_simulation, cash_store=true, debug=true)
 
 
-istate = wave_simulation.store.store[end];
+istate = wave_simulation.store.store[5];
 p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 
 
