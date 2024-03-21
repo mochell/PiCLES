@@ -25,7 +25,7 @@ using Statistics
 using PiCLES: FetchRelations as FR
 using JSON
 
-# %
+
 squeeze(a) = dropdims(a, dims=tuple(findall(size(a) .== 1)...))
 
 function get_fetch_variables(data_slice, r_g)
@@ -66,15 +66,15 @@ mkpath(plot_path_base)
 save_path = "data/processed/FetchRelation_tests/"
 mkpath(save_path)
 
+# %%
 # function to define constants 
 Revise.retry()
-ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.87)
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # @info "org. gamma gamma= " Const_ID.γ
 # Const_ID.γ = Const_ID.γ   #ODEpars.r_g^2
 # @info "gamma= " Const_ID.γ
 # PW.e_T_func(Const_ID.γ, Const_ID.p, Const_ID.q, Const_ID.n; C_e=Const_ID.C_e, c_e=Const_ID.c_e, c_α=Const_ID.c_alpha)^2
-# ODEpars.C_α
 # ODEpars.C_φ
 # ODEpars.C_e
 
@@ -82,11 +82,28 @@ ODEpars
 Const_ID
 Const_Scg
 
+c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n =Const_ID.c_D, Const_ID.c_β, Const_ID.c_e, Const_ID.c_alpha, Const_ID.r_w, Const_ID.C_e, Const_ID.γ, Const_ID.p, Const_ID.q, Const_ID.n
+
+#PW.e_T_func(γ, p, q, n; C_e=Const_ID.C_e, c_e=Const_ID.c_e, c_α=Const_ID.c_alpha)^2
+
+
+# e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; c_β::Number=2.16e-4, c_D::Number=2e-3, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * c_β * c_D )^(1 / n))
+
+# e_T_func(γ, p, q, n, c_β=Const_ID.c_β, c_D=Const_ID.c_D, c_e=Const_ID.c_e, c_α=Const_ID.c_alpha)^2
+
+# r_w / ODEpars.r_g
+
+# γ
+# 1- γ
+# r_g = 0.87
+
+# (p - q) * c_alpha^(-4) * r_g / (2 * r_w * c_β * c_D)
+
+
 DDcollect = Dict()
 
 # typeof(ODEpars)
-T           = 2day
-dt_ODE_save = 30minutes
+T           = 2.5day
 
 # loop over u10= 5:5:20, DT = 5,10,20,30,60 minutes, Nx = 21, 51, 101, 201
 
@@ -109,10 +126,12 @@ case_list = [
 (u10 = 10.0, DT = 10minutes, Nx = 51),
 (u10 = 20.0, DT = 10minutes, Nx = 51),
 
-(u10 = 15.0, DT = 10minutes, Nx = 51)
+(u10 = 15.0, DT = 10minutes, Nx = 101)
 ]
 
 u10, DT, Nx = case_list[end]
+
+1e7/ 200 
 
 for case in case_list
 
@@ -121,7 +140,7 @@ for case in case_list
     # Nx          = 51
     u10, DT, Nx = case
 
-    grid1d = OneDGrid(0, 1e6, Nx)
+    grid1d = OneDGrid(0, 1e7, Nx)
     grid1d.dx
 
     Case_dict = Dict("u10" => u10, "DT" => DT, "dx" => grid1d.dx)
@@ -172,7 +191,7 @@ for case in case_list
     #Plotting.plot_results(wave_simulation_periodic, title="$u10 m/s, periodic=" * string(wave_model.periodic_boundary))
 
     data        = Simulations.convert_store_to_tuple(wave_simulation.store, wave_simulation)
-    data_slice  = squeeze(mean(data.data[end-4:1:end, :, :], dims=1))[2:end-1, :]
+    data_slice  = squeeze(maximum(data.data[end-6:1:end, :, :], dims=1))[2:end-1, :]
     PiCLES_data = get_fetch_variables(data_slice, ODEpars.r_g)
 
     PIC_nonper = get_non_dim_data(PiCLES_data, u10, data.x[2:end-1], data.time[2:end-1])
@@ -192,7 +211,7 @@ end
 DDcollect["PIC_nonper"] = DD_PIC_nonper
 DDcollect["PIC_per"]    = DD_PIC_per
 
-# %%
+# %
 x_tilde = PIC_nonper.x_tilde
 #JONSWAP
 E_jon_tilde = FR.E_fetch_tilde(x_tilde) 
@@ -256,10 +275,10 @@ plot!(pFp_tilde_time_pic, t_tilde, FR.f_p_tilde(fp_JON, u10), label="JONSWAP", l
 # single particle
 xx                         = OneDGridNotes(wave_model.grid).x[1]
 WindSeamin                 = FetchRelations.get_initial_windsea(u10, 0,  DT)
-u                          = wave_model.winds
+uu                         = wave_model.winds
 ODE_settings               = wave_model.ODEsettings
 particle_defaults          = ParticleDefaults(log(WindSeamin["E"]), WindSeamin["cg_bar"], 0.0)
-ParticleState, particle_on = InitParticleValues(particle_defaults, xx, u(xx, 0), DT)
+ParticleState, particle_on = InitParticleValues(particle_defaults, xx, uu(xx, 0), DT)
 PI4                        = InitParticleInstance(wave_model.ODEsystem, ParticleState, ODE_settings, 1, false, particle_on)
 
 
