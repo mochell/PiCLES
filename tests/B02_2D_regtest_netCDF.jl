@@ -77,7 +77,7 @@ function interpolate_winds(ds, multiplyer=0)
 end
 
 # define ODE system and parameters
-#particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
+#particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 
 
@@ -146,7 +146,7 @@ for case in case_list
     winds = (u=u, v=v)
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
-    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
     # ... and ODESettings
     ODE_settings = PW.ODESettings(

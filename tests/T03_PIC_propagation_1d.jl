@@ -45,8 +45,8 @@ dt_ODE_save = 10 # 3 min
 
 r_g0 = 0.85
 # function to define constants for grouwth and dissipation
-Const_ID = PW.get_I_D_constant()
-#@set Const_ID.γ = 0.88
+
+#
 Const_Scg = PW.get_Scg_constants()
 
 
