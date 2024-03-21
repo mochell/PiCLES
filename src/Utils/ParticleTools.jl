@@ -57,7 +57,7 @@ function FormatParticleData(PI4)
         statematix = hcat(statelist...)
         u_matrix = hcat(PI4.ODEIntegrator.sol.u...)
 
-        if (size(statematix)[1] == 3)
+        if (length(PI4.ODEIntegrator.sol.u[1]) == 3)
                 AA = (x=u_matrix[3, :],
                         time=PI4.ODEIntegrator.sol.t,
                         cgx=u_matrix[2, :],

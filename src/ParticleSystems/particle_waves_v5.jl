@@ -2,7 +2,7 @@ module particle_waves_v5
 
 using DifferentialEquations, IfElse
 
-using ...Architectures: AbstractODESettings, AbstractParticleSystem
+using ...Architectures: AbstractODESettings, AbstractParticleSystem, IDConstantsInstance, ScgConstantsInstance
 
 export particle_equations, ODESettings
 using LinearAlgebra
@@ -75,24 +75,15 @@ $(DocStringExtensions.FIELDS)
 end
 
 
-# function init_vars()
-#     @variables t
-#     @variables x(t), y(t), c̄_x(t), c̄_y(t), lne(t), Δn(t), Δφ_p(t)
-#     @parameters r_g C_α C_φ g C_e
-#     return t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e
-# end
-
-# function init_vars_1D()
-#     @variables t
-#     @variables x(t), c̄_x(t), lne(t)
-#     @parameters r_g C_α g C_e
-#     return t, x, c̄_x, lne, r_g, C_α, g, C_e
-# end
 
 # ------------------------------------------------------
 # Paramter functions
 # ------------------------------------------------------
 
+"""
+This function returns the universal exponent relations
+[p, q, n] = magic_fractions(q::Float64=-1/4.0)
+"""
 function magic_fractions(q::Float64=-1 / 4.0)
     # returns universal exponent relations
     p = (-1 - 10 * q) / 2
@@ -101,45 +92,107 @@ function magic_fractions(q::Float64=-1 / 4.0)
 end
 
 """
-get_I_D_constant(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha= 11.8 , r_w = 2.35, q=-1/4)
-this function returns a named tuple with the constants for the growth and dissipation
+IDConstants(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha= 11.8 , r_w = 2.35, q=-1/4)
+this function returns a mutable struct with the constants for the growth and dissipation
 inputs:
-    c_D:    drag coefficient
+    c_D: drag coefficient
     c_β:    
     c_e:    
     c_alpha: 
     r_w:    
-    q:      
+    q:
 returns:
-    c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n    
+    c_D, c_β, c_e, c_alpha, r_w, C_e, γs, p, q, n    
 """
-function get_I_D_constant(; c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, q=-1 / 4)
+mutable struct IDConstants{PP} <: IDConstantsInstance #where {PP<:Number}
+    c_D::PP
+    c_β::PP
+    c_e::PP
+    c_alpha::PP
+    r_w::PP
+    C_e::PP
+    γ::PP
+    p::PP
+    q::PP
+    n::PP
+end
+
+function IDConstants(; r_g=0.85, c_D=2e-3, c_β=4e-2, c_e=1.3e-6, c_alpha=11.8, r_w=2.35, q=-1 / 4) #c_alpha changed from 11.8 to 14.5 #
     p = (-1 - 10 * q) / 2
     n = 2 * q / (p + 4 * q)
 
-    C_e = r_w * c_β * c_D
-    γ = (p - q) * c_alpha^(-4) * C_e^(-1) / 2
-    return (c_D=c_D, c_β=c_β, c_e=c_e, c_alpha=c_alpha, r_w=r_w, C_e=C_e, γ=γ, p=p, q=q, n=n)
-end
-
-"""
-get_Scg_constants(C_alpha=1.41, C_varphi  =1.81e-5)
-this function returns a NamedTuple with constants for peak frequency shift.
-    C_alpha: 1.41   # constant for peak frequency shift (?)
-    C_varphi: 1.81e-5 # constant for peak frequency shift (?)
-"""
-function get_Scg_constants(; C_alpha=-1.41, C_varphi=1.81e-5)
-    return (C_alpha=C_alpha, C_varphi=C_varphi)
+    C_e = r_w * c_β * c_D /r_g
+    #γ = (p - q) * c_alpha^(-4) / (C_e * 2)
+    γ = 1 - (p - q) / (c_alpha^4 * C_e * 2)
+    return IDConstants(c_D, c_β, c_e, c_alpha, r_w, C_e, γ, p, q, n)
 end
 
 
+function Base.show(io::IO, ow::IDConstantsInstance)
 
-# # test values
-# u = (u=1, v=-1)
-# cx = 1.0
-# cy = 1.0
+    print(io, "IDConstants ", "\n",
+        "├── c_D: ", ow.c_D, "\n",
+        "├── c_β: ", ow.c_β, "\n",
+        "├── c_e: ", ow.c_e, "\n",
+        "├── c_alpha: ", ow.c_alpha, "\n",
+        "├── r_w: ", ow.r_w, "\n",
+        "├── C_e: ", ow.C_e, "\n",
+        "├── γ: ", ow.γ, "\n",
+        "├── p: ", ow.p, "\n",
+        "├── q: ", ow.q, "\n",
+        "└── n: ", ow.n, "\n")
+end
 
 
+"""
+    ScgConstants(C_alpha=-1.41, C_varphi  =1.81e-5)
+
+    this function returns a NamedTuple with constants for peak frequency shift.
+        C_alpha: 1.41   # constant for peak frequency shift (?)
+        C_varphi: 1.81e-5 # constant for peak frequency shift (?)
+"""
+mutable struct ScgConstants{PP} <: ScgConstantsInstance # where {PP<:Union{Float64,Float16,Int}}
+    C_alpha::PP
+    C_varphi::PP
+end
+
+
+function ScgConstants(; C_alpha=-1.41, C_varphi=1.81e-5)
+    return ScgConstants(C_alpha, C_varphi)
+end
+
+
+function Base.show(io::IO, ow::ScgConstantsInstance)
+
+    print(io, "ScgConstants ", "\n",
+        "├── C_alpha: ", ow.C_alpha, "\n",
+        "└── C_varphi: ", ow.C_varphi, "\n")
+end
+
+
+# need to be reomoved later
+get_I_D_constant = IDConstants
+get_Scg_constants = ScgConstants
+
+
+
+"""
+ODEParameters(; r_g=0.85,  q= -0.25)
+    wrapper function to define constants and parameters for the ODE system
+
+"""
+function ODEParameters(; r_g=0.85, q=-0.25)
+    Const_ID = IDConstants(;r_g=r_g, q = q)
+    Const_Scg = ScgConstants()
+
+    parset = (
+        r_g=r_g,
+        C_α=Const_Scg.C_alpha,
+        C_φ=Const_Scg.C_varphi,
+        C_e=Const_ID.C_e)
+
+    return parset, Const_ID, Const_Scg
+end
 
 
 """
@@ -210,18 +263,21 @@ function sin2_a_plus_b(u::NamedTuple, c::NamedTuple)
 end
 
 
-#cos2_a_min_b(ca::Number, sa::Number, cb::Number, sb::Number) =  (1 - 2 .* (sa .* cb - ca .* cb).^2 )
-e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+# old version
+#e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; C_e::Number=2.16e-4, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * C_e)^(1 / n))
+
+# eq. A2.4 in Kudr. 2021 2D
+e_T_func(γ::Float64, p::Float64, q::Float64, n::Float64; c_β::Number=2.16e-4, c_D::Number=2e-3, c_e::Float64=1.3e-6, c_α::Float64=11.8) = sqrt(c_e * c_α^(-p / q) / (γ * c_β * c_D)^(1 / n))
 
 
-H_β(α::Number, p::Float64; α_thresh::Float64=0.85) = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))  # <--------------- tanh is slow 
-Δ_β(α::Number; α_thresh::Float64=0.85) = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
+H_β(α::Number, p::Float64; α_thresh::Float64=0.85)  = @. 0.5 .* (1.0 + tanh.(p .* (α .- α_thresh)))
+Δ_β(α::Number; α_thresh::Float64=0.85)              = @. (1.0 .- 1.25 .* sech.(10.0 .* (α .- α_thresh)) .^ 2)
 
 """
 function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.9)
 returns a vecotr with conversions between c̄, c_gp, kₚ, and ωₚ
 """
-function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.9) # this is a slow function
+function c_g_conversions_vector(c̄::Number; g::Number=9.81, r_g::Number=0.85) # this is a slow function
     c_gp = c_g_conversions(c̄, r_g=r_g)
     kₚ = g / (4.0 * max(c_gp^2, 1e-2))  # < ---------- the power is slow 
     ωₚ = g / (2.0 * max(abs(c_gp), 0.1))
@@ -281,6 +337,7 @@ end
 # peak downshift
 # C_α is negative in Kudravtec definition, here its a positive value
 S_cg(lne::Number, Δₚ::Number, kₚ::Number, C_α::Number) = @. C_α * Δₚ * kₚ^4 * exp(2 * lne)
+#S_cg(lne::Number, Δₚ::Number, kₚ::Number, C_α::Number) = @. C_α * kₚ^4 * exp(2 * lne)
 
 
 # Peak direction shift
@@ -322,7 +379,7 @@ return an ODE system as function particle_system(dz, z, params, t) that provides
         params can be a named tuple with the parameters or a vector
         params = [r_g, C_α, g, C_e] 
 """
-function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
+function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConstants=IDConstants(),
     propagation=true,
     input=true,
     dissipation=true,
@@ -334,7 +391,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     #t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
     p, q, n = magic_fractions(q)
-    e_T = e_T_func(γ, p, q, n)#, C_e=C_e)
+    e_T = e_T_func(γ, p, q, n, c_β=IDConstants.c_β, c_D=IDConstants.c_D, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
 
     if static
         
@@ -344,7 +401,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             # forcing fields
             #lne, c̄_x, c̄_y, x, y = z
 
-            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u = u_wind(z[4], z[5], t)#::Number
             v = v_wind(z[4], z[5], t)#::Number
@@ -370,14 +427,14 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
             z = @SVector [
                 # energy
-                +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃),
+                +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃),
 
                 # peak group velocity vector
-                -z[2] .* ωₚ .* r_g^2 .* S_cg_tilde + z[3] .* S_dir_tilde,
-                -z[3] .* ωₚ .* r_g^2 .* S_cg_tilde - z[2] .* S_dir_tilde,
+                -z[2] .* ωₚ .* r_g .* S_cg_tilde + z[3] .* S_dir_tilde,
+                -z[3] .* ωₚ .* r_g .* S_cg_tilde - z[2] .* S_dir_tilde,
 
-                # D(z[2]) ~ -z[2] .* ωₚ .* r_g^2 .* S_cg_tilde + (z[3] + 0.001) .* S_dir_tilde, #* (-1),
-                # D(z[3]) ~ -z[3] .* ωₚ .* r_g^2 .* S_cg_tilde - (z[2]  + 0.001) .* S_dir_tilde, #* (1),
+                # D(z[2]) ~ -z[2] .* ωₚ .* r_g .* S_cg_tilde + (z[3] + 0.001) .* S_dir_tilde, #* (-1),
+                # D(z[3]) ~ -z[3] .* ωₚ .* r_g .* S_cg_tilde - (z[2]  + 0.001) .* S_dir_tilde, #* (1),
                 
                 # propagation
                 propagation ? z[2] : 0.0,
@@ -388,7 +445,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
                 additional_output = @SVector [
                     Ĩ,
                     -D̃,
-                    r_g^2 * S_cg_tilde,
+                    r_g * S_cg_tilde,
                     Hₚ,
                     S_dir_tilde,
                     Δₚ,
@@ -410,7 +467,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             #u = (u=u(x, y, t), v=v(x, y, t))::NamedTuple{(:u, :v),Tuple{Number,Number}}
             lne, c̄_x, c̄_y, x, y = z
 
-            r_g, C_α, g, C_e, C_φ = params.r_g, params.C_α, params.g, params.C_e, params.C_φ
+            r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u                 = u_wind(x, y, t)#::Number
             v                 = v_wind(x, y, t)#::Number
@@ -436,14 +493,14 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
             #particle_equations::Vector{Number} = [
             # energy
-            dz[1] = +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
+            dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
 
             # peak group velocity vector
-            dz[2] = -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
-            dz[3] = -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
+            dz[2] = -c̄_x .* ωₚ .* r_g .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
+            dz[3] = -c̄_y .* ωₚ .* r_g .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
 
-            # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
-            # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g^2 .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
+            # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
+            # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
 
             # propagation
             dz[4] = propagation ? c̄_x : 0.0
@@ -454,7 +511,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
                 additional_output = [
                     Ĩ,
                     -D̃,
-                    r_g^2 * S_cg_tilde,
+                    r_g * S_cg_tilde,
                     #alpha_p ~ αₚ(u, c_gp_x, c_gp_y),
                     Hₚ,
                     #alpha ~ α,
@@ -494,7 +551,7 @@ returns an ODE system as function particle_system(dz, z, params, t) that provide
         params can be a named tuple with the parameters or a vector
         params = [r_g, C_α, g, C_e]
 """
-function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
+function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConstants=IDConstants(),
     propagation=true,
     input=true,
     dissipation=true,
@@ -504,16 +561,14 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
     # Define basic constants for wave equation (invariant throughout the simulation)
     p, q, n = magic_fractions(q)
-    e_T = e_T_func(γ, p, q, n)#, C_e=C_e)
-    #D = Differential(t)
+    e_T = e_T_func(γ, p, q, n, c_β=IDConstants.c_β, c_D=IDConstants.c_D, c_e=IDConstants.c_e, c_α=IDConstants.c_alpha)
 
     ###  ---------------- start function here
     function partice_system(dz, z, params, t) #<: Vector{Number}
         #unpack0
         lne, c̄_x, x      = z
         #lne, c̄_x, x      = z.lne, z.c̄_x, z.x
-        #r_g, C_α, g, C_e = params
-        r_g, C_α, g, C_e = params.r_g, params.C_α, params.g, params.C_e
+        r_g, C_α, C_e = params.r_g, params.C_α, params.C_e
 
         # forcing fields, need to be global scope?
         u = u_wind(x, t)
@@ -548,11 +603,13 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0,
         end
 
         # energy
-        dz[1] = +ωₚ .* r_g^2 .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
+        dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃)  #- c̄ .* G_n,
+        # dz[1] = +0.5 * 9.81 * c̄_x^(-1) .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- e^3 *ξ / c̄ ,
         #e * ωₚ .* (Ĩ -  D̃)- e^3 *ξ / c̄ ,
 
         # peak group velocity vector
-        dz[2] = - c̄_x .* ωₚ .* r_g^2 .* S_cg_tilde
+        dz[2] = - c̄_x .* ωₚ .* r_g .* S_cg_tilde
+        # dz[2] = - 0.5 * 9.81 .* r_g .* S_cg_tilde
             
         # propagation
         dz[3] = c_group_x
