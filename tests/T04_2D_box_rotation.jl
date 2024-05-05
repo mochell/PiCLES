@@ -24,7 +24,7 @@ using PiCLES.Architectures
 using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
-using PiCLES.Plotting.movie: init_movie_2D_box_plot
+using PiCLES.Plotting.movie: init_movie_2D_box_plot, init_movie_2D_box_plot_small
 
 # debugging:
 #using ProfileView
@@ -41,8 +41,6 @@ DT                = 20minutes
 
 
 # function to define constants 
-# 
-# 
 # ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 # Const_ID
 
@@ -50,10 +48,11 @@ ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # u(x, y, t) = 0.01 + U10 * sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
 # v(x, y, t) = 0.01 - V10 * cos(t / (6*60*60 * 2π) ) * sin(x / 50e3) * sin(y / 50e3)
-u_std= 2e3 *1
-v_std= 2e3 *1
-u_func(x, y, t) = U10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  cos(t*2 / (1 * 60 * 60 * 2π))
-v_func(x, y, t) = V10  * exp( - (x - 5e3)^2/ u_std^2) * exp( - (y - 5e3)^2/ v_std^2) *  sin(t*2 / (1 * 60 * 60 * 2π) )   
+u_std= 20e3 *1
+v_std= 20e3 *1
+center = 25e3
+u_func(x, y, t) = U10 * exp(-(x - center)^2 / u_std^2) * exp(-(y - center)^2 / v_std^2) * cos(t * 1.2 / (1 * 60 * 60 * 2π))
+v_func(x, y, t) = V10 * exp(-(x - center)^2 / u_std^2) * exp(-(y - center)^2 / v_std^2) * sin(t * 1.2 / (1 * 60 * 60 * 2π))
 
 # u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 3 / (1 * 60 * 60 * 2π)) > 0 , 
 #                     sin(t * 3 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
@@ -76,7 +75,7 @@ v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
 
 
-grid = TwoDGrid(10e3, 31, 10e3, 31)
+grid = TwoDGrid(100e3, 81, 100e3, 81)
 mesh = TwoDGridMesh(grid, skip=1);
 gn = TwoDGridNotes(grid);
 
@@ -133,11 +132,13 @@ initialize_simulation!(wave_simulation)
 
 #reset_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
 
-fig, n = init_movie_2D_box_plot(wave_simulation, name_string= "Rotating Stationary Winds")
+Revise.retry()
+#using PiCLES.Plotting.movie: init_movie_2D_box_plot
+fig, n = init_movie_2D_box_plot_small(wave_simulation, name_string="Rotating Stationary Winds")
 
 #wave_simulation.stop_time += 1hour
-N = 60 *4
-record(fig, save_path*"T02_2D_totating_winds_nonper.gif", 1:N, framerate=10) do i
+N =  60 *8
+record(fig, save_path*"T02_2D_totating_winds_nonper_small.gif", 1:N, framerate=10) do i
     @info "Plotting frame $i of $N..."
     #@time for _ = 1:10
     #run!(wave_simulation, store=false)
