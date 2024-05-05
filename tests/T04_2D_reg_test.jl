@@ -40,10 +40,10 @@ DT = 10minutes
 U10, V10 = 10.0, 10.0
 
 # Define basic ODE parameters
-r_g0              = 0.85
-Const_ID = PW.get_I_D_constant()
-@set Const_ID.γ = 0.88
-Const_Scg = PW.get_Scg_constants(C_alpha=- 1.41, C_varphi=1.81e-5)
+
+
+
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # define grid
 grid = TwoDGrid(10e3, 31, 10e3, 31)
@@ -61,7 +61,7 @@ winds = (u=u, v=v)
 
 
 # define ODE system and parameters
-particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q);
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
@@ -135,7 +135,7 @@ for (U10, V10, per) in gridmesh
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
     ## Define wave model
 
@@ -171,7 +171,7 @@ for (U10, V10, per) in gridmesh
 
     #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
 
-    particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q)
+    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
     ## Define wave model
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,

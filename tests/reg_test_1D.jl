@@ -35,11 +35,11 @@ DT                = Float64(60 * 60) * 12 # seconds
 T                 = 6 * 24 * 60 * 60 # seconds
 
 # version 3
-r_g0              = 0.85
+
 
 # function to define constants 
 Const_ID = PW4.get_I_D_constant()
-#@set Const_ID.γ = 0.88
+#
 Const_Scg = PW4.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
 Const_ID.q * Const_ID.c_alpha^(-10) * Const_ID.c_e^(-2) /2
@@ -52,7 +52,7 @@ winds = (u=u);
 # define variables based on particle equation
 t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = vars =  PW4.init_vars();
 
-particle_equations = PW4.particle_equations(u, γ=0.88, q=Const_ID.q, input=true , dissipation=true, propagation=true, peak_shift=true, info=true)
+particle_equations = PW4.particle_equations(u, γ=Const_ID.γ, q=Const_ID.q, input=true , dissipation=true, propagation=true, peak_shift=true, info=true)
 @named particle_system = ODESystem(particle_equations);
 
 # define V4 parameters absed on Const NamedTuple:
