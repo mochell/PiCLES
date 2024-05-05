@@ -254,12 +254,11 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::StateTypeL1,
         # load data from shared array
         u_state = Get_u_FromShared(PI, S)
 
-        #last_t = ti 
         last_t = PI.ODEIntegrator.t
         # minimal_state[1] is the minmal Energy  
         # minimal_state[2] is the minmal momentum squared  
         if ~PI.boundary & (u_state[1] >= minimal_state[1]) & (speed_square(u_state[2], u_state[3]) >= minimal_state[2]) # all integrior nodes: convert note to particle values and push to ODEIntegrator
-                #@show "get vertex variable"
+
                 #@show "u_state", u_state
                 ui = GetVariablesAtVertex(u_state, PI.position_xy[1], PI.position_xy[2])
                 #@info exp(ui[1]), ui[2], ui[4]/1e3, ui[5]/1e3              

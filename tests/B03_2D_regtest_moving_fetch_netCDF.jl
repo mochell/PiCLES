@@ -3,6 +3,7 @@
 #using Plots
 using Pkg
 Pkg.activate("PiCLES/")
+# Pkg.activate("../")
 
 import Plots as plt
 using Setfield, IfElse
@@ -123,8 +124,8 @@ end
 
 # %%
 # loop over U10 and V10 range
-case_list = ["MF_Case_II"]#, "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
-#case_list = ["MF_Case_I", "MF_Case_II", "MF_Case_III", "MF_Case_IV"]
+# case_list = ["MF_Case_I"]#, "MF_Case_II", "MF_Case_III", "MF_Case_IV" ]
+case_list = ["MF_Case_I", "MF_Case_II", "MF_Case_III", "MF_Case_IV"]
 #case_list = [ "SWAMP_Case_VIII"]
 #for I in CartesianIndices(gridmesh)
 for case in case_list
@@ -158,7 +159,6 @@ for case in case_list
         dt=1e-3, #60*10, 
         dtmin=1e-4, #60*5, 
         force_dtmin=true,
-        callbacks=nothing,
         save_everystep=false)
 
     ## Define wave model
@@ -177,46 +177,12 @@ for case in case_list
 
     # for saving data
     # when saving data
-    # save_path_select = save_path_data
-    # mkpath(save_path_select * case)
-    # make_reg_test_store(wave_model, save_path_select * case)
+    save_path_select = save_path_data
+    mkpath(save_path_select * case)
+    make_reg_test_store(wave_model, save_path_select * case)
 
     # when plotting data
-    save_path_select = save_path
-    make_reg_test_movie(wave_model, save_path * case, N=NN)
+    # save_path_select = save_path
+    # make_reg_test_movie(wave_model, save_path * case, N=NN)
 end
 # %%
-
-
-
-
-
-FetchRelations.MinimalParticle(2, 2, DT)
-wave_model
-
-# %%
-wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
-    winds=winds,
-    ODEsys=particle_system,
-    ODEsets=ODE_settings,  # ODE_settings
-    ODEinit_type="wind_sea",  # default_ODE_parameters
-    periodic_boundary=false,
-    boundary_type="same",
-    minimal_particle=FetchRelations.MinimalParticle(2, 2, DT), #
-    #minimal_state=FetchRelations.MinimalState(2, 2, DT) * 1,
-    movie=true)
-
-model
-
-function max_of_state_str(model::Abstract2DModel)
-    return "E=%.3f cgx=%.3f cgy=%.3f", maximum(model.State[:, :, 1]), maximum(model.State[:, :, 2]), maximum(model.State[:, :, 3])
-end
-
-
-# %%
-astring = "E=%.3f cgx=%.3f cgy=%.3f", maximum([4.453453534, 3]), maximum([4.453453534, 3]), maximum([4.453453534, 3])
-using Printf
-@info "mean energy " , astring  ,  "\n"
-
-@printf("mean energy %.3e %.3e %.4e \n", maximum([4.453453534, 3]), maximum([4.453453534, 3]), maximum([4.453453534, 3]) ) 
-# %
