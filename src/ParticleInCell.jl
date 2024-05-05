@@ -189,20 +189,46 @@ function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=fa
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
 
-    m_grid = grid_point[2]
-    m_charge = charge[2]
-    if (sign(m_grid) == sign(m_charge)) | (m_grid == 0)
-        verbose ? (@info "add, same sign, or grid is zero") : nothing
-        grid_point += charge
-    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid > sign(m_charge) * m_charge)
-        verbose ? (@info "forget charge, State is larger") : nothing
+    ΔE = grid_point[1] - charge[1]
+    # ΔE > 0 means that the grid point has more energy than the charge
+    if norm(grid_point[2:3]) == 0
+        # state vector is empty
+        cosθ = 1
+    else
+        # calculate angle between both
+        cosθ = grid_point[2] * charge[2] + grid_point[3] * grid_point[3] / (norm(grid_point[2:3]) * norm(charge[2:3]))
+    end
 
-    elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid <= sign(m_charge) * m_charge)
-        verbose ? (@info "overwrite, charge is >=") : nothing
+    if (cosθ >= 0.5)
+        verbose ? (@info "within 60 degrees, or grid point is 0: add") : nothing
+        grid_point += charge
+    elseif (cosθ < 0.5) & (ΔE > 0)
+        verbose ? (@info "θ > 60 deg and E_grid > E_charge: forget charge") : nothing
+    elseif (cosθ > 0.5) & (ΔE <= 0)
+        verbose ? (@info "θ > 60 deg and E_grid < E_charge: replace") : nothing
         grid_point = charge
     end
     return grid_point
 end
+
+# function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
+
+#     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
+
+#     m_grid = grid_point[2]
+#     m_charge = charge[2]
+#     if (sign(m_grid) == sign(m_charge)) | (m_grid == 0)
+#         verbose ? (@info "add, same sign, or grid is zero") : nothing
+#         grid_point += charge
+#     elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid > sign(m_charge) * m_charge)
+#         verbose ? (@info "forget charge, State is larger") : nothing
+
+#     elseif (sign(m_grid) != sign(m_charge)) & (sign(m_grid) * m_grid <= sign(m_charge) * m_charge)
+#         verbose ? (@info "overwrite, charge is >=, but sign is different") : nothing
+#         grid_point = charge
+#     end
+#     return grid_point
+# end
 
 function merge!(grid_point::Float64, charge::Float64; verbose=false)
 
