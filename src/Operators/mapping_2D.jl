@@ -36,15 +36,14 @@ S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
 
-function ParticleToNode!(PI::AbstractParticleInstance, particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1}, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
+function ParticleToNode!(PI::AbstractParticleInstance, particlesAtNode::Array{Array{Array{Any,1},1},1}, S::SharedArray, G::TwoDGrid, periodic_boundary::Bool)
 
         #u[4], u[5] are the x and y positions of the particle
         index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
         #ui[1:2] .= PI.position_xy
-        #@show index_positions
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state
-        PIC.push_to_grid!(S, particlesAtNode, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
+        PIC.push_to_grid!(S, particlesAtNode, PI, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
         nothing
 end
 
@@ -99,7 +98,7 @@ end
         advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::TwoDGrid, DT::Float64)
 """
 function advance!(PI::AbstractParticleInstance,
-                        particlesAtNode::Array{Array{Array{Vector{Float64},1},1},1},
+                        particlesAtNode::Array{Array{Array{Any,1},1},1},
                         S::SharedArray,
                         Failed::Vector{AbstractMarkedParticleInstance},
                         G::TwoDGrid,
@@ -247,8 +246,8 @@ function remesh!(i::Int64, j::Int64, model::Abstract2DModel, DT::Float64)
         ti = model.clock.time
         grid = model.grid
         
-        x = grid.xmin + grid.dx*i
-        y = grid.ymin + grid.dy*j
+        x = grid.xmin + grid.dx*(i-1)               # A MODIFIER ??? Peut-etre changer i pour i-1 pour mettre bien à 0, pareil pour j
+        y = grid.ymin + grid.dy*(j-1)
         winds_i::Tuple{Float64,Float64} = winds.u(x, y, ti), winds.v(x, y, ti)
         
         NodeToParticle!(i, j, x, y, model, winds_i, DT)
@@ -270,6 +269,10 @@ function NodeToParticle!(i::Int64, j::Int64, x::Float64, y::Float64, model::Abst
         e_min_log = model.ODEsettings.log_energy_minimum
         current_is_boundary = i==0 || i==model.grid.Nx || j==0 || j==model.grid.Ny
 
+        # definition of a norm 2
+        norm(vec) = sqrt(sum([vec[i]^2 for i in eachindex(vec)]))
+        one_norm(vec) = sum([vec[i] for i in eachindex(vec)])
+
 
         # load data from shared array
         u_state = S[i, j, :]
@@ -279,23 +282,49 @@ function NodeToParticle!(i::Int64, j::Int64, x::Float64, y::Float64, model::Abst
         # minimal_state[1] is the minmal Energy  
         # minimal_state[2] is the minmal momentum squared  
         if ~current_is_boundary & (u_state[1] >= minimal_state[1]) & (speed_square(u_state[2], u_state[3]) >= minimal_state[2]) # all interior nodes: convert note to particle values and push to ODEIntegrator
-                nNewParticles = Int64((u_state[4] ÷ model.angular_spreading_thresh)*2+1)
-                if nNewParticles == 1
-                        nNewParticles = 3
-                end
-                midParticleInd = Int64(nNewParticles ÷ 2 + 1)
-                ui = GetVariablesAtVertex(u_state, x, y)
-                energies = [exp(-(k-midParticleInd)^2/(2*π*midParticleInd)^2) for k in 1:nNewParticles]
-                energies = energies ./ sum(energies) .* exp(ui[1])
+                if model.angular_spreading_type == "geometrical"
+                        nNewParticles = Int64((u_state[4] ÷ model.angular_spreading_thresh)*2+1)
+                        if nNewParticles == 1
+                                nNewParticles = 3
+                        end
+                        midParticleInd = Int64(nNewParticles ÷ 2 + 1)
+                        ui = GetVariablesAtVertex(u_state, x, y)
+                        energies = [exp(-(k-midParticleInd)^2/(2*π*midParticleInd)^2) for k in 1:nNewParticles]
+                        energies = energies ./ sum(energies) .* exp(ui[1])
 
-                for k in 1:nNewParticles
-                        delta_phi = (k-midParticleInd)/midParticleInd*u_state[4]
-                        c_x = ui[2] * cos(delta_phi) - ui[3] * sin(delta_phi)
-                        c_y = ui[2] * sin(delta_phi) + ui[3] * cos(delta_phi)
-                        z_init = ParticleDefaults(log(energies[k]), c_x, c_y, x, y, u_state[4]/nNewParticles)
-                        push!(model.ParticleCollection,InitParticleInstance(model.ODEsystem, z_init, model.ODEsettings, (i,j), false, true))
+                        for k in 1:nNewParticles
+                                delta_phi = (k-midParticleInd)/midParticleInd*u_state[4]
+                                c_x = ui[2] * cos(delta_phi) - ui[3] * sin(delta_phi)
+                                c_y = ui[2] * sin(delta_phi) + ui[3] * cos(delta_phi)
+                                z_init = ParticleDefaults(log(energies[k]), c_x, c_y, x, y, u_state[4]/nNewParticles)
+                                push!(model.ParticleCollection,InitParticleInstance(model.ODEsystem, z_init, model.ODEsettings, (i,j), false, true))
+                        end
+                elseif model.angular_spreading_type == "nonparametric"
+                        nNewParticles = model.n_particles_launch
+                        nPartToDrawFrom = length(model.ParticlesAtNode[i][j])
+                        energiesNormed = [model.ParticlesAtNode[i][j][k][1]*exp(model.ParticlesAtNode[i][j][k][3].ODEIntegrator.u[1]) for k in 1:nPartToDrawFrom]
+                        energiesNormed = energiesNormed / u_state[1]
+                        a = Categorical(energiesNormed)
+                        particlesDrawn = rand(a, nNewParticles)
+                        new_energy_tot = sum([energiesNormed[k] for k in particlesDrawn])
+                        #@info "u_state = ", u_state[1]
+                        #@info "new_energy_tot = ", new_energy_tot
+                        #@info particlesDrawn
+                        energy_factor = u_state[1] / new_energy_tot
+                        #@info "new val = ", sum([energiesNormed[particlesDrawn[k]]*energy_factor for k in 1:nNewParticles])
+                        #@info model.ParticlesAtNode[i][j][particlesDrawn[1]][3].ODEIntegrator.u[4], model.ParticlesAtNode[i][j][particlesDrawn[1]][3].position_xy[1], model.ParticlesAtNode[i][j][particlesDrawn[1]][3].position_xy[1] + model.grid.dx
+                        #@info model.ParticlesAtNode[i][j][particlesDrawn[1]][3].ODEIntegrator.u[5], model.ParticlesAtNode[i][j][particlesDrawn[1]][3].position_xy[2], model.ParticlesAtNode[i][j][particlesDrawn[1]][3].position_xy[2] + model.grid.dy
+                        for k in 1:nNewParticles
+
+                                log_energy = log(energiesNormed[particlesDrawn[k]]*energy_factor)
+                                c_x = model.ParticlesAtNode[i][j][particlesDrawn[k]][3].ODEIntegrator.u[2]
+                                c_y = model.ParticlesAtNode[i][j][particlesDrawn[k]][3].ODEIntegrator.u[3]
+                                spreading = model.ParticlesAtNode[i][j][particlesDrawn[k]][3].ODEIntegrator.u[6]
+
+                                z_init = ParticleDefaults(log_energy, c_x, c_y, x, y, spreading)
+                                push!(model.ParticleCollection,InitParticleInstance(model.ODEsystem, z_init, model.ODEsettings, (i,j), false, true))
+                        end
                 end
-                
         elseif ~PI.boundary & (speed_square(wind_tuple[1], wind_tuple[2]) >= wind_min_squared) #minimal windsea is not big enough but local winds are strong enough  #(u_state[1] < exp(e_min_log)) | PI.boundary
                 # test if particle is below energy threshold, or
                 #      if particle is at the boundary

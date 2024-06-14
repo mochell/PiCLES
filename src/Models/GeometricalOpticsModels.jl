@@ -42,6 +42,8 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
                         stat,
                         Pan,
                         PCollection,
+                        PPool,
+                        PtSrcList,
                         FPC,
                         Ovar,
                         Osys,
@@ -70,6 +72,8 @@ mutable struct GeometricalOptics{Grid<:AbstractGrid,
     State::stat     # state of of the model at each grid point, for each layer it contains, energy, positions, group speed and directional spreading
     ParticlesAtNode::Pan      # list of the particles to regrid at each node
     ParticleCollection::PCollection    # Collection (list) of Particles
+    ParticlePool::PPool                 # Pool of particles (used for non parametric mode)
+    PointSourceList::PtSrcList          # List of all the point sources of waves
     FailedCollection::FPC      # Collection (list) of Particles that failed to integrate
 
     ODEvars::Ovar     # list of variables in ODE system, have type Num from OrdinaryDiffEq and ModelingToolkit
@@ -150,7 +154,7 @@ function GeometricalOptics(; grid::TwoDGrid,
     angular_spreading_type="stochast",  # or "geometrical" or "nonparametric"
     plot_steps=false,
     plot_savepath="",
-    n_particles_launch=5,
+    n_particles_launch=150,
     CBsets=nothing,
     movie=false) where {PP<:Union{ParticleDefaults2D,String}}
 
@@ -164,7 +168,7 @@ function GeometricalOptics(; grid::TwoDGrid,
     end
 
     if layers > 1
-        ParticlesAtNode = Array{Array{Array{Array{Vector{Float64},1},1},1},1}()
+        ParticlesAtNode = Array{Array{Array{Array{Any,1},1},1},1}()
         for i in 1:grid.Nx
             push!(ParticlesAtNode, [])
             for j in 1:grid.Ny
@@ -174,15 +178,18 @@ function GeometricalOptics(; grid::TwoDGrid,
                 end
             end
         end
+        ParticlePool = Array{Array{Any,1},1}()
     else
-        ParticlesAtNode = Array{Array{Array{Vector{Float64},1},1},1}()
+        ParticlesAtNode = Array{Array{Array{Any,1},1},1}()
         for i in 1:grid.Nx
             push!(ParticlesAtNode, [])
             for _ in 1:grid.Ny
                 push!(ParticlesAtNode[i], [])
             end
         end
+        ParticlePool = Array{Any,1}()
     end
+    PointSourceList = []
 
     if ODEinit_type isa ParticleDefaults2D
         ODEdefaults = ODEinit_type
@@ -263,6 +270,8 @@ function GeometricalOptics(; grid::TwoDGrid,
         State,
         ParticlesAtNode,
         ParticleCollection,
+        ParticlePool,
+        PointSourceList,
         FailedCollection, 
         ODEvars,
         ODEsys,

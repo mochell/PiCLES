@@ -53,6 +53,16 @@ end
 Base.copy(s::ParticleDefaults) = ParticleDefaults(s.lne, s.c̄_x, s.c̄_y, s.x, s.y, s.angular_σ)
 initParticleDefaults(s::ParticleDefaults) = [s.lne, s.c̄_x, s.c̄_y, s.x, s.y, s.angular_σ]
 
+mutable struct PointSource
+        "particle to launch"
+        particleLaunch::ParticleDefaults
+        "first launch time"
+        firstTimeLaunched::Float64
+end
+
+Base.copy(s::PointSource) = PointSource(s.particleLaunch, s.lastTimeLaunched)
+PointSource(s::PointSource) = [s.particleLaunch, s.lastTimeLaunched]
+
 """
 
 
@@ -254,7 +264,7 @@ function InitParticleValues(
                         c̄_y = WindSeaMin["cg_bar_y"]
                         angular_σ = π/8
 
-                        particle_on = true
+                        particle_on = false
                 else
                         # defaults are not defined and there is no wind
                         u_min = FetchRelations.MinimalParticle(uv[1], uv[2], DT)

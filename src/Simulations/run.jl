@@ -1,4 +1,4 @@
-using ..Operators.core_2D_spread: ParticleDefaults
+using ..Operators.core_2D_spread: ParticleDefaults, SeedParticle
 
 using ..Operators.core_1D: SeedParticle! as SeedParticle1D!
 using ..Operators.core_2D_spread: SeedParticle! as SeedParticle2D!
@@ -29,10 +29,21 @@ end
 function plot_state_and_error_points(wave_simulation, gn)
         plt.plot()
 
-        p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(wave_simulation.model.State[:, :, 1]))
+        energy = get_tot_energy_domain(wave_simulation)
+        p1 = plt.heatmap(gn.x, gn.y, transpose(wave_simulation.model.State[:, :, 1]), aspect_ratio=:equal, size=(1080, 1080))#,clim=(0,1))
 
+        plt.plot!(legend=:none,
+                title="total energy = "*string(round(energy,digits=3))*"; max = "*string(round(maximum(wave_simulation.model.State[:,:,1]),
+                        digits=3))*"; pos = ("*string(argmax(wave_simulation.model.State[:,:,1])[1])*","*
+                        string(argmax(wave_simulation.model.State[:,:,1])[2])*")",
+                ylabel="y position",
+                xlabel="x position",
+                xlims=(gn.xmin, gn.xmax),
+                ylims=(gn.ymin, gn.ymax)) |> display
+end
 
-        plt.plot!(legend=:none, title="c_g", ylabel="cg m/s", xlabel="position index x") |> display
+function get_tot_energy_domain(wave_simulation)
+        return sum(wave_simulation.model.State[:,:,1])
 end
 
 """
@@ -76,7 +87,7 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
                 end
         end
 
-        grid_note = TwoDGridNotes(sim.model.grid)
+        gridnotes = TwoDGridNotes(sim.model.grid)
 
 
         while sim.running
@@ -121,7 +132,7 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
 
                 if sim.model.plot_steps
                         @info "plot"
-                        plot_state_and_error_points(sim, grid_note)
+                        plot_state_and_error_points(sim, gridnotes)
                         plt.savefig(joinpath([save_path, "energy_plot_no_spread_"*string(Int64(floor((sim.model.clock.time)/60)))*".png"]))
                 else
                         @info "not plot"
@@ -136,6 +147,15 @@ function run!(sim; store=false, pickup=false, cash_store=false, debug=false)
 
 end
 
+function initialize_wave_sources!(sim::Simulation, list::Array{Any,1})
+        if sim.verbose
+                @info "init particle sources..."
+        end
+
+        sim.model.PointSourceList = list
+
+        nothing
+end
 
 """
 initialize_simulation!(sim::Simulation)
@@ -210,7 +230,7 @@ initialize the model.ParticleCollection based on the model.grid and the defaults
 If defaults is nothing, then the model.ODEdev is used.
 usually the initilization uses wind constitions to seed the particles.
 """
-function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::Bool=false) where {PP<:Union{ParticleDefaults,Nothing}}
+function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::Bool=false) where {PP<:Union{ParticleDefaults,Array{Any,1},Nothing}}
         #defaults        = isnothing(defaults) ? model.ODEdev : defaults
         if verbose
                 @info "seed PiCLES ... \n"
@@ -227,7 +247,7 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
         ParticleCollection = []
         SeedParticle_i = SeedParticle_mapper(SeedParticle2D!,
                 ParticleCollection, model.State,
-                model.ODEsystem, defaults, model.ODEsettings,
+                model.ODEsystem, nothing, model.ODEsettings,
                 gridnotes, model.winds, model.ODEsettings.timestep,
                 model.boundary, model.periodic_boundary)
 
@@ -245,6 +265,47 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
         # end
 
         model.ParticleCollection = ParticleCollection
+
+        if defaults isa ParticleDefaults
+                i = Int64(floor((defaults.x - model.grid.xmin) / model.grid.dx)) + 1
+                j = Int64(floor((defaults.y - model.grid.ymin) / model.grid.dy)) + 1
+                gridnotes = TwoDGridNotes(model.grid)
+                if model.angular_spreading_type == "nonparametric"
+                        # if "nonparametric" is used, initialize a bigger number of particles at the original perturbation
+                        n_part = model.n_particles_launch
+                        for _ in 1:n_part
+                                defaults_temp = deepcopy(defaults)
+                                delta_phi = rand() * defaults_temp.angular_σ - 0.5*defaults_temp.angular_σ
+                                c_x = defaults_temp.c̄_x * cos(delta_phi) - defaults_temp.c̄_y * sin(delta_phi)
+                                c_y = defaults_temp.c̄_x * sin(delta_phi) + defaults_temp.c̄_y * cos(delta_phi)
+                                defaults_temp.lne += -log(n_part)
+                                defaults_temp.c̄_x = c_x
+                                defaults_temp.c̄_y = c_y
+                                push!(ParticleCollection, SeedParticle(model.State,
+                                                (i,j), model.ODEsystem, defaults_temp,
+                                                model.ODEsettings,gridnotes, model.winds,
+                                                model.ODEsettings.timestep, model.boundary,
+                                                model.periodic_boundary))
+                        end
+                else
+                        push!(ParticleCollection, SeedParticle(model.State,
+                                                (i,j), model.ODEsystem, defaults,
+                                                model.ODEsettings,gridnotes, model.winds,
+                                                model.ODEsettings.timestep, model.boundary,
+                                                model.periodic_boundary))
+                end
+        elseif defaults isa Array{Any,1}
+                for k in 1:length(defaults)
+                        i = Int64(floor((defaults[k].x - model.grid.xmin) / model.grid.dx)) + 1
+                        j = Int64(floor((defaults[k].y - model.grid.ymin) / model.grid.dy)) + 1
+                        gridnotes = OneDGridNotes(model.grid)
+                        push!(ParticleCollection, SeedParticle(model.State,
+                                                (i,j), model.ODEsystem, defaults[k],
+                                                model.ODEsettings,gridnotes, model.winds,
+                                                model.ODEsettings.timestep, model.boundary,
+                                                model.periodic_boundary))
+                end
+        end
         nothing
 end
 

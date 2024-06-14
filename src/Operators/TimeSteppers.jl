@@ -10,6 +10,9 @@ using Statistics
 using Base.Threads
 using Printf
 
+using Random, Distributions
+using ..core_2D_spread: ParticleDefaults, InitParticleInstance
+
 using Oceananigans.TimeSteppers: tick!
 
 function mean_of_state(model::Abstract2DModel)
@@ -105,6 +108,12 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         model.FailedCollection = FailedCollection
     end 
 
+    for (i,j) in [(i,j) for i in 1:model.grid.Nx for j in 1:model.grid.Ny]
+        for k in 1:length(model.ParticlesAtNode[i][j])
+            pop!(model.ParticlesAtNode[i][j])
+        end
+    end
+
     @threads for a_particle in model.ParticleCollection
         #@info a_particle.position_ij
         mapping_2D.advance!(    a_particle, model.ParticlesAtNode, model.State, FailedCollection,
@@ -120,10 +129,6 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         values = [model.ParticlesAtNode[i][j][k][2] for k in 1:length(model.ParticlesAtNode[i][j])]
         if length(weights) > 0
             model.State[i,j,4] = sum(weights .* values) / sum(weights)
-        
-            for k in 1:length(model.ParticlesAtNode[i][j])
-                pop!(model.ParticlesAtNode[i][j])
-            end
         end
     end    
 
@@ -172,9 +177,117 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         @threads for (i,j) in particlesToBeReset
             mapping_2D.remesh!(i, j, model, Δt)
         end
-        @info particlesToBeReset
-    elseif model.angular_spreading_type == "nonparametric"
         
+    elseif model.angular_spreading_type == "nonparametric"
+
+        # This next part needs to change
+        
+        """
+        i=1
+        particlesToBeReset = []
+        particlesToBeResetIndex = []
+        
+        for _ in 1:length(model.ParticleCollection)
+            pos_ij = model.ParticleCollection[i].position_ij
+            big_enough = model.State[pos_ij[1], pos_ij[2],2]^2+model.State[pos_ij[1], pos_ij[2],3]^2>model.minimal_state[2]
+            if model.ParticleCollection[i].boundary || ~big_enough
+                i=i+1
+            else
+                if !(model.ParticleCollection[i].position_ij in particlesToBeResetIndex)
+                    push!(particlesToBeResetIndex, model.ParticleCollection[i].position_ij)
+                end
+                deleteat!(model.ParticleCollection, i)
+            end
+        end
+        """
+        
+        """
+        @threads for a_particle in model.ParticleCollection
+            mapping_2D.remesh!(a_particle, model.State, 
+                            model.winds, model.clock.time, 
+                            model.ODEsettings, Δt,
+                            model.minimal_particle, 
+                            model.minimal_state,
+                            model.ODEdefaults)
+        end
+        """
+        
+        nPreviousParticles = 0
+        model.ParticlePool = []
+        
+        for (i,j) in [(i,j) for i in 1:model.grid.Nx for j in 1:model.grid.Ny]
+            locallen = length(model.ParticlesAtNode[i][j])
+            nPreviousParticles += locallen
+            for k in 1:locallen
+                push!(model.ParticlePool, [deepcopy(model.ParticlesAtNode[i][j][k][3]), i, j, exp(model.ParticlesAtNode[i][j][k][3].ODEIntegrator.u[1])*model.ParticlesAtNode[i][j][k][1]])
+            end
+        end
+
+        ParticuleEnergiesNorm = sum([model.ParticlePool[k][4] for k in 1:length(model.ParticlePool)])
+        for k in 1:length(model.ParticlePool)
+            model.ParticlePool[k][4] = model.ParticlePool[k][4] / ParticuleEnergiesNorm
+        end
+
+        energiesNormed = [model.ParticlePool[k][4] for k in 1:length(model.ParticlePool)]
+        a = Categorical(energiesNormed)
+        nNewParticles = model.n_particles_launch
+        particlesDrawn = rand(a, nNewParticles)
+        #new_energy_tot = sum([energiesNormed[k] for k in particlesDrawn])
+        #energy_factor = totEnergyDomain[1] / new_energy_tot
+        
+        i = 1
+        j = 0
+        counter = 0
+        for _ in 1:length(model.ParticleCollection)
+            if model.ParticleCollection[i].on
+                if counter >= nNewParticles
+                    deleteat!(model.ParticleCollection, i)
+                    j=j+1
+                else
+                    i=i+1
+                end
+                counter +=1
+            else
+                i=i+1
+            end
+        end
+        #@info "removed particles :", j
+        #@info "new energy :", ParticuleEnergiesNorm
+        
+        #@info "particlesDrawn", model.ParticlePool[particlesDrawn[k]][1].ODEIntegrator.u[2]
+
+        for k in 1:nNewParticles
+            i = model.ParticlePool[particlesDrawn[k]][2]
+            j = model.ParticlePool[particlesDrawn[k]][3]
+            x = model.grid.xmin + model.grid.dx*(i-1)
+            y = model.grid.ymin + model.grid.dy*(j-1)
+            #log_energy = log(totEnergyDomain[1]/nPreviousParticles)
+            log_energy = log(ParticuleEnergiesNorm/nNewParticles)
+            c_x = model.ParticlePool[particlesDrawn[k]][1].ODEIntegrator.u[2]
+            c_y = model.ParticlePool[particlesDrawn[k]][1].ODEIntegrator.u[3]
+            spreading = model.ParticlePool[particlesDrawn[k]][1].ODEIntegrator.u[6]
+
+            #z_init = ParticleDefaults(log_energy, c_x, c_y, x, y, spreading)
+            model.ParticleCollection[end-k+1].position_ij = (i,j)
+            model.ParticleCollection[end-k+1].position_xy = (x,y)
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[1] = log_energy
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[2] = c_x
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[3] = c_y
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[4] = x
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[5] = y
+            model.ParticleCollection[end-k+1].ODEIntegrator.u[6] = spreading
+            #push!(model.ParticleCollection,InitParticleInstance(model.ODEsystem, z_init, model.ODEsettings, (i,j), false, true))
+        end
+
+        #@info nPreviousParticles
+        #@info length(model.ParticleCollection)
+
+        """
+        @threads for k in eachindex(particlesToBeResetIndex)
+            i, j = particlesToBeResetIndex[k]
+            mapping_2D.remesh!(i, j, model, Δt)
+        end
+        """
     end
 
     if debug

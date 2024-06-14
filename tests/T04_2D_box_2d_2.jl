@@ -11,7 +11,7 @@ using Setfield, IfElse
 using PiCLES.ParticleSystems: particle_waves_v6 as PW
 
 import PiCLES: FetchRelations, ParticleTools
-using PiCLES.Operators.core_2D_spread: ParticleDefaults, InitParticleInstance, GetGroupVelocity
+using PiCLES.Operators.core_2D_spread: ParticleDefaults, InitParticleInstance, GetGroupVelocity, PointSource
 using PiCLES.Operators: TimeSteppers
 using PiCLES.Simulations
 using PiCLES.Operators.TimeSteppers: time_step!, movie_time_step!
@@ -102,12 +102,13 @@ Revise.retry()
 
 #ProfileView.@profview 
 #ProfileView.@profview 
-particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true, dissipation=true);
+particle_system = PW.particle_equations(u, v, γ=0.88, q=Const_ID.q, input=true, dissipation=false, peak_shift=false);
 #particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=0.88, q=Const_ID.q);
 
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = (r_g = r_g0, C_α = Const_Scg.C_alpha, 
                                     C_φ = Const_ID.c_β, C_e = Const_ID.C_e, g= 9.81 );
+plt.scalefontsizes(1.75)
 
 # define setting and standard initial conditions
 WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT );
@@ -134,7 +135,7 @@ ODE_settings    = PW.ODESettings(
     save_everystep=false)
 
 
-default_particle = ParticleDefaults(1, 1, 1, 1000.0, 1000.0, π/4)
+default_particle = ParticleDefaults(1, 0, 2.12, 5000.0, 500.0, π/4)
 
 # Define grid
 #grid = TwoDGrid(150e3, 50, 150e3, 50)
@@ -159,20 +160,25 @@ wave_model = GeometricalOpticsModels.GeometricalOptics(; grid=grid,
     ODEsets=ODE_settings,  # ODE_settings
     #ODEinit_type="wind_sea",   # default_ODE_parameters
     #ODEinit_type="mininmal",
-    ODEinit_type=default_particle,
+    #ODEinit_type=default_particle,
     periodic_boundary=false,
     boundary_type="same",
     #minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
     movie=true,
     plot_steps=true,
-    plot_savepath="plots/tests/T04_box_2d_2/geometrical",
-    angular_spreading_type="geometrical"
+    plot_savepath="plots/tests/T04_box_2d_2/nonparametric",
+    angular_spreading_type="nonparametric"
+    ,n_particles_launch=20
     )
 
+PS1 = PointSource(default_particle,0.0)
+SourcesList = Array{Any,1}()
+push!(SourcesList, PS1)
 
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
-wave_simulation = Simulation(wave_model, Δt=2minutes, stop_time=30minutes)#1hours)
+wave_simulation = Simulation(wave_model, Δt=2minutes, stop_time=60minutes)#1hours)
+initialize_wave_sources!(wave_simulation, SourcesList)
 initialize_simulation!(wave_simulation)
 
 
@@ -181,7 +187,7 @@ initialize_simulation!(wave_simulation)
 
 @time run!(wave_simulation, cash_store=true, debug=false)
 #reset_simulation!(wave_simulation)
-# run simulation
+# run simulation2
 #ProfileView.@profview run!(wave_simulation, cash_store=true, debug=true)
 
 
@@ -216,7 +222,7 @@ end
 
 plot_state_and_error_points(wave_simulation, DD_stats)
 # %%
-plt.savefig(joinpath([save_path, "energy_plot_no_spread.png"]))
+#plt.savefig(joinpath([save_path, "energy_plot_no_spread.png"]))
 
 ## testing single ODES
 PF = wave_simulation.model.FailedCollection[end]
