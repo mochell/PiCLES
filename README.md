@@ -64,6 +64,7 @@ A minimal working example is the following (XX.jl):
     using PiCLES.Simulations
     using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
     ```
+    ```julia
     using PiCLES.ParticleSystems: particle_waves_v5 as PW
     using Oceananigans.Units
 
