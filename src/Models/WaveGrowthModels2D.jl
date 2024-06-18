@@ -7,7 +7,6 @@ using ...Architectures
 
 using ModelingToolkit: get_states, ODESystem
 
-#using core_1D: MarkedParticleInstance
 using ...ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
@@ -142,9 +141,9 @@ function WaveGrowth2D(; grid::TwoDGrid,
     # Number of state variables 
     Nstate = 3
     if layers > 1
-        State = SharedArray{Float64,4}(grid.Nx, grid.Ny, Nstate, layers)
+        State = SharedArray{Float64,4}(grid.Nx, grid.Ny, layers, Nstate)
     else
-        State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate) # StateTypeL1
+        State = SharedArray{Float64,3}(grid.Nx, grid.Ny, Nstate)
         #State = @MArray zeros(grid.Nx, grid.Ny, Nstate)
     end
 

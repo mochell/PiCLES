@@ -9,10 +9,10 @@ using StaticArrays
 #include("custom_structures.jl")
 #using .custom_structures
 
-using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1
+using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1, StateTypeLN
 
 #include("custom_structures.jl")
-using ..custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
+using ..custom_structures: ParticleInstance1D, ParticleInstance, MarkedParticleInstance
 
 #include("../Utils/FetchRelations.jl")
 using ..FetchRelations
@@ -39,3 +39,4 @@ using .mapping_2D
 using .TimeSteppers
 
 end
+

@@ -7,7 +7,6 @@ using ...Architectures
 using ModelingToolkit: get_states, ODESystem
 
 
-#using core_1D: MarkedParticleInstance
 using ...ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 using ...Operators.core_1D: ParticleDefaults as ParticleDefaults1D
