@@ -80,7 +80,7 @@ end
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
-WindSeamin = FetchRelations.get_minimal_windsea(2, 2, DT)
+WindSeamin = FetchRelations.MinimalWindsea(2, 2, DT)
 
 function make_reg_test_store(wave_model, save_path_name)
 

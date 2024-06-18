@@ -70,7 +70,7 @@ default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT)
+WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
 
 # ... and ODESettings

@@ -78,8 +78,8 @@ default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
 
 
 # define setting and standard initial conditions
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT;)
-#WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
+WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT;)
+#WindSeamin = FetchRelations.MinimalWindsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
 #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
 lne_local = log(WindSeamin["E"])
 cg_u_local = WindSeamin["cg_bar_x"]

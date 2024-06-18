@@ -184,9 +184,9 @@ function WaveGrowth2D(; grid::TwoDGrid,
         @info "use wind_sea boundary"
     elseif boundary_type == "mininmal"
         @info "use 'mininmal' boundary (1min with 2m/s)"
-        #FetchRelations.get_minimal_windsea(u(0, 0), ODEsets.DT)
-        WindSeamin = FetchRelations.get_minimal_windsea(1, 1, 5*60) # 5 min with 2 m/s
-        #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
+        #FetchRelations.MinimalWindsea(u(0, 0), ODEsets.DT)
+        WindSeamin = FetchRelations.MinimalWindsea(1, 1, 5*60) # 5 min with 2 m/s
+        #WindSeamin = FetchRelations.MinimalWindsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
         #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
         lne_local = log(WindSeamin["E"])
         cg_u_local = WindSeamin["cg_bar_x"]

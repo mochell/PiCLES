@@ -1,14 +1,11 @@
 #ENV["JULIA_INCREMENTAL_COMPILE"] = true
 
 using Pkg
-Pkg.activate("PiCLES/")
+#Pkg.activate("../PiCLES/")
 
-using Pkg
+# using Pkg
 Pkg.activate(".")
 
-#using ModelingToolkit, DifferentialEquations
-#using ModelingToolkit#: @register_symbolic
-#using Plots
 import Plots as plt
 using Setfield, IfElse
 
@@ -36,11 +33,17 @@ using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 using Revise
 
+Revise.retry()
+using PiCLES: ParticleInstance, ParticleInstance2D, ParticleInstance2DLayer
+
+
+
+
 # debugging:
 #using ProfileView
 
 # %%
-save_path = "plots/tests/T04_box_2_BC/"
+save_path = "plots/tests/T06_layers/"
 mkpath(save_path)
 
 # % Parameters
@@ -48,68 +51,28 @@ U10, V10 = 10.0, 10.0
 dt_ODE_save = 30minutes
 DT = 30minutes
 # version 3
-r_g0 = 0.85
 
-# function to define constants 
-
-
-Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 
 u_func(x, y, t) = U10 #* sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
 v_func(x, y, t) = V10 #* cos(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
-# u_std = 2e3 * 1
-# v_std = 2e3 * 1
-# u_func(x, y, t) = U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2) * sin(t * 2 / (1 * 60 * 60 * 2π))
-# v_func(x, y, t) = V10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2) * cos(t * 2 / (1 * 60 * 60 * 2π))
-
-# u_func(x, y, t) = 0.1 + IfElse.ifelse.( sin(t * 6 / (1 * 60 * 60 * 2π)) > 0 , 
-#                 sin(t * 6 / (1 * 60 * 60 * 2π)) *U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2),
-#                                         0.1) 
-# v_func(x, y, t) = 0.1 + IfElse.ifelse.(sin(t * 3 / (1 * 60 * 60 * 2π)) > 0,
-#                             0.0,
-#                             -0.0)
-
-# u_func(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, 0.2) + y * 0 + t * 0
-# v_func(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, 0.2) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
-
-# this shuold hopefully work
-# u(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 5.0
-# v(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 10.0
 
 u(x, y, t) = u_func(x, y, t)
 v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
 
-typeof(winds.u)
-typeof(winds.u(1e3, 1e3, 11))
-#typeof(u_func(1e3, 1e3, 11))
-#typeof(winds.u(x,y,t))
-
-# u2 = winds.u(x, y, t)
-# typeof(u2)
-# typeof(winds.u(x, y, t))
-# %%
 
 grid = TwoDGrid(100e3, 51, 100e3, 51)
 mesh = TwoDGridMesh(grid, skip=1);
 gn = TwoDGridNotes(grid);
 
-#heatmap( v.(mesh.x, mesh.y, 0) )
-
-
 Revise.retry()
 
-# define variables based on particle equation
 
 #ProfileView.@profview 
 #ProfileView.@profview 
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q, input=true, dissipation=true);
-#particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=Const_ID.γ, q=Const_ID.q);
-
-# define V4 parameters absed on Const NamedTuple:
-default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
-    C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81);
 
 # define setting and standard initial conditions
 WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT);
@@ -120,7 +83,7 @@ cg_u_local = WindSeamin["cg_bar_x"]
 cg_v_local = WindSeamin["cg_bar_y"]
 
 ODE_settings = PW.ODESettings(
-    Parameters=default_ODE_parameters,
+    Parameters=ODEpars,
     # define mininum energy threshold
     log_energy_minimum=lne_local,#log(FetchRelations.Eⱼ(0.1, DT)),
     #maximum energy threshold
@@ -136,19 +99,17 @@ ODE_settings = PW.ODESettings(
     save_everystep=false)
 
 
-default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
-
-
 # plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(u.(mesh.x, mesh.y, 0)))
-
 # plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(v.(mesh.x, mesh.y, 0)))
 # %% build model
-Revise.retry()
 
+
+Revise.retry()
 
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
+    layers=10,
     ODEsets=ODE_settings,  # ODE_settings
     ODEinit_type="wind_sea",  # default_ODE_parameters
     periodic_boundary=false,
@@ -157,8 +118,31 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     movie=true)
 
 
+size(wave_model.State)
+typeof(wave_model.State) 
+
+
+
+#particle_system
+defaults = ParticleDefaults(0.1, 0.1, 0.1, 0.1, 0.1)
+
+P1 =InitParticleInstance(particle_system, defaults, ODE_settings, (1, 2), true, true)
+
+
+# 1D
+ParticleInstance(1, 2.1, P1.ODEIntegrator, true, true)
+# 3d
+ParticleInstance2D((1, 2), (2.1, 3.1), P1.ODEIntegrator, true, true)
+ParticleInstance((1, 2), (2.1, 3.1), P1.ODEIntegrator, true, true)
+# 2d
+ParticleInstance2DLayer((1, 2, 1), (2.1, 3.1), P1.ODEIntegrator, true, true)
+ParticleInstance((1, 2, 3), (2.1, 3.1), P1.ODEIntegrator, true, true)
+
+
 ### build Simulation
 #wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)#1hours)
+
+
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=6hour)#1hours)
 initialize_simulation!(wave_simulation)
 

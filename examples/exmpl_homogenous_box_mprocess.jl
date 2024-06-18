@@ -80,8 +80,8 @@ Revise.retry()
         C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81);
 
     # define setting and standard initial conditions
-    WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT);
-    #WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
+    WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT);
+    #WindSeamin = FetchRelations.MinimalWindsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
     #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
     lne_local = log(WindSeamin["E"])
     cg_u_local = WindSeamin["cg_bar_x"]

@@ -152,7 +152,7 @@ function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys,
         @info "use wind_sea boundary"
     elseif boundary_type == "mininmal"
         @info "use zero boundary"
-        #FetchRelations.get_minimal_windsea(u(0, 0), ODEsets.DT)
+        #FetchRelations.MinimalWindsea(u(0, 0), ODEsets.DT)
         boundary_defaults = copy(ParticleDefaults2D(-11.0, 1e-3, 0.0))
     elseif boundary_type == "same"
         @info "use same default value boundary"

@@ -11,7 +11,7 @@ using ...ParticleInCell
 #include("../Utils/FetchRelations.jl")
 import ...FetchRelations
 
-using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
+using ...custom_structures: ParticleInstance1D, MarkedParticleInstance
 
 using ..core_1D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 

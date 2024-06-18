@@ -59,7 +59,7 @@ cb = ContinuousCallback(condition, affect!)
 
 # define initial conditions
 WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
-#WindSeamin = FetchRelations.get_minimal_windsea( u(0, 0), 5minutes)
+#WindSeamin = FetchRelations.MinimalWindsea( u(0, 0), 5minutes)
 
 Revise.retry()
 
