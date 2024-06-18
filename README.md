@@ -55,7 +55,7 @@ PiCLES follows the modular model structure from Oceananigans.jl (https://clima.g
 
 A minimal working example is the following (XX.jl):
 
-    ```
+    ```julia
     using Pkg
     # this will be replace by the module load in the future
     Pkg.activate("PiCLES/")  # Activate the PiCLES package 
