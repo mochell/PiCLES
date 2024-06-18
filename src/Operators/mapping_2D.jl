@@ -10,7 +10,7 @@ import ...ParticleInCell as PIC
 
 using ...FetchRelations
 
-using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
+using ...custom_structures: AbstractParticleInstance, MarkedParticleInstance
 
 using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
@@ -209,11 +209,11 @@ function advance!(PI::AbstractParticleInstance,
 end
 
 """
-        remesh!(PI::ParticleInstance2D, S::SharedMatrix{Float64, 3})
+        remesh!(PI::AbstractParticleInstance, S::SharedMatrix{Float64, 3})
         Wrapper function that does everything necessary to remesh the particles.
         - pushes the Node State to particle instance
 """
-function remesh!(PI::ParticleInstance2D, S::StateTypeL1,
+function remesh!(PI::AbstractParticleInstance, S::StateTypeL1,
                 winds::NamedTuple{(:u, :v)}, 
                 ti::Number, 
                 ODEs::AbstractODESettings, DT::Float64,  #

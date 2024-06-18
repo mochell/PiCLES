@@ -1,6 +1,6 @@
 module ParticleInCell
 
-using ..Architectures: StateTypeL1
+using ..Architectures: StateTypeL1, StateTypeLN
 using Statistics
 
 using SharedArrays

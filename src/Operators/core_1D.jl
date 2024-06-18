@@ -13,12 +13,12 @@ export InitParticleValues, ResetParticleValues
 
 using ..FetchRelations
 
-using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1
+using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1, StateTypeLN
 
 # using ..particle_waves_v3: init_vars_1D
 # t, x, c̄_x, lne, r_g, C_α, g, C_e = init_vars_1D()
 
-using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedParticleInstance
+using ...custom_structures: ParticleInstance1D, MarkedParticleInstance
 
 export InitParticleInstance, init_z0_to_State!
 include("initialize.jl")

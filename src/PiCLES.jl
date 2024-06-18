@@ -35,6 +35,7 @@ include("Architectures.jl")
 using .Architectures
 
 include("custom_structures.jl")
+using .custom_structures
 
 include("ParticleSystems/ParticleSystems.jl")
 using .ParticleSystems
