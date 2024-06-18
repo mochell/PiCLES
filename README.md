@@ -77,7 +77,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    import Plots as plt
    
    # Parameters
-   U10, V10 = 10.0, 10.0
+   U10, V10 = 10.0, 10.0 # m/s 
    DT = 10minutes
    r_g0 = 0.85 # ratio of c / c_g (phase velocity/ group velocity).
    
@@ -87,7 +87,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    winds = (u=u, v=v)
    
    # Define grid
-   grid = TwoDGrid(100e3, 51, 100e3, 51)
+   grid = TwoDGrid(100e3, 51, 100e3, 51) # rectangular grid, 51 grid points, 100e3 meters 
    gn = TwoDGridNotes(grid)
    
    # Define ODE parameters
@@ -124,7 +124,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
      movie=true)
    
    # Build simulation
-   wave_simulation = Simulation(wave_model, Δt=DT, stop_time=2hour)#1hours)
+   wave_simulation = Simulation(wave_model, Δt=DT, stop_time=2hour)
    
    # Run simulation
    run!(wave_simulation, cash_store=true)
