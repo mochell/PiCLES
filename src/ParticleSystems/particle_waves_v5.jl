@@ -181,7 +181,7 @@ ODEParameters(; r_g=0.85,  q= -0.25)
     wrapper function to define constants and parameters for the ODE system
 
 """
-function ODEParameters(; r_g=0.85, q=-0.25)
+function ODEParameters(; r_g=0.85, q=-0.25, g=9.81)
     Const_ID = IDConstants(;r_g=r_g, q = q)
     Const_Scg = ScgConstants()
 
@@ -189,7 +189,8 @@ function ODEParameters(; r_g=0.85, q=-0.25)
         r_g=r_g,
         C_α=Const_Scg.C_alpha,
         C_φ=Const_Scg.C_varphi,
-        C_e=Const_ID.C_e)
+        C_e=Const_ID.C_e,
+        g=g)
 
     return parset, Const_ID, Const_Scg
 end

@@ -67,7 +67,7 @@ cb = ContinuousCallback(condition, affect!)
 
 
 WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 10minutes)
-#WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), 20minutes)
+#WindSeamin = FetchRelations.MinimalWindsea(u(0, 0, 0), 20minutes)
 
 
 ODE_settings =  PW.ODESettings(

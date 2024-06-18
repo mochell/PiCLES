@@ -72,7 +72,7 @@ t, x, c̄_x, lne, r_g, C_α, g, C_e = PW.init_vars_1D()
 # %% define storing stucture and populate inital conditions
 default_ODE_parameters = Dict(r_g => r_g0, C_α => Const_Scg.C_alpha, C_e => Const_ID.C_e)
 
-WindSeaMin = FetchRelations.get_minimal_windsea(U10, DT)
+WindSeaMin = FetchRelations.MinimalWindsea(U10, DT)
 
 ODE_settings = PW.ODESettings(
         Parameters=default_ODE_parameters,

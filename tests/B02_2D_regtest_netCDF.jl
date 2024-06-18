@@ -83,7 +83,7 @@ end
 
 Revise.retry()
 # Default initial conditions based on timestep and chaeracteristic wind velocity
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT)
+WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
 
 function make_reg_test_store(wave_model, save_path_name)

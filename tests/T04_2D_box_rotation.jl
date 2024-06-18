@@ -89,8 +89,8 @@ particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q, inpu
 
 
 # define setting and standard initial conditions
-WindSeamin = FetchRelations.get_minimal_windsea(U10, V10, DT )
-#WindSeamin = FetchRelations.get_minimal_windsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
+WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT )
+#WindSeamin = FetchRelations.MinimalWindsea(u(0, 0, 0), v(0, 0, 0), DT / 2)
 #WindSeamin = FetchRelations.get_initial_windsea(u(0, 0, 0), v(0, 0, 0), DT/5)
 lne_local = log(WindSeamin["E"])
 default_particle = ParticleDefaults(lne_local, WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
