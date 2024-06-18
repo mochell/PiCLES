@@ -55,7 +55,7 @@ To run the `T04_2D_reg_test.jl` file from the command line, follow these steps:
 5. The test will run and display the results in the terminal.
 
 ## Basic model structure
-PiCLES follows the modular model structure from Oceananigans.jl (https://clima.github.io/OceananigansDocumentation/stable/), but it does not share objects with it. Functionality from Oceananigans does currently not work in PiCLES.
+PiCLES follows the modular model structure from [Oceananigans.jl](https://clima.github.io/OceananigansDocumentation/stable/), but it does not share objects with it. Functionality from Oceananigans does currently not work in PiCLES.
 
 A minimal working example is the following (XX.jl):
    
