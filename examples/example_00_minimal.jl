@@ -43,8 +43,7 @@ default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], W
 # Define ODE settings
 ODE_settings = PW.ODESettings(
     Parameters=ODEpars,
-    # define mininum energy threshold
-    log_energy_minimum=WindSeamin["lne"],
+    log_energy_minimum=WindSeamin["lne"],  # define mininum energy threshold
     saving_step=DT,
     timestep=DT,
     total_time=T = 6days,
