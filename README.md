@@ -66,17 +66,20 @@ A minimal working example is the following (XX.jl):
     using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
     using PiCLES.ParticleSystems: particle_waves_v5 as PW
     using Oceananigans.Units
+
     # just for simple plotting
     import Plots as plt
+
     # Parameters
     U10, V10 = 10.0, 10.0
     DT = 10minutes
     r_g0 = 0.85 # ratio of c / c_g (phase velocity/ group velocity).
+
     # Define wind functions
     u(x, y, t) = U10
     v(x, y, t) = V10
     winds = (u=u, v=v)
-
+    
     # Define grid
     grid = TwoDGrid(100e3, 51, 100e3, 51)
     gn = TwoDGridNotes(grid)
