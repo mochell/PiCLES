@@ -39,7 +39,7 @@ end
 ### multi-layer version
 
 """ sets node state values to S at tuple position ij to zi """
-function init_z0_to_State!(S::StateTypeL1, ij::Tuple{Int64,Int64,Int64}, zi::TT) where {TT<:Union{Vector{Float64},SVector{3,Float64}}}
+function init_z0_to_State!(S::StateTypeLN, ij::Tuple{Int64,Int64,Int64}, zi::TT) where {TT<:Union{Vector{Float64},SVector{3,Float64}}}
         S[ij[1], ij[2], ij[3], :] = zi
         nothing
 end

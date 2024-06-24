@@ -37,8 +37,8 @@ function get_i_and_w(zp_normed::Float64)
     # end
     ip_floor = Int(ip_base+ 1)
 
-    dxp_ceil = zp_normed - ip_base   # floor weight
-    dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # ceil weight
+    dxp_ceil = zp_normed - ip_base   # ceil weight
+    dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # floor weight
     return SVector{2, Int64}(ip_floor , ip_floor+1) , SVector{2, Float64}(dxp_floor, dxp_ceil)
 end
 
@@ -185,6 +185,12 @@ end
 
 #### merging rules: ####
 
+"""
+merge!(grid_point::Vector{Float64}, charge::Vector{Float64})
+merging operator for Charge vector
+
+
+"""
 function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -230,6 +236,11 @@ end
 #     return grid_point
 # end
 
+"""
+merge!(grid_point::Float64, charge::Float64)
+merging operator for single charge operations
+
+"""
 function merge!(grid_point::Float64, charge::Float64; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -294,13 +305,27 @@ function push_to_grid!(grid::StateTypeL1,
 end
 
 
-## MVector and SharedVector version
-function push_to_grid!(grid::AA,
+"""
+push_to_grid!(grid::StateTypeL1,
     charge::MVector{3,TzF},
     index_pos::SVector{2, Int64},
     weights::SVector{2,Float16},
     Nx::Tx, Ny::Ty,
-    periodic::Bool=true) where {AA<:StateTypeL1,Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+    periodic::Bool=true) where {Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+    
+    
+    For single layer 2D grid 
+    StateTypeL1 is either MVector and SharedVector
+    for A single charge
+    periodic or non-periodic boundary conditions
+
+"""
+function push_to_grid!(grid::StateTypeL1,
+    charge::MVector{3,TzF},
+    index_pos::SVector{2, Int64},
+    weights::SVector{2,Float16},
+    Nx::Tx, Ny::Ty,
+    periodic::Bool=true) where {Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
     
     if periodic
     
@@ -319,9 +344,50 @@ function push_to_grid!(grid::AA,
 
 end
 
-function set_to_grid!(S, charge, index_pos, weights)
-    S[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+
+"""
+push_to_grid!(grid::StateTypeLN,
+    charge::MVector{3,TzF},
+    index_pos::SVector{2, Int64},
+    weights::SVector{2,Float16},
+    Nx::Tx, Ny::Ty,
+    periodic::Bool=true) where {Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+    
+    For single layer 2D grid 
+    StateTypeLN is A 4D SharedArray
+    for A single charge
+    periodic or non-periodic boundary conditions
+
+"""
+function push_to_grid!(grid::StateTypeLN,
+    charge::MVector{3,TzF},
+    index_pos::SVector{3,Int64},
+    weights::SVector{2,Float16},
+    Nx::Tx, Ny::Ty,
+    periodic::Bool=true) where {Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+
+    if periodic
+
+        grid[wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny), index_pos[3], :] += weights[1] * weights[2] * charge
+        #set_to_grid!(grid, charge, [wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny)], weights)
+
+    else
+
+        if sum(test_domain(index_pos, Nx, Ny)) != 2
+            return
+        else
+            grid[index_pos[1], index_pos[2],index_pos[3], :] += weights[1] * weights[2] * charge
+            #set_to_grid!(grid, charge, index_pos, weights)
+        end
+    end
+
 end
+
+
+
+# function set_to_grid!(S, charge, index_pos, weights)
+#     S[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+# end
 
 
 
@@ -336,8 +402,20 @@ end
 
 #push_to_grid!(charges_grid,1.0 , index_positions[1][1], weights[1][1], grid2d.Nx , grid2d.Ny )
 
-
+# Wrapper:
 # wrapping over vectors of charges, index positions and weights
+"""
+function push_to_grid!(grid::StateType,
+    charge::Vector{Float64},
+    index_pos::Vector{Tuple{Int, Int}},
+    weights::Vector{Tuple{Float64, Float64}},
+    Nx::Int, Ny::Int,
+    periodic::Bool=true)
+
+    Wrapper over 2D grid and vector of charges, index positions and weights
+    (Old version, slower)
+
+"""
 function push_to_grid!(grid::StateTypeL1,
                             charge::Vector{Float64},
                             index_pos::Vector{Tuple{Int, Int}},
@@ -372,9 +450,17 @@ end
 
 
 """
-wrapper over FieldVector weight&index (wni), 
-"""
 function push_to_grid!(grid::StateTypeL1,
+    charge::CC,
+    wni::FieldVector,
+    Nx::Int, Ny::Int,
+    periodic::Bool=true) where CC <: Union{Vector{Float64}, SVector{3, Float64}}
+
+    Wapper over 1-layer (2D) or multi-layer (3D) StateVector (Grid) using FieldVector weight&index (wni)
+    Faster version
+
+"""
+function push_to_grid!(grid::StateType,
     charge::CC,
     wni::FieldVector,
     Nx::Int, Ny::Int,

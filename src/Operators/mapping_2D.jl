@@ -15,7 +15,7 @@ using ...custom_structures: AbstractParticleInstance, MarkedParticleInstance
 using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
 
-using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings, StateTypeL1
+using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings, StateTypeL1, StateTypeLN, StateType
 ###### remeshing routines ############
 
 
@@ -36,7 +36,7 @@ S       Shared array where particles are stored
 G       (TwoDGrid) Grid that defines the nodepositions
 """
 
-function ParticleToNode!(PI::AbstractParticleInstance, S::StateTypeL1, G::TwoDGrid, periodic_boundary::Bool)
+function ParticleToNode!(PI::AbstractParticleInstance, S::StateType, G::TwoDGrid, periodic_boundary::Bool)
 
         #u[4], u[5] are the x and y positions of the particle
         #index_positions, weights = PIC.compute_weights_and_index(G, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
@@ -96,7 +96,7 @@ end
         advance!(PI::AbstractParticleInstance, S::SharedMatrix{Float64}, G::TwoDGrid, DT::Float64)
 """
 function advance!(PI::AbstractParticleInstance,
-                        S::StateTypeL1,
+                        S::StateType,
                         Failed::Vector{AbstractMarkedParticleInstance},
                         G::TwoDGrid,
                         winds::NamedTuple{(:u, :v)},

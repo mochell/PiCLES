@@ -113,12 +113,12 @@ x, y: coordinates of the vertex
 
 """
 function GetVariablesAtVertex(i_State::TT, x::Float64, y::Float64) where {TT<:Union{Vector{Float64},MVector{3,Float64}}}
-    e, m_x, m_y = i_State
-    m_amp = speed(m_x, m_y)
-    c_x = m_x * e / (2 * m_amp^2)
-    c_y = m_y * e / (2 * m_amp^2)
+        e, m_x, m_y = i_State
+        m_amp = speed(m_x, m_y)
+        c_x = m_x * e / (2 * m_amp^2)
+        c_y = m_y * e / (2 * m_amp^2)
 
-    return MVector{5,Float64}(log(e), c_x, c_y, x, y)
+        return MVector{5,Float64}(log(e), c_x, c_y, x, y)
 end
 
 
@@ -326,17 +326,18 @@ function ResetParticleValues(
         end
 
 end
+
 """
 check_boundary_point(i, boundary, periodic_boundary)
 checks where ever or not point is a boundary point.
 returns Bool
 """
-function check_boundary_point(i::Tuple{int, int}, boundary, periodic_boundary)
+function check_boundary_point(i::Tuple{Int, Int}, boundary, periodic_boundary)
     return periodic_boundary ? false : (i in boundary)
 end
 
 # multi-layer version 
-function check_boundary_point(i::Tuple{int,int,int}, boundary, periodic_boundary)
+function check_boundary_point(i::Tuple{Int,Int,Int}, boundary, periodic_boundary)
         return periodic_boundary ? false : ( (i[1], i[2]) in boundary)
 end
 
@@ -482,6 +483,7 @@ function SeedParticle!(
                         boundary, periodic_boundary))
         nothing
 end
+
 
 
 
