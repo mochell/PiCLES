@@ -2,9 +2,11 @@ using ..Operators.core_1D: ParticleDefaults
 
 using ..Operators.core_1D: SeedParticle! as SeedParticle1D!
 using ..Operators.core_2D: SeedParticle! as SeedParticle2D!
+using ..Operators.core_2D: SeedParticle as SeedParticle2D
 
 using ..Architectures: Abstract2DModel, Abstract1DModel
 using ..ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
+using ..custom_structures: AnyParticleInstance
 
 #using WaveGrowthModels: init_particles!
 #using WaveGrowthModels2D: init_particles!
@@ -207,16 +209,29 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
 
         gridnotes = TwoDGridNotes(model.grid)
 
-        ParticleCollection = []
-        SeedParticle_i = SeedParticle_mapper(SeedParticle2D!,
-                ParticleCollection, model.State,
-                model.ODEsystem, defaults, model.ODEsettings,
-                gridnotes, model.winds, model.ODEsettings.timestep,
-                model.boundary, model.periodic_boundary)
+        if !isa(model.ParticleCollection, Vector)
+                @info "init particles to Array..."  
+                #ParticleCollection = Array{Union{Nothing,AnyParticleInstance}}(nothing, model.grid.Nx, model.grid.Ny, model.layers)
+                for i in 1:model.grid.Nx, j in 1:model.grid.Ny, k in 1:model.layers
+                        model.ParticleCollection[i, j, k] = SeedParticle2D(model.State, (i,j,k),
+                                                        model.ODEsystem, defaults, model.ODEsettings,
+                                                        gridnotes, model.winds, model.ODEsettings.timestep,
+                                                        model.boundary, model.periodic_boundary)
+                end
 
-        # ThreadsX.map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
-        map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
+        else
+                @info "init particles to Vector..."
+                #ParticleCollection = []
+                SeedParticle_i = SeedParticle_mapper(SeedParticle2D!,
+                        model.ParticleCollection, model.State,
+                        model.ODEsystem, defaults, model.ODEsettings,
+                        gridnotes, model.winds, model.ODEsettings.timestep,
+                        model.boundary, model.periodic_boundary)
 
+                # ThreadsX.map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
+                map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
+
+        end
         # print(defaults)
         #ParticleCollection=[]
         # for i in 1:model.grid.Nx, j in 1:model.grid.Ny
@@ -227,7 +242,7 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
         #                         model.boundary, model.periodic_boundary  )
         # end
 
-        model.ParticleCollection = ParticleCollection
+        # model.ParticleCollection = ParticleCollection
         nothing
 end
 

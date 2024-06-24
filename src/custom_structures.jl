@@ -41,6 +41,8 @@ mutable struct ParticleInstance1D <: AbstractParticleInstance
         on::Bool
 end
 
+AnyParticleInstance = Union{ParticleInstance1D, ParticleInstance2D, ParticleInstance2DLayer}
+
 # multiple dispatch for ParticleInstance
 ParticleInstance(ij::Int, xy::Float64, ODEI::ODEIntegrator, boundary::Bool, on::Bool) = ParticleInstance1D(ij, xy, ODEI, boundary, on)
 
@@ -58,6 +60,8 @@ end
 
 Base.copy(s::ParticleInstance1D) = ParticleInstance1D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary, s.on)
 Base.copy(s::ParticleInstance2D) = ParticleInstance2D(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary, s.on)
+Base.copy(s::ParticleInstance2DLayer) = ParticleInstance2DLayer(s.position_ij, s.position_xy, s.ODEIntegrator, s.boundary, s.on)
+
 
 # Regridding types:
 """Weights & Index (wni) FieldVector """

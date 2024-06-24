@@ -13,6 +13,8 @@ using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
 #using core_2D: SeedParticle! as SeedParticle2D!
 using ...Operators.mapping_2D
 
+using ...custom_structures: AnyParticleInstance
+
 using SharedArrays
 using StaticArrays
 # using DistributedArrays
@@ -55,7 +57,7 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
                         bl_type,
                         wnds,
                         cur,
-                        Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat}, PCollection<:Union{Vector,Array}}
+    Mstat} <: Abstract2DModel where {Mstat<:Union{Nothing,stat},PCollection<:Union{Vector{Union{Nothing,AnyParticleInstance}},Array{Union{Nothing,AnyParticleInstance}}}}
     #Union{Vector,DArray}
     grid::Grid
     layers::Lay      # number of layers used in the model, 1 is eneough
@@ -199,7 +201,15 @@ function WaveGrowth2D(; grid::TwoDGrid,
         error("boundary_type must be either 'wind_sea','mininmal', or 'same' ")
     end
 
-    ParticleCollection = []
+
+    if layers > 1
+        ParticleCollection = Array{Union{Nothing,AnyParticleInstance}}(nothing, grid.Nx, grid.Ny, layers)
+    else
+        # ParticleCollection = Vector{Union{Nothing,AnyParticleInstance}}(nothing, grid.Nx, grid.Ny)
+        ParticleCollection = []
+    end
+
+    # ParticleCollection = []
     FailedCollection = Vector{AbstractMarkedParticleInstance}([])
     # particle initialization is  not done in the init_particle! method
     # for i in range(1,length = grid.Nx)
