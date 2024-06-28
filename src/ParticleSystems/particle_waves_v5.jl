@@ -214,7 +214,7 @@ end
 #α_func(u_speed::Number, c_gp_speed::Number) = @. min( u_speed / (2.0 * c_gp_speed), 500)
 function α_func(u_speed::Float64, c_gp_speed::Float64)
     a = @. u_speed / (2.0 * c_gp_speed)
-    return IfElse.ifelse( a > 500, 500, a)
+    return IfElse.ifelse( a > 500.0, 500.0, a)
     #return IfElse.ifelse(u_speed / (2.0 * c_gp_speed) > 500, 500, u_speed / (2.0 * c_gp_speed))
     # if u_speed / (2.0 * c_gp_speed) > 500
     #     return 500.0
@@ -226,7 +226,7 @@ end
 
 function α_func(u_speed, c_gp_speed)
     a = @. u_speed / (2.0 * c_gp_speed)
-    return IfElse.ifelse(a > 500, 500, a)
+    return IfElse.ifelse(a > 500.0, 500.0, a)
     #return IfElse.ifelse(u_speed / (2.0 * c_gp_speed) > 500, 500, u_speed / (2.0 * c_gp_speed))
     # if u_speed / (2.0 * c_gp_speed) > 500
     #     return 500.0
@@ -380,15 +380,14 @@ return an ODE system as function particle_system(dz, z, params, t) that provides
         params can be a named tuple with the parameters or a vector
         params = [r_g, C_α, g, C_e] 
 """
-function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConstants=IDConstants(),
+function particle_equations(u_wind, v_wind; γ::Number=IDConstants().γ, q::Number=IDConstants().q, IDConstants=IDConstants(),
     propagation=true,
     input=true,
     dissipation=true,
     peak_shift=true,
     direction=true,
     debug_output=false,
-    static= false
-    )
+    static= false)
     #t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
     p, q, n = magic_fractions(q)
@@ -552,7 +551,7 @@ returns an ODE system as function particle_system(dz, z, params, t) that provide
         params can be a named tuple with the parameters or a vector
         params = [r_g, C_α, g, C_e]
 """
-function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConstants=IDConstants(),
+function particle_equations(u_wind; γ::Number=IDConstants().γ, q::Number=IDConstants().q, IDConstants=IDConstants(),
     propagation=true,
     input=true,
     dissipation=true,
