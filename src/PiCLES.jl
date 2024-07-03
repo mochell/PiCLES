@@ -24,9 +24,11 @@ export
 
     # grids
     ParticleMesh,
+    Grids,
 
     # utils
     Utils, Debugging, FetchRelations, ParticleTools, WindEmulator
+
 
     #externals
 
@@ -46,6 +48,9 @@ include("ParticleMesh.jl")
 include("ParticleInCell.jl")
 using .ParticleMesh
 using .ParticleInCell
+
+include("Grids/Grids.jl")
+using .Grids
 
 include("Operators/Operators.jl")
 include("Simulations/Simulations.jl")
