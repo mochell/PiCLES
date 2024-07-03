@@ -8,6 +8,16 @@ export AbstractGrid, AbstractODESettings, AbstractParticleInstance, AbstractMark
 
 abstract type AbstractGrid end
 
+abstract type AbstractGridStatistics <: AbstractGrid end
+
+abstract type CartesianGrid <: AbstractGrid end
+abstract type CartesianGrid1D <: CartesianGrid end
+abstract type CartesianGrid2D <: CartesianGrid end
+
+abstract type TripolarGrid <: AbstractGrid end
+# abstract type MOM6_2_3 <: TripolarGrid end
+
+
 abstract type AbstractODESettings end
 abstract type AbstractParticleInstance end
 abstract type AbstractMarkedParticleInstance end
