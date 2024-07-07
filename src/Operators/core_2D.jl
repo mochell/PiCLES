@@ -1,7 +1,7 @@
 module core_2D
 
 using DifferentialEquations: OrdinaryDiffEq.ODEIntegrator, OrdinaryDiffEq.ODEProblem, init
-using ModelingToolkit: ODESystem  ## depriciate when MTK is removed
+# using ModelingToolkit: ODESystem  ## depriciate when MTK is removed
 
 using SharedArrays
 using StaticArrays
@@ -190,43 +190,41 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, xy , boundary
         return ParticleInstance2D(ij, (xy[1], xy[2]), integrator, boundary_flag, particle_on)
 end
 
-"""
-InitParticleInstance(model::ODESystem, z_initials, pars, ij, boundary_flag, particle_on ; cbSets=nothing)
-wrapper function to initalize a particle instance
-        inputs:
-        model           is an initlized ODESytem
-        z_initials      is the initial state of the ODESystem
-        pars            are the parameters of the ODESystem
-        ij              is the (i,j) tuple that of the particle position
-        xy              is the (x,y) tuple that of the particle position
-        boundary_flag   is a boolean that indicates if the particle is on the boundary
-        particle_on     is a boolean that indicates if the particle is on
-        chSet           (optional) is the set of callbacks the ODE can have
-"""
-function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, xy, boundary_flag, particle_on; cbSets=Nothing)
+# deprechiated because of MTK
+# """
+# InitParticleInstance(model::ODESystem, z_initials, pars, ij, boundary_flag, particle_on ; cbSets=nothing)
+# wrapper function to initalize a particle instance
+#         inputs:
+#         model           is an initlized ODESytem
+#         z_initials      is the initial state of the ODESystem
+#         pars            are the parameters of the ODESystem
+#         ij              is the (i,j) tuple that of the initial position
+#         boundary_flag   is a boolean that indicates if the particle is on the boundary
+#         particle_on     is a boolean that indicates if the particle is on
+#         chSet           (optional) is the set of callbacks the ODE can have
+# """
+# function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
 
-        z_initials = initParticleDefaults(z_initials)
-        # create ODEProblem
-        problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
-        # inialize problem
-        # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
-        integrator = init(
-                problem,
-                ODE_settings.solver,
-                saveat=ODE_settings.saving_step,
-                abstol=ODE_settings.abstol,
-                adaptive=ODE_settings.adaptive,
-                dt=ODE_settings.dt,
-                dtmin=ODE_settings.dtmin,
-                force_dtmin=ODE_settings.force_dtmin,
-                maxiters=ODE_settings.maxiters,
-                reltol=ODE_settings.reltol,
-                callback=ODE_settings.callbacks,
-                save_everystep=ODE_settings.save_everystep)
-
-
-        return ParticleInstance2D(ij, (xy[1], xy[2]), integrator, boundary_flag, particle_on)
-end
+#         z_initials = initParticleDefaults(z_initials)
+#         # create ODEProblem
+#         problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
+#         # inialize problem
+#         # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
+#         integrator = init(
+#                 problem,
+#                 ODE_settings.solver,
+#                 saveat=ODE_settings.saving_step,
+#                 abstol=ODE_settings.abstol,
+#                 adaptive=ODE_settings.adaptive,
+#                 dt=ODE_settings.dt,
+#                 dtmin=ODE_settings.dtmin,
+#                 force_dtmin=ODE_settings.force_dtmin,
+#                 maxiters=ODE_settings.maxiters,
+#                 reltol=ODE_settings.reltol,
+#                 callback=ODE_settings.callbacks,
+#                 save_everystep=ODE_settings.save_everystep)
+#         return ParticleInstance2D(ij, (z_initials[4], z_initials[5]), integrator, boundary_flag, particle_on)
+# end
 
 
 
@@ -409,7 +407,7 @@ end
 
 """
     function SeedParticle(State::StateTypeL1, ij:: (Int64, Int64)
-                        particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+                        particle_system::Any, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
                         ij_mesh, ij_wind_tuple, DT:: Float64, boundary::Vector{Int}, periodic_boundary::Bool)
 
     returns ParicleInstance that can be pushed to ParticleColletion

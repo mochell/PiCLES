@@ -2,8 +2,6 @@ ENV["JULIA_INCREMENTAL_COMPILE"]=true
 using Pkg
 Pkg.activate(".")
 
-#using ModelingToolkit, DifferentialEquations
-#using ModelingToolkit#: @register_symbolic
 #using Plots
 import Plots as plt
 using Setfield, IfElse

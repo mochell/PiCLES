@@ -249,6 +249,7 @@ end
 
 #### merging rules: ####
 
+#V1: angle and wave age
 function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -275,6 +276,7 @@ function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=fa
     return grid_point
 end
 
+# V0 : Who is larger
 # function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
 
 #     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -294,6 +296,7 @@ end
 #     return grid_point
 # end
 
+# 1D version
 function merge!(grid_point::Float64, charge::Float64; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing

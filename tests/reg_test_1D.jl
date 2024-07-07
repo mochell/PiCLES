@@ -1,6 +1,5 @@
 ENV["JULIA_INCREMENTAL_COMPILE"]=true
-#using ModelingToolkit, DifferentialEquations
-using ModelingToolkit#: @register_symbolic
+
 #using Plots
 import Plots as plt
 using Setfield

@@ -4,7 +4,6 @@ export WaveGrowth1D
 export fields, reset_boundary!, show
 
 using ...Architectures
-using ModelingToolkit: get_states, ODESystem
 
 
 #using core_1D: MarkedParticleInstance
@@ -221,28 +220,28 @@ function reset_boundary!(model::WaveGrowth1D)
 end
 
 
-function Base.show(io::IO, ow::WaveGrowth1D)
+# function Base.show(io::IO, ow::WaveGrowth1D)
 
-    if ow.ODEsystem isa ODESystem
-        sys_print = get_states(ow.ODEsystem)
-    else
-        sys_print = ow.ODEsystem
-    end
+#     if ow.ODEsystem isa ODESystem
+#         sys_print = get_states(ow.ODEsystem)
+#     else
+#         sys_print = ow.ODEsystem
+#     end
 
-    print(io, "WaveGrowth1D ", "\n",
-        "├── grid: ", ow.grid, "\n",
-        "├── layers: ", ow.layers, "\n",
-        "├── clock: ", ow.clock,
-        "├── State: ", size(ow.State), "\n",
-        "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
-        "├── ODEs    \n",
-        "|        ├── System: ", sys_print, "\n",
-        "|        ├── Defaults: ", ow.ODEdefaults, "\n",
-        "|        └── Settings:    \n", ow.ODEsettings, "\n",
-        "├── winds ", ow.winds, "\n",
-        "├── currents ", ow.currents, "\n",
-        "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
-end
+#     print(io, "WaveGrowth1D ", "\n",
+#         "├── grid: ", ow.grid, "\n",
+#         "├── layers: ", ow.layers, "\n",
+#         "├── clock: ", ow.clock,
+#         "├── State: ", size(ow.State), "\n",
+#         "├── ParticleCollection size: ", length(ow.ParticleCollection), "\n",
+#         "├── ODEs    \n",
+#         "|        ├── System: ", sys_print, "\n",
+#         "|        ├── Defaults: ", ow.ODEdefaults, "\n",
+#         "|        └── Settings:    \n", ow.ODEsettings, "\n",
+#         "├── winds ", ow.winds, "\n",
+#         "├── currents ", ow.currents, "\n",
+#         "└── Perdiodic Boundary ", ow.periodic_boundary, "\n")
+# end
 
 
 
