@@ -4,7 +4,6 @@ Main module for 'PiCLES.jl'
 module PiCLES
 
 # external modules
-#using ModelingToolkit: Num, @unpack, @register_symbolic, Symbolics, @named, ODESystem
 using HDF5
 using DocStringExtensions
 #using Printf

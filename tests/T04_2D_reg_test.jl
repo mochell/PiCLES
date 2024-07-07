@@ -41,17 +41,18 @@ mkpath(save_path)
 # timestep
 DT = 10minutes
 # Characterstic wind velocities and std
-U10, V10 = 10.0, 10.0
+U10, V10 = 5.0, 5.0
 
 # Define basic ODE parameters
 
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # define grid
-grid = TwoDGrid(10e3, 31, 10e3, 31)
+grid = TwoDGrid(120e3, 31, 120e3, 31)
 mesh = TwoDGridMesh(grid, skip=1);
 gn = TwoDGridNotes(grid);
 
+grid.dx
 # example user function
 u_func(x, y, t) = U10 + x * 0 + y * 0 + t * 0
 v_func(x, y, t) = V10 + x * 0 + y * 0 + t * 0
@@ -119,9 +120,9 @@ function make_reg_test(wave_model, save_path; plot_name="dummy", N=36)
 end
 
 Revise.retry()
-
+# %%
 # loop over U10 and V10 range
-#gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]
+# gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]
 gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false]]
 
 #for I in CartesianIndices(gridmesh)
@@ -140,7 +141,6 @@ for (U10, V10, per) in gridmesh
     particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
     ## Define wave model
-
     wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
         winds=winds,
         ODEsys=particle_system,
@@ -156,7 +156,7 @@ end
 
 
 # %% half domain tests
-gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]
+gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [true]]
 #for I in CartesianIndices(gridmesh)
 for (U10, V10, per) in gridmesh
     periodic = per == true
@@ -165,8 +165,11 @@ for (U10, V10, per) in gridmesh
     # u_func(x, y, t) = U10 + x * 0 + y * 0 + t * 0 + sign.(rand(-1:1)) .* 0.1
     # v_func(x, y, t) = V10 + x * 0 + y * 0 + t * 0 + sign.(rand(-1:1)) .* 0.1
 
-    u_func(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, sign.(rand(-1:1)) .* 0.1) + y * 0 + t * 0
-    v_func(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, sign.(rand(-1:1)) .* 0.1) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+    # u_func(x, y, t) = IfElse.ifelse.(x .<60e3, U10, sign.(rand(-1:1)) .* 0.1) + y * 0 + t * 0
+    # v_func(x, y, t) = (IfElse.ifelse.(x .< 60e3, V10, sign.(rand(-1:1)) .* 0.1) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+    u_func(x, y, t) = IfElse.ifelse.(x .< 60e3, U10, 0.0) + y * 0 + t * 0
+    v_func(x, y, t) = (IfElse.ifelse.(x .< 60e3, V10, 0.0) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+
     u(x, y, t) = u_func(x, y, t)
     v(x, y, t) = v_func(x, y, t)
     winds = (u=u, v=v)
