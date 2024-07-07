@@ -4,7 +4,7 @@ using DataFrames
 using Printf
 
 import Base: filter!
-using ModelingToolkit, DifferentialEquations, Statistics
+using DifferentialEquations, Statistics
 
 # %% IO - fine the right path and read input arguments
 
