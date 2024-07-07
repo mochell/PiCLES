@@ -14,8 +14,7 @@ using Parameters
 using DocStringExtensions
 #export t, x, y, e, c̄, φ_p, dist, Gₙ, u_10
 
-#using ModelingToolkit, DifferentialEquations
-#using ModelingToolkit, DifferentialEquations
+
 # #using Plots
 # #using PyPlot
 #
