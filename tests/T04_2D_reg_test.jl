@@ -30,8 +30,6 @@ using PiCLES.Operators.core_2D: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 
-
-
 # %%
 save_path = "plots/tests/T04_2D_regtest/"
 mkpath(save_path)
@@ -48,10 +46,6 @@ U10, V10 = 5.0, 5.0
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # define grid
-# grid = TwoDGrid(120e3, 31, 120e3, 31)
-# mesh = TwoDGridMesh(grid, skip=1);
-# gn = TwoDGridNotes(grid);
-
 grid = TwoDCartesianGridMesh(120e3, 31, 120e3, 31)
 
 # example user function
