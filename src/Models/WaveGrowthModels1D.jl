@@ -96,7 +96,7 @@ end
 function WaveGrowth1D(; grid::OneDGrid, winds, ODEsys, 
     ODEvars=nothing, #neede dfr MTK for ODEsystem. will be depriciated
     layers::Int=1,
-    clock=Clock{eltype(grid)}(0, 0, 1),
+    clock=Clock{eltype(grid)}(time=0.0),
     ODEsets::AbstractODESettings=nothing,    # ODE_settings
     ODEinit_type::PP="wind_sea", # or "minimal", or ParticleDefaults1D instance, default is wind_sea nothing,    # default_ODE_parameters
     minimal_particle=nothing, # minimum particle the model falls back to if a particle fails to integrate

@@ -5,6 +5,8 @@ using GLMakie
 using ...ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
 using ...Operators.core_2D: GetGroupVelocity
 
+using ...Architectures: Grid2D, CartesianGrid, CartesianGridStatistics, CartesianGrid2D, CartesianGrid1D, AbstractGridStatistics, AbstractGrid, StandardRegular2D_old
+
 import Oceananigans.Utils: prettytime
 
 function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_string="", aspect=1, axline=0)
@@ -12,8 +14,15 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     n = Observable(1) # for visualization
     # Ocean vorticity
     grid = wave_simulation.model.grid
-    mesh = TwoDGridMesh(grid, skip=1)
-    gn = TwoDGridNotes(grid)
+    if typeof(grid) <: TwoDGrid
+        mesh = TwoDGridMesh(grid, skip=1)
+        gn = TwoDGridNotes(grid)
+        dx = gn.dx
+    elseif typeof(grid) <: CartesianGrid
+        mesh =grid.data
+        gn = (x= grid.data.x[1, :], y=grid.data.y[:, 1] )
+        dx = grid.stats.dx
+    end
     
     arrow_skip = 3
     arrow_skip_y =2
@@ -112,10 +121,10 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     #c_xi = GetGroupVelocity(wave_simulation.model.MovieState).c_x
     #CFL = @lift ($n; round(maximum(sqrt(cx[]^2 + cx[]^2))) * DT / gn.dx)
 
-    title = @lift ($n; "DT=$DT , dx=$(round(gn.dx)), CFL= $(round( maximum(sqrt.(cx[].^2+cy[].^2)) * DT /gn.dx; digits=3 )), \ntime=" * prettytime(wave_simulation.model.clock.time) * "\n" * name_string)
+    title = @lift ($n; "DT=$DT , dx=$(round(dx)), CFL= $(round( maximum(sqrt.(cx[].^2+cy[].^2)) * DT /dx; digits=3 )), \ntime=" * prettytime(wave_simulation.model.clock.time) * "\n" * name_string)
 
     Label(fig[0, :], title)
-    display(fig)
+    #display(fig)
 
     return fig, n
 end

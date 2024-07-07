@@ -25,7 +25,12 @@ using ..ParticleMesh
 export push_to_grid!
 # %%
 
-function get_i_and_w(zp_normed::Float64)
+"""
+get_absolute_i_and_w(zp_normed::Float64)
+returns the floor and ceil index and weights
+Indexes is the absolute floor and ceil index
+"""
+function get_absolute_i_and_w(zp_normed::Float64)
 
     # floor points x
     ip_base = floor(zp_normed) # ceil position
@@ -41,6 +46,48 @@ function get_i_and_w(zp_normed::Float64)
     dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # ceil weight
     return SVector{2, Int64}(ip_floor , ip_floor+1) , SVector{2, Float64}(dxp_floor, dxp_ceil)
 end
+
+"""
+get_absolute_i_and_w(zp_normed::Float64, i_node::Int64)
+returns the floor and ceil index and weights
+inputs:
+    zp_normed: Float64 normalized position relative to particle node position 
+    i_node: Int64 particle node position
+Indexes is the absolute floor and ceil index
+"""
+function get_absolute_i_and_w(zp_normed::Float64, i_node::Int64)
+
+    # floor points x
+    ip_base = floor(zp_normed)
+
+    # this is relative the particle node
+    ip_floor = Int(ip_base)
+
+    dxp_ceil = round(zp_normed - ip_base, digits=6)   # floor weight
+    dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # ceil weight
+
+    # add particle node position here
+    return SVector{2,Int64}(ip_floor + i_node, ip_floor + i_node + 1), SVector{2,Float64}(dxp_floor, dxp_ceil)
+end
+
+"""
+get_relative_i_and_w(zp_normed::Float64)
+returns the floor and ceil index and weights
+Indexes is the absolute floor and ceil index
+"""
+function get_relative_i_and_w(zp_normed::Float64)
+    # floor points x
+    ip_base = floor(zp_normed)
+
+    # this is relative the particle node
+    ip_floor = Int(ip_base)
+
+    dxp_ceil = round(zp_normed - ip_base, digits=6)   # floor weight
+    dxp_floor = 1.0 - dxp_ceil #ip_base+1 - xp_normed # ceil weight
+    return SVector{2,Int64}(ip_floor, ip_floor + 1), SVector{2,Float64}(dxp_floor, dxp_ceil)
+end
+
+
 
 """
 norm_distance(xp::T, xmin::T, dx::T) 
@@ -63,8 +110,8 @@ function compute_weights_and_index(g_pars::TwoDGrid, xp::Float64, yp:: Float64 )
     xp_normed = norm_distance(xp, g_pars.xmin, g_pars.dx)
     yp_normed = norm_distance(yp, g_pars.ymin, g_pars.dy)
 
-    xi, xw = get_i_and_w(xp_normed)
-    yi, yw = get_i_and_w(yp_normed)
+    xi, xw = get_absolute_i_and_w(xp_normed)
+    yi, yw = get_absolute_i_and_w(yp_normed)
 
     idx  = [ (xi[1], yi[1]) , (xi[2], yi[1]) , (xi[1], yi[2]), (xi[2], yi[2]) ]
     wtx  = [ (xw[1], yw[1]) , (xw[2], yw[1]) , (xw[1], yw[2]), (xw[2], yw[2]) ]
@@ -85,12 +132,29 @@ function compute_weights_and_index_mininal(g_pars::TwoDGrid, xp::Float64, yp::Fl
     xp_normed = norm_distance(xp, g_pars.xmin, g_pars.dx)  # multiples of grid spacing
     yp_normed = norm_distance(yp, g_pars.ymin, g_pars.dy)  # multiples of grid spacing
 
-    xi, xw = get_i_and_w(xp_normed)
-    yi, yw = get_i_and_w(yp_normed)
+    xi, xw = get_absolute_i_and_w(xp_normed)
+    yi, yw = get_absolute_i_and_w(yp_normed)
 
     return wni(xi, xw, yi, yw)
 end
 
+"""
+compute_weights_and_index_mininal(xp::Float64, yp:: Float64 )
+returns indexes and weights as FieldVector for in 2D for single x,y point
+    returned indexes are in absolute coordindates to the particle node, calculated from :
+    inputs:
+    ij : Tuple{Int,Int} absolute position of the particle node
+    xp,yp : Float64 particle position relative to the particle node (normalized units)
+"""
+function compute_weights_and_index_mininal(ij::II, xp::Float64, yp::Float64) where {II<:Union{Tuple{Int,Int},CartesianIndex}}
+    """
+    2d wrapper for 1d function
+    """
+    xi, xw = ParticleInCell.get_absolute_i_and_w(xp, ij[1])
+    yi, yw = ParticleInCell.get_absolute_i_and_w(yp, ij[2])
+
+    return ParticleInCell.wni(xi, xw, yi, yw)
+end
 
 """
 compute_weights_and_index(g_pars::OneDGrid, xp::Float64 )
@@ -99,7 +163,7 @@ returns indexes and weights for in 2D for single x point
 function compute_weights_and_index(g_pars::OneDGrid, xp::Float64 )
 
     xp_normed = (xp - g_pars.xmin) / g_pars.dx # multiples of grid spacing
-    xi, xw = get_i_and_w(xp_normed)
+    xi, xw = get_absolute_i_and_w(xp_normed)
 
     idx  = [ (xi[1]) , (xi[2]) ]
     wtx  = [ (xw[1]) , (xw[2]) ]

@@ -4,7 +4,8 @@ using SharedArrays
 using StaticArrays
 
 
-export AbstractGrid, AbstractODESettings, AbstractParticleInstance, AbstractMarkedParticleInstance, Abstract1DModel, Abstract2DModel, AbstractModel, AbstractStore, AbstractParticleSystem, StateTypeL1, IDConstantsInstance, ScgConstantsInstance
+export AbstractGrid, AbstractODESettings, AbstractParticleInstance, AbstractMarkedParticleInstance, Abstract1DModel, Abstract2DModel, AbstractModel, AbstractStore, AbstractParticleSystem, StateTypeL1, IDConstantsInstance, ScgConstantsInstance, CartesianGrid, CartesianGrid1D, CartesianGrid2D, TripolarGrid, Grid2D
+export StandardRegular1D_old, StandardRegular2D_old
 
 abstract type AbstractGrid end
 
@@ -13,9 +14,15 @@ abstract type AbstractGridStatistics <: AbstractGrid end
 abstract type CartesianGrid <: AbstractGrid end
 abstract type CartesianGrid1D <: CartesianGrid end
 abstract type CartesianGrid2D <: CartesianGrid end
+abstract type CartesianGridStatistics <: AbstractGridStatistics end
 
 abstract type TripolarGrid <: AbstractGrid end
 # abstract type MOM6_2_3 <: TripolarGrid end
+
+abstract type StandardRegular1D_old <: AbstractGrid end
+abstract type StandardRegular2D_old <: AbstractGrid end
+
+Grid2D = Union{CartesianGrid2D,StandardRegular2D_old}
 
 
 abstract type AbstractODESettings end
