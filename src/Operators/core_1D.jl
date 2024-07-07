@@ -1,10 +1,8 @@
 module core_1D
 
 using DifferentialEquations: OrdinaryDiffEq.ODEProblem, init
-using ModelingToolkit: ODESystem ## depriciate when MTK is removed
 
 using SharedArrays
-#using ModelingToolkit: Num
 using DocStringExtensions
 # Particle-Node interaction
 export GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ParticleDefaults
@@ -144,8 +142,8 @@ InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing
 wrapper function to initalize a particle instance
         inputs:
         model           is an initlized ODESytem
-        z_initials      is the initial state of the ODESystem
-        pars            are the parameters of the ODESystem
+        z_initials      is the initial state of the Any
+        pars            are the parameters of the Any
         ij              is the (i,j) tuple that of the initial position
         chSet           (optional) is the set of callbacks the ODE can have
 """
@@ -178,40 +176,6 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
     return ParticleInstance1D(ij, z_initials[3], integrator, boundary_flag, particle_on)
 end
 
-
-# ODESystem version, will be depriciated
-"""
-InitParticleInstance(model::WaveGrowth1D, z_initials, pars,  ij ; cbSets=nothing)
-wrapper function to initalize a particle instance
-        inputs:
-        model           is an initlized ODESytem
-        z_initials      is the initial state of the ODESystem
-        pars            are the parameters of the ODESystem
-        ij              is the (i,j) tuple that of the initial position
-        chSet           (optional) is the set of callbacks the ODE can have
-"""
-function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
-
-    z_initials = initParticleDefaults(z_initials)
-    # create ODEProblem
-    problem = ODEProblem(model, z_initials, (0.0, ODE_settings.total_time), ODE_settings.Parameters)
-    # inialize problem
-    # works best with abstol = 1e-4,reltol=1e-3,maxiters=1e4,
-    integrator = init(
-        problem,
-        ODE_settings.solver,
-        saveat=ODE_settings.saving_step,
-        abstol=ODE_settings.abstol,
-        adaptive=ODE_settings.adaptive,
-        dt=ODE_settings.dt,
-        dtmin=ODE_settings.dtmin,
-        force_dtmin=ODE_settings.force_dtmin,
-        maxiters=ODE_settings.maxiters,
-        reltol=ODE_settings.reltol,
-        callback=ODE_settings.callbacks,
-        save_everystep=ODE_settings.save_everystep)
-    return ParticleInstance1D(ij, z_initials[3], integrator, boundary_flag, particle_on)
-end
 
 
 
@@ -320,7 +284,7 @@ end
 
 """
 SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
-                particle_system::ODESystem, particle_defaults::Dict{Number, Float64}, ODE_defaults::Dict{Number, Float64},
+                particle_system::Any, particle_defaults::Dict{Number, Float64}, ODE_defaults::Dict{Number, Float64},
                 GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
 
 Seed Pickles to ParticleColletion and State
@@ -339,7 +303,7 @@ function SeedParticle!(
     DT::Float64,
     
     boundary::Vector{T},
-    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+    periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Any}
 
     # get x position
     x = GridNotes.x[i]
