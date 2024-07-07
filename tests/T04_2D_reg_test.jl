@@ -1,4 +1,8 @@
 #using Plots
+
+using Pkg
+Pkg.activate("PiCLES/")
+
 import Plots as plt
 using Setfield, IfElse
 
@@ -41,8 +45,6 @@ U10, V10 = 10.0, 10.0
 
 # Define basic ODE parameters
 
-
-
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # define grid
@@ -63,7 +65,7 @@ winds = (u=u, v=v)
 # define ODE system and parameters
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
-default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
+default_ODE_parameters = (r_g=0.85, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
 
 Revise.retry()

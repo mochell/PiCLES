@@ -127,7 +127,7 @@ function WaveGrowth2D(; grid::TwoDGrid,
     ODEsys, 
     ODEvars=nothing, #needed for MTK for ODEsystem. will be depriciated later
     layers::Int=1,
-    clock=Clock{eltype(grid)}(0, 0, 1),
+    clock=Clock{eltype(grid)}(time=0.0),
     ODEsets::AbstractODESettings=nothing,  # ODE_settings
     ODEinit_type::PP= "wind_sea",  # default_ODE_parameters
     minimal_particle=nothing, # minimum particle the model falls back to if a particle fails to integrate
