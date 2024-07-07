@@ -5,7 +5,6 @@ export fields
 
 using ...Architectures
 
-using ModelingToolkit: get_states, ODESystem
 
 #using core_1D: MarkedParticleInstance
 using ...ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
@@ -265,11 +264,7 @@ end
 
 function Base.show(io::IO, ow::WaveGrowth2D)
 
-    if ow.ODEsystem isa ODESystem
-        sys_print = get_states(ow.ODEsystem)
-    else
-        sys_print = ow.ODEsystem
-    end
+    sys_print = ow.ODEsystem
     print(io, "WaveGrowth2D ", "\n",
         "├── grid: ", ow.grid, "\n",
         "├── layers: ", ow.layers, "\n",
