@@ -1,7 +1,6 @@
 module core_2D
 
 using DifferentialEquations: OrdinaryDiffEq.ODEIntegrator, OrdinaryDiffEq.ODEProblem, init
-# using ModelingToolkit: ODESystem  ## depriciate when MTK is removed
 
 using SharedArrays
 using StaticArrays
@@ -428,7 +427,7 @@ function SeedParticle(
         
         DT::Float64,
         boundary::Vector{T}, periodic_boundary::Bool) where 
-        {II<:Union{Tuple{Int,Int},CartesianIndex},T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+        {II<:Union{Tuple{Int,Int},CartesianIndex},T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Any}
 
         xy = (ij_mesh.x, ij_mesh.y)
         # 1st check if particle is not in mask, Land points == 0

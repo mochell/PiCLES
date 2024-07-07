@@ -195,6 +195,7 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
             model.ODEsettings.wind_min_squared,
             model.periodic_boundary,
             model.ODEdefaults)
+
     end
 
     model.MovieState = copy(model.State)
@@ -208,7 +209,7 @@ function movie_time_step!(model::Abstract2DModel, Δt; callbacks=nothing, debug=
         mapping_2D.remesh!(a_particle, model.State,
             model.winds, model.clock.time,
             model.ODEsettings, Δt,
-            model.minimal_particle,
+            model.grid.stats,
             model.minimal_state,
             model.ODEdefaults)
     end
