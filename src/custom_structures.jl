@@ -12,7 +12,7 @@ using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
 mutable struct ParticleInstance2D <: AbstractParticleInstance
         position_ij::Tuple{Int, Int}
         position_xy::Tuple{Float64, Float64}
-        ODEIntegrator::ODEIntegrator
+        ODEIntegrator::Union{ODEIntegrator,Nothing}
         boundary :: Bool
         on::Bool
 end

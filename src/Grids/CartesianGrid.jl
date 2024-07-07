@@ -1,6 +1,6 @@
 module CartesianGrid
 
-using ...Architectures: AbstractGrid, AbstractGridStatistics, CartesianGrid1D, CartesianGrid2D
+using ...Architectures: AbstractGrid, AbstractGridStatistics, CartesianGrid1D, CartesianGrid2D, CartesianGridStatistics
 
 #using LinearAlgebra
 using StructArrays
@@ -19,7 +19,7 @@ using StaticArrays
     - `x, y` : node positions
     - `dx, dy` : step size
 """
-struct TwoDCartesianGridStatistics <: AbstractGridStatistics
+struct TwoDCartesianGridStatistics <: CartesianGridStatistics
     
     Nx::Int
     Ny::Int
@@ -60,15 +60,16 @@ end
 struct TwoDCartesianGridMesh <: CartesianGrid2D
     data::StructArray{<:Any}
     stats::TwoDCartesianGridStatistics
+    ProjetionKernel::Function
 end
     
-function TwoDCartesianGridMesh(grid::TwoDCartesianGridStatistics; mask = nothing)
+function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing)
 
     x = collect(range(grid.xmin, stop=grid.xmax, step=grid.dx))
     y = collect(range(grid.ymin, stop=grid.ymax, step=grid.dy))
 
-    XX = reshape(repeat(x, inner=length(y)), length(y), length(x))
-    YY = reshape(repeat(y, outer=length(x)), length(y), length(x))
+    XX = transpose(reshape(repeat(x, inner=length(y)), length(y), length(x)))
+    YY = transpose(reshape(repeat(y, outer=length(x)), length(y), length(x)))
 
     if mask == nothing
         mask = fill(1, size(XX))
@@ -88,30 +89,38 @@ end
 function TwoDCartesianGridMesh(xmin, xmax, Nx::Int, ymin, ymax, Ny::Int, mask=nothing; angle = 0.0)
     GS = TwoDCartesianGridStatistics(xmin, xmax, Nx, ymin, ymax, Ny, angle = angle)
     GMesh = TwoDCartesianGridMesh(GS, mask= mask)
-    return TwoDCartesianGridMesh(GMesh, GS)
+    return TwoDCartesianGridMesh(GMesh, GS, ProjetionKernel)
 end
 
 # alternative short hand
 TwoDCartesianGridMesh(dimx, nx::Int, dimy, ny::Int; angle =0.0) = TwoDCartesianGridMesh(0.0, dimx, nx, 0.0, dimy, ny; angle=angle)
 
 
-function ProjetionKernel(G::TwoDCartesianGridMesh)
-    if G.stats.angle_dx == 0.0
+
+
+function ProjetionKernel(stats::CartesianGridStatistics)
+    if stats.angle_dx == 0.0
         M = [
-            1/G.stats.dx 0;
-            0 1/G.stats.dy
+            1/stats.dx 0;
+            0 1/stats.dy
         ]
     else
-        cosa = cos(G.stats.angle_dx * pi / 180)
-        sina = sin(G.stats.angle_dx * pi / 180)
+        cosa = cos(stats.angle_dx * pi / 180)
+        sina = sin(stats.angle_dx * pi / 180)
 
         M = @SArray [
-            cosa/G.stats.dx sina/G.stats.dy;
-            sina/G.stats.dx cosa/G.stats.dy
+            cosa/stats.dx sina/stats.dy;
+            sina/stats.dx cosa/stats.dy
         ]
     end
     return M
 end
+
+# alias for initialization call
+ProjetionKernel(Gi::NamedTuple, stats::CartesianGridStatistics) = ProjetionKernel(stats)
+# alias for GRid object
+ProjetionKernel(G::TwoDCartesianGridMesh) = ProjetionKernel(G.stats)
+
 
 # %% ADD 1D version here
 

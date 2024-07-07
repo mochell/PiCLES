@@ -1,7 +1,7 @@
 using ..Operators.core_1D: ParticleDefaults
 
 using ..Operators.core_1D: SeedParticle! as SeedParticle1D!
-using ..Operators.core_2D: SeedParticle! as SeedParticle2D!
+using ..Operators.core_2D: SeedParticle as SeedParticle2D
 
 using ..Architectures: Abstract2DModel, Abstract1DModel
 using ..ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
@@ -14,6 +14,7 @@ using ..Operators.mapping_1D
 using ..Operators.mapping_2D
 using Statistics
 
+using StructArrays
 
 
 #using ThreadsX
@@ -179,6 +180,7 @@ function reset_simulation!(sim::Simulation)# where {PP<:Union{ParticleDefaults,N
 end
 
 
+# depreciate, just used for 1D version
 """
 SeedParticle_mapper(f, p, s, b1, b2, b3, c1, c2, c3, c4, d1, d2 ) = x -> f( p, s, x, b1, b2, b3, c1, c2, c3, c4, d1, d2 )
 maps to SeedParticle! function
@@ -205,28 +207,40 @@ function init_particles!(model::Abstract2DModel; defaults::PP=nothing, verbose::
                 end
         end
 
-        gridnotes = TwoDGridNotes(model.grid)
+        ParticleCollection = StructArray(map(ij -> begin
 
-        ParticleCollection = []
-        SeedParticle_i = SeedParticle_mapper(SeedParticle2D!,
-                ParticleCollection, model.State,
-                model.ODEsystem, defaults, model.ODEsettings,
-                gridnotes, model.winds, model.ODEsettings.timestep,
-                model.boundary, model.periodic_boundary)
+                        ij_mesh = model.grid.data[ij]
+                        ij_wind = (     model.winds.u(ij_mesh.x, ij_mesh.y, 0.0), 
+                                        model.winds.v(ij_mesh.x, ij_mesh.y, 0.0)
+                                        )
 
-        # ThreadsX.map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
-        map(SeedParticle_i, [(i, j) for i in 1:model.grid.Nx, j in 1:model.grid.Ny])
+                        SeedParticle2D(
+                                model.State, ij,
+                                model.ODEsystem, defaults, model.ODEsettings,
+                                model.grid.stats, model.grid.ProjetionKernel,
+                                ij_mesh, ij_wind,
+                                model.ODEsettings.timestep,
+                                model.boundary, model.periodic_boundary)
 
-        # print(defaults)
-        #ParticleCollection=[]
-        # for i in 1:model.grid.Nx, j in 1:model.grid.Ny
-        #         SeedParticle2D!(ParticleCollection, model.State,
-        #                         (i, j),
-        #                         model.ODEsystem, defaults , model.ODEsettings,
-        #                         gridnotes, model.winds, model.ODEsettings.timestep,
-        #                         model.boundary, model.periodic_boundary  )
+                end, CartesianIndices(model.grid.data)))
+
+
+        # threads for loop version
+        # ParticleCollection = StructArray{ParticleInstance2D}(undef, grid.stats.Nx, grid.stats.Ny)
+
+        # speed tests
+        # 1 thread  8.736 ms (124253 allocations: 12.39 MiB)
+        # 4 thread   4.443 ms (123316 allocations: 12.35 MiB)
+        # @btime @threads for ij in CartesianIndices(mesh)
+        #         ParticleCollection4[ij] = SeedParticle(
+                                # model.State, ij,
+                                # model.ODEsystem, defaults, model.ODEsettings,
+                                # model.grid.stats, ij_mesh, ij_wind,
+                                # model.DT,
+                                # model.boundary, model.periodic_boundary)
         # end
-
+        @info typeof(ParticleCollection)
+        # @info ParticleCollection
         model.ParticleCollection = ParticleCollection
         nothing
 end

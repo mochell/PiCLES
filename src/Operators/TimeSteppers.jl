@@ -118,7 +118,7 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
         model.FailedCollection = FailedCollection
     end 
 
-    @threads for a_particle in model.ParticleCollection
+    @threads for a_particle in model.ParticleCollection[model.grid.data.mask]
         #@info a_particle.position_ij
         mapping_2D.advance!(    a_particle, model.State, FailedCollection,
                                 model.grid, model.winds, Δt,
@@ -140,11 +140,11 @@ function time_step!(model::Abstract2DModel, Δt::Float64; callbacks=nothing, deb
     end
 
     #@printf "re-mesh"
-    @threads for a_particle in model.ParticleCollection
+    @threads for a_particle in model.ParticleCollection[model.grid.data.mask]
         mapping_2D.remesh!(a_particle, model.State, 
                         model.winds, model.clock.time, 
                         model.ODEsettings, Δt,
-                        model.minimal_particle, 
+                        model.grid.stats, 
                         model.minimal_state,
                         model.ODEdefaults)
     end

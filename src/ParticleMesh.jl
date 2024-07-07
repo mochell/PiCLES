@@ -1,6 +1,6 @@
 module ParticleMesh
 
-using ..Architectures: AbstractGrid, AbstractODESettings
+using ..Architectures: AbstractGrid, AbstractGridStatistics, AbstractODESettings, StandardRegular1D_old, StandardRegular2D_old
 
 export OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
@@ -17,7 +17,7 @@ Generate a cartesians mesh on rectangle `dimx`x `dimy` with `nx` x `ny` points
 - `x, y` : node positions
 - `dx, dy` : step size
 """
-struct TwoDGrid <: AbstractGrid
+struct TwoDGrid <: StandardRegular2D_old
     Nx::Int
     Ny::Int
     Ndx::Int
@@ -57,7 +57,7 @@ TwoDGrid(dimx, nx::Int, dimy, ny::Int) = TwoDGrid(0.0, dimx, nx, 0.0, dimy, ny)
 
 
 
-struct TwoDGridNotes <: AbstractGrid
+struct TwoDGridNotes <: AbstractGridStatistics
     Nx::Int
     Ny::Int
     Ndx::Int
@@ -99,7 +99,7 @@ end
 
 
 
-struct OneDGrid{I, T <:Number} <: AbstractGrid
+struct OneDGrid{I,T<:Number} <: StandardRegular1D_old
     Nx::I # number grid points
     Ndx::I # number cells
     xmin::T
@@ -118,7 +118,7 @@ struct OneDGrid{I, T <:Number} <: AbstractGrid
 end
 
 
-struct OneDGridNotes{I, FT <:Number}  <: AbstractGrid
+struct OneDGridNotes{I,FT<:Number} <: AbstractGridStatistics
     Nx::I # number grid points
     Ndx::I # number of cells
     xmin::FT

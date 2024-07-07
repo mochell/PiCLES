@@ -31,7 +31,7 @@ Structure to hold all information about the ODE system
 # Fields  
 $(DocStringExtensions.FIELDS)
 """
-@with_kw struct ODESettings <: AbstractODESettings
+@with_kw mutable struct ODESettings <: AbstractODESettings
     "ODE parameters (Dict)"
     Parameters::NamedTuple
     "minimum allowed log energy on particle "
@@ -403,6 +403,9 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             #lne, c̄_x, c̄_y, x, y = z
 
             r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
+            # add projection matrix
+            M = haskey(params, :M) ? params.M : [1 0 ; 0 1]
+            
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u = u_wind(z[4], z[5], t)#::Number
             v = v_wind(z[4], z[5], t)#::Number
@@ -426,6 +429,9 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             S_cg_tilde = peak_shift ? S_cg(z[1], Δₚ, kₚ, C_α) : 0.0
             S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
+            # propagration projections
+            c̄_projected = propagation ? M * [c̄_x, c̄_y] : [0.0, 0.0]
+
             z = @SVector [
                 # energy
                 +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃),
@@ -436,11 +442,11 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
                 # D(z[2]) ~ -z[2] .* ωₚ .* r_g .* S_cg_tilde + (z[3] + 0.001) .* S_dir_tilde, #* (-1),
                 # D(z[3]) ~ -z[3] .* ωₚ .* r_g .* S_cg_tilde - (z[2]  + 0.001) .* S_dir_tilde, #* (1),
-                
+
                 # propagation
-                propagation ? z[2] : 0.0,
-                propagation ? z[3] : 0.0
-                ]
+                propagation ? c̄_projected[1] : 0.0,
+                propagation ? c̄_projected[2] : 0.0
+            ]
 
             if debug_output
                 additional_output = @SVector [
@@ -461,7 +467,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
         return particle_system_static
 
     else
-        
+
         function particle_system(dz, z, params, t)#::MVector{5, Number}
 
             # forcing fields
@@ -469,6 +475,10 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             lne, c̄_x, c̄_y, x, y = z
 
             r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
+
+            # add projection matrix
+            M = haskey(params, :M) ? params.M : [1 0; 0 1]
+
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u                 = u_wind(x, y, t)#::Number
             v                 = v_wind(x, y, t)#::Number
@@ -504,8 +514,8 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),
 
             # propagation
-            dz[4] = propagation ? c̄_x : 0.0
-            dz[5] = propagation ? c̄_y : 0.0
+            dz[4:5] = propagation ? M * [c̄_x, c̄_y] : [0.0, 0.0]
+            # dz[5] = propagation ? c̄_y : 0.0
 
 
             if debug_output

@@ -16,6 +16,7 @@ export InitParticleValues
 using ...FetchRelations
 
 using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, StateTypeL1
+using ...Architectures: AbstractGridStatistics
 
 
 # using ..particle_waves_v3: init_vars
@@ -151,12 +152,18 @@ wrapper function to initalize a particle instance
         model           is an initlized ODESytem
         z_initials      is the initial state of the ODESystem
         pars            are the parameters of the ODESystem
-        ij              is the (i,j) tuple that of the initial position
+        ij              is the (i,j) tuple that of the particle position
+        xy              is the (x,y) tuple that of the particle position
         boundary_flag   is a boolean that indicates if the particle is on the boundary
         particle_on     is a boolean that indicates if the particle is on
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
+function InitParticleInstance(model, z_initials, ODE_settings, ij, xy , boundary_flag, particle_on; cbSets=Nothing)
+
+        ## to do's for add the Projection:
+        ## replace boundary_flag with mask that discrimiated by types [0,1,2,3]
+        ## add M as input to the function and add it to the ODE_parameters
+        ## modify ParticleInstance2D to deal with boundaries and mask
 
         # converty to ordered named tuple
         ODE_parameters = NamedTuple{Tuple(Symbol.(keys(ODE_settings.Parameters)))}(values(ODE_settings.Parameters))
@@ -179,7 +186,8 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, boundary_flag
                 reltol=ODE_settings.reltol,
                 callback=ODE_settings.callbacks,
                 save_everystep=ODE_settings.save_everystep)
-        return ParticleInstance2D(ij, (z_initials[4], z_initials[5]), integrator, boundary_flag, particle_on)
+
+        return ParticleInstance2D(ij, (xy[1], xy[2]), integrator, boundary_flag, particle_on)
 end
 
 """
@@ -189,12 +197,13 @@ wrapper function to initalize a particle instance
         model           is an initlized ODESytem
         z_initials      is the initial state of the ODESystem
         pars            are the parameters of the ODESystem
-        ij              is the (i,j) tuple that of the initial position
+        ij              is the (i,j) tuple that of the particle position
+        xy              is the (x,y) tuple that of the particle position
         boundary_flag   is a boolean that indicates if the particle is on the boundary
         particle_on     is a boolean that indicates if the particle is on
         chSet           (optional) is the set of callbacks the ODE can have
 """
-function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, boundary_flag, particle_on; cbSets=Nothing)
+function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, xy, boundary_flag, particle_on; cbSets=Nothing)
 
         z_initials = initParticleDefaults(z_initials)
         # create ODEProblem
@@ -214,7 +223,9 @@ function InitParticleInstance(model::ODESystem, z_initials, ODE_settings, ij, bo
                 reltol=ODE_settings.reltol,
                 callback=ODE_settings.callbacks,
                 save_everystep=ODE_settings.save_everystep)
-        return ParticleInstance2D(ij, (z_initials[4], z_initials[5]), integrator, boundary_flag, particle_on)
+
+
+        return ParticleInstance2D(ij, (xy[1], xy[2]), integrator, boundary_flag, particle_on)
 end
 
 
@@ -293,7 +304,7 @@ returns:
 """
 function ResetParticleValues(
         defaults::PP,
-        PI::AbstractParticleInstance,
+        xy::Tuple{Float64,Float64}, #PI::AbstractParticleInstance, #< -------- this should be just xy tuple that can be (0,0)
         wind_tuple,
         DT, vector=true) where {PP<:Union{Nothing,ParticleDefaults,Vector{Float64}}}
 
@@ -307,12 +318,12 @@ function ResetParticleValues(
 
                 ui = FetchRelations.get_initial_windsea(u_init, v_init, DT, particle_state=true)
                 # seed particle given fetch relations
-                particle_defaults = ParticleDefaults(ui[1], ui[2], ui[3], PI.position_xy[1], PI.position_xy[2])
+                particle_defaults = ParticleDefaults(ui[1], ui[2], ui[3], xy[1], xy[2])
 
         elseif typeof(defaults) == Vector{Float64} # this is for the case of minimal wind sea
                 particle_defaults = defaults
-                particle_defaults[4]    = PI.position_xy[1]
-                particle_defaults[5]    = PI.position_xy[2]
+                particle_defaults[4]    = xy[1]
+                particle_defaults[5]    = xy[2]
         else
                 particle_defaults = defaults
         end
@@ -397,91 +408,94 @@ end
 
 
 """
-SeedParticle(State::SharedMatrix, i::Int64,
-                particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
-                GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
+    function SeedParticle(State::StateTypeL1, ij:: (Int64, Int64)
+                        particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+                        ij_mesh, ij_wind_tuple, DT:: Float64, boundary::Vector{Int}, periodic_boundary::Bool)
 
-return ParicleInstance that can be pushed to ParticleColletion
+    returns ParicleInstance that can be pushed to ParticleColletion
 """
 function SeedParticle(
         State::StateTypeL1,
-        ij::Tuple{Int, Int},
-
+        ij::II, # position tuple in grid
+        
         particle_system::SS,
         particle_defaults::PP,
         ODE_settings, #particle_waves_v3.ODESettings type
-
-        GridNotes, # ad type of grid note
-        winds,     # interp winds
-        DT::Float64,
-
-        boundary::Vector{T},
-        periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
-
-        xx, yy = GridNotes.x[ij[1]], GridNotes.y[ij[2]]
         
-        #uv = winds.u(xx, yy, 0)::Union{Num,Float64}, winds.v(xx, yy, 0)::Union{Num,Float64}
-        uv = winds.u(xx, yy, 0.0)::Float64, winds.v(xx, yy, 0.0)::Float64
+        gridstats::AbstractGridStatistics,
+        ProjetionKernel::Function,
+
+        ij_mesh::NamedTuple, # local grid information
+        ij_wind::Tuple,     # interp winds
+        
+        DT::Float64,
+        boundary::Vector{T}, periodic_boundary::Bool) where 
+        {II<:Union{Tuple{Int,Int},CartesianIndex},T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+
+        xy = (ij_mesh.x, ij_mesh.y)
+        # 1st check if particle is not in mask, Land points == 0
+        if ij_mesh.mask == 0
+                # init dummy instance
+                return ParticleInstance2D(ij, xy , nothing, true, false)
+        end
 
         # define initial condition
-        z_i, particle_on = InitParticleValues(particle_defaults, (xx,yy), uv, DT)
-        # check if point is boundary point
-        boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
-        #@info "boundary?", boundary_point
+        # particle initial condition is always (0,0) in relative coordinates not xy anymore
+        z_i, particle_on = InitParticleValues(particle_defaults, (0.0, 0.0) , ij_wind, DT)
 
-        # if boundary_point
-        #     #@info "boundary point", boundary_point, particle_on
-        #     # if boundary point, then set particle to off
-        #     particle_on = false
-        # end
+        # check if point is boundary point <-- replace in the future with with mask: 2= boundary, 1 = ocean, 0 = land
+        boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
 
         # add initial state to State vector
         if particle_on
                 init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
         end
 
+        # set projection:
+        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats))
+
         return InitParticleInstance(
                 particle_system,
                 z_i,
                 ODE_settings,
                 ij,
+                xy,
                 boundary_point,
                 particle_on)
 
-        end
-
-
-"""
-SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
-                particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
-                GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
-
-Seed Pickles to ParticleColletion and State
-"""
-function SeedParticle!(
-        ParticleCollection::Vector{Any},
-        State::StateTypeL1,
-        ij::Tuple{Int, Int},
-
-        particle_system::SS,
-        particle_defaults::PP,
-        ODE_settings, #particle_waves_v3.ODESettings type
-
-        GridNotes, # ad type of grid note
-        winds,     # interp winds
-        DT::Float64,
-
-        boundary::Vector{T},
-        periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
-
-        # Push Inital condition to collection
-        push!(ParticleCollection,
-                SeedParticle(State, ij,
-                        particle_system, particle_defaults, ODE_settings, #particle_waves_v3.ODESettings type
-                        GridNotes, winds, DT,
-                        boundary, periodic_boundary))
-        nothing
 end
+
+# """
+# SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
+#                 particle_system::ODESystem, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+#                 GridNotes, winds, DT:: Float64, Nx:: Int, boundary::Vector{Int}, periodic_boundary::Bool)
+
+# Seed Pickles to ParticleColletion and State
+# """
+# function SeedParticle!(
+#         ParticleCollection::Vector{Any},
+#         State::StateTypeL1,
+#         ij::Tuple{Int, Int},
+
+#         particle_system::SS,
+#         particle_defaults::PP,
+#         ODE_settings, #particle_waves_v3.ODESettings type
+
+#         GridNotes, # ad type of grid note
+#         winds,     # interp winds
+#         DT::Float64,
+
+#         boundary::Vector{T},
+#         periodic_boundary::Bool) where {T<:Union{Int,Any,Nothing,Int64},PP<:Union{ParticleDefaults,Nothing},SS<:Union{ODESystem,Any}}
+
+#         # Push Inital condition to collection
+#         push!(ParticleCollection,
+#                 SeedParticle(State, ij,
+#                         particle_system, particle_defaults, ODE_settings, #particle_waves_v3.ODESettings type
+#                         GridNotes, winds, DT,
+#                         boundary, periodic_boundary))
+#         nothing
+# end
 
 
 
