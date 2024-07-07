@@ -20,7 +20,7 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
         dx = gn.dx
     elseif typeof(grid) <: CartesianGrid
         mesh =grid.data
-        gn = (x= grid.data.x[1, :], y=grid.data.y[:, 1] )
+        gn = (x=grid.data.x[:, 1], y=grid.data.y[1, :])
         dx = grid.stats.dx
     end
     
