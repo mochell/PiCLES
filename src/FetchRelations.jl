@@ -351,8 +351,6 @@ function get_initial_windsea(U10::Number, V10::Number, time_scale::Number; type:
         mom_x = (U10 / U_amp) * E_ / (2 * cg_bar_amp)
         mom_y = (V10 / U_amp) * E_ / (2 * cg_bar_amp)
 
-
-
         # return dictionary with E, Hs, cg_bar_x, cg_bar_y, cg_bar, f_peak, T_bar, X_tilde, m_x, m_y
         return Dict("E" => E_, "lne" => log(E_), "Hs" => Hs_, "cg_bar_x" => cg_bar_x, "cg_bar_y" => cg_bar_y,
             "cg_bar" => cg_bar_amp, "f_peak" => f_peak, "T_bar" => T_bar, "X_tilde" => X_tilde_, "m_x" => mom_x, "m_y" => mom_y)
@@ -363,7 +361,7 @@ end
 
 
 
-u_min = 2.0
+u_min = 1.0
 rand_sign() = sign.(rand(0:1) - 0.5)
 
 """

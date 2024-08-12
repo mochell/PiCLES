@@ -50,6 +50,8 @@ mutable struct ParticleDefaults{T<:AbstractFloat}
         y::T
 end
 
+ParticleDefaults(vec::Vector{Float64}) = ParticleDefaults(vec[1], vec[2], vec[3], vec[4], vec[5])
+
 Base.copy(s::ParticleDefaults) = ParticleDefaults(s.lne, s.c̄_x, s.c̄_y, s.x, s.y)
 #initParticleDefaults(s::ParticleDefaults) = MVector{5,Float64}([s.lne, s.c̄_x, s.c̄_y, s.x, s.y])
 #initParticleDefaults(s::ParticleDefaults) = MVector{5,Float64}(s.lne, s.c̄_x, s.c̄_y, s.x, s.y)
@@ -57,16 +59,16 @@ initParticleDefaults(s::ParticleDefaults) = [s.lne, s.c̄_x, s.c̄_y, s.x, s.y]
 
 
 
-######### Particle --> Node  |  2D  ##########
 
+######### Particle --> Node  |  2D  ##########
 
 """
 GetParticleEnergyMomentum(PI)
 
 """
-function GetParticleEnergyMomentum(PI)
-        ui_lne, ui_c̄_x, ui_c̄_y, ui_x, ui_y = PI.ODEIntegrator.u
+function GetParticleEnergyMomentum(z0::TT) where {TT<:Union{Vector{Float64},MVector{5,Float64}}}
 
+        ui_lne, ui_c̄_x, ui_c̄_y, _, _ = z0
         ui_e = exp(ui_lne)
         c_speed = speed(ui_c̄_x, ui_c̄_y)
         m_x = ui_c̄_x * ui_e / c_speed^2 / 2
@@ -75,6 +77,24 @@ function GetParticleEnergyMomentum(PI)
         return SVector{3,Float64}(ui_e, m_x, m_y)
 end
 
+
+# Aliases: 
+
+# function GetParticleEnergyMomentum(PI)
+#         # ui_lne, ui_c̄_x, ui_c̄_y, ui_x, ui_y = PI.ODEIntegrator.u
+#         return GetParticleEnergyMomentum(PI.ODEIntegrator.u)
+#         # ui_e = exp(ui_lne)
+#         # c_speed = speed(ui_c̄_x, ui_c̄_y)
+#         # m_x = ui_c̄_x * ui_e / c_speed^2 / 2
+#         # m_y = ui_c̄_y * ui_e / c_speed^2 / 2
+
+#         # return SVector{3,Float64}(ui_e, m_x, m_y)
+# end
+
+"""
+GetParticleEnergyMomentum(PI)
+
+"""
 function GetParticleEnergyMomentum(PI::AbstractParticleInstance)
         return GetParticleEnergyMomentum(PI.ODEIntegrator.u)
 end
@@ -87,20 +107,6 @@ function GetParticleEnergyMomentum(zi::ParticleDefaults)
         return GetParticleEnergyMomentum([zi.lne, zi.c̄_x, zi.c̄_y, zi.x, zi.y])
 end
 
-"""
-GetParticleEnergyMomentum(PI)
-
-"""
-function GetParticleEnergyMomentum(z0::TT) where {TT<:Union{Vector{Float64},MVector{5,Float64}}}
-
-        ui_lne, ui_c̄_x, ui_c̄_y, _, _ =z0
-        ui_e = exp(ui_lne)
-        c_speed = speed(ui_c̄_x, ui_c̄_y)
-        m_x = ui_c̄_x * ui_e / c_speed^2 / 2
-        m_y = ui_c̄_y * ui_e / c_speed^2 / 2
-
-        return SVector{3,Float64}(ui_e, m_x, m_y)
-end
 
 speed(x::Float64, y::Float64) = sqrt(x^2 + y^2)
 
@@ -142,8 +148,6 @@ end
 
 
 ###### seed particles #####
-
-
 """
 InitParticleInstance(model::WaveGrowth1D, z_initials, pars, ij, boundary_flag, particle_on ; cbSets=nothing)
 wrapper function to initalize a particle instance
@@ -166,6 +170,7 @@ function InitParticleInstance(model, z_initials, ODE_settings, ij, xy , boundary
 
         # converty to ordered named tuple
         ODE_parameters = NamedTuple{Tuple(Symbol.(keys(ODE_settings.Parameters)))}(values(ODE_settings.Parameters))
+        ODE_parameters = (; ODE_parameters..., x = xy[1], y = xy[2])
 
         z_initials = initParticleDefaults(z_initials)
         # create ODEProblem
@@ -322,7 +327,10 @@ function ResetParticleValues(
                 particle_defaults[4]    = xy[1]
                 particle_defaults[5]    = xy[2]
         else
-                particle_defaults = defaults
+                # particle_defaults = defaults
+                # particle_defaults[4] = xy[1]
+                # particle_defaults[5] = xy[2]
+                particle_defaults = ParticleDefaults(defaults.lne, defaults.c̄_x, defaults.c̄_y, xy[1], xy[2])
         end
 
         #@show defaults
@@ -334,16 +342,28 @@ function ResetParticleValues(
 
 end
 """
+
 check_boundary_point(i, boundary, periodic_boundary)
 checks where ever or not point is a boundary point.
+## depreciate this version
 returns Bool
 """
 function check_boundary_point(i, boundary, periodic_boundary)
-    return periodic_boundary ? false : (i in boundary)
+        return periodic_boundary ? false : (i in boundary)
 end
 
-
-
+"""
+check_boundary_point(imesh, periodic_boundary)
+checks if point is boundary point
+        returns Bool
+"""
+function check_boundary_point(imesh, periodic_boundary)
+        if periodic_boundary
+                return imesh == 2 # only land points are treated as boundary points
+        else
+                return imesh >= 2 # land points and grid boundary points are treated as boundary points
+        end
+end
 
 # """
 # SeedParticle!(ParticleCollection ::Vector{Any}, State::SharedMatrix, i::Int64,
@@ -405,11 +425,11 @@ end
 
 
 """
-    function SeedParticle(State::StateTypeL1, ij:: (Int64, Int64)
-                        particle_system::Any, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
-                        ij_mesh, ij_wind_tuple, DT:: Float64, boundary::Vector{Int}, periodic_boundary::Bool)
+        function SeedParticle(State::StateTypeL1, ij:: (Int64, Int64)
+        particle_system::Any, particle_defaults::Union{ParticleDefaults,Nothing}, ODE_settings,
+        ij_mesh, ij_wind_tuple, DT:: Float64, boundary::Vector{Int}, periodic_boundary::Bool)
 
-    returns ParicleInstance that can be pushed to ParticleColletion
+        returns ParicleInstance that can be pushed to ParticleColletion
 """
 function SeedParticle(
         State::StateTypeL1,
@@ -421,6 +441,7 @@ function SeedParticle(
         
         gridstats::AbstractGridStatistics,
         ProjetionKernel::Function,
+        PropagationCorrection::Function,
 
         ij_mesh::NamedTuple, # local grid information
         ij_wind::Tuple,     # interp winds
@@ -431,17 +452,18 @@ function SeedParticle(
 
         xy = (ij_mesh.x, ij_mesh.y)
         # 1st check if particle is not in mask, Land points == 0
-        if ij_mesh.mask == 0
+        if ij_mesh.mask == 0 # land point
                 # init dummy instance
-                return ParticleInstance2D(ij, xy , nothing, true, false)
+                return ParticleInstance2D(ij, xy , nothing, false, false)
         end
 
         # define initial condition
         # particle initial condition is always (0,0) in relative coordinates not xy anymore
         z_i, particle_on = InitParticleValues(particle_defaults, (0.0, 0.0) , ij_wind, DT)
 
-        # check if point is boundary point <-- replace in the future with with mask: 2= boundary, 1 = ocean, 0 = land
-        boundary_point = check_boundary_point(ij, boundary, periodic_boundary)
+        # check if point is boundary point <-- replace in the future with with mask: 0 = land, 1 = ocean, 2= land boundary, 3 = domain boundary
+        # boundary_point = check_boundary_point(ij, boundary, periodic_boundary) # old version that compares to list 
+        boundary_point   = check_boundary_point(ij_mesh.mask, periodic_boundary)
 
         # add initial state to State vector
         if particle_on
@@ -449,7 +471,7 @@ function SeedParticle(
         end
 
         # set projection:
-        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats))
+        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats), PC = PropagationCorrection(ij_mesh, gridstats) )
 
         return InitParticleInstance(
                 particle_system,

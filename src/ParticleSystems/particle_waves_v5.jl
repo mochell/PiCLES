@@ -355,7 +355,6 @@ end
 #         return (dphi_p / dn_0) * ( (dn /dn_0) / (  (dn/dn_0)^2  + (dg_ratio/2.0)^2 ) )
 # end
 
-
 # tΔφ_w_func(c_x::Number, c_y::Number, u_x::Number, v_y::Number) =   (c_x .* v_y - c_y .* u_x ) / ( c_x .* u_x + c_y .* v_y )
 # Δφ_p_RHS(tΔφ_w::Number, tΔφ_p::Number , T_inv::Number)        =   ( tΔφ_w -  tΔφ_p ) * T_inv / (  1 + tΔφ_w * tΔφ_p )
 
@@ -405,10 +404,15 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
             # add projection matrix
             M = haskey(params, :M) ? params.M : [1 0 ; 0 1]
-            
+            x_lat = haskey(params, :x) ? params.x : x
+            y_lat = haskey(params, :y) ? params.y : y
+            PropagationCorrection = haskey(params, :PC) ? params.PC : x -> 0.0 # Great circle correction for specific grid types  <--------- test this!
+
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
-            u = u_wind(z[4], z[5], t)#::Number
-            v = v_wind(z[4], z[5], t)#::Number
+            u = u_wind(x_lat, y_lat, t)#::Number
+            v = v_wind(x_lat, y_lat, t)#::Number
+            # u = u_wind(z[4], z[5], t)#::Number
+            # v = v_wind(z[4], z[5], t)#::Number
 
             c̄ = speed(z[2], z[3])
             u_speed = speed(u, v)
@@ -428,6 +432,9 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             D̃ = dissipation ? D̃_func_lne(z[1], kₚ, e_T, n) : 0.0
             S_cg_tilde = peak_shift ? S_cg(z[1], Δₚ, kₚ, C_α) : 0.0
             S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
+
+            # apply great circle correction for spherical coorindates
+            S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
 
             # propagration projections
             c̄_projected = propagation ? M * [c̄_x, c̄_y] : [0.0, 0.0]
@@ -477,12 +484,18 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             r_g, C_α, C_e, C_φ = params.r_g, params.C_α, params.C_e, params.C_φ
 
             # add projection matrix
-            M = haskey(params, :M) ? params.M : [1 0; 0 1]
+            M     = haskey(params, :M) ? params.M : [1 0; 0 1] # Projection matrix dependent on GridType
+            x_lat = haskey(params, :x) ? params.x : x  # latitude in degrees of the Particle instance
+            y_lat = haskey(params, :y) ? params.y : y  # longitude in degrees of the Particle instance
+            PropagationCorrection = haskey(params, :PC) ? params.PC : x -> 0.0 # Great circle correction for specific grid types  <--------- test this!
 
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
-            u                 = u_wind(x, y, t)#::Number
-            v                 = v_wind(x, y, t)#::Number
+            u                 = u_wind(x_lat, y_lat, t)#::Number
+            v                 = v_wind(x_lat, y_lat, t)#::Number
 
+            # @info "x_lat: $x_lat, y_lat: $y_lat"
+            # @info "x_lat: $(round(x_lat, digits=2)), y_lat: $(round(y_lat, digits=2)), u: $(round(u, digits=2)), v: $(round(v, digits=2))"
+            
             c̄                 = speed(c̄_x, c̄_y)
             u_speed           = speed(u, v)
 
@@ -502,7 +515,10 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             S_cg_tilde  = peak_shift ? S_cg(lne, Δₚ, kₚ, C_α) : 0.0
             S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
-            #particle_equations::Vector{Number} = [
+            # apply great circle correction for spherical coorindates
+            S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
+
+            #particle_equations::Vector{Number} = 
             # energy
             dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
 
@@ -581,7 +597,7 @@ function particle_equations(u_wind; γ::Number=0.88, q::Number=-1 / 4.0, IDConst
         #lne, c̄_x, x      = z.lne, z.c̄_x, z.x
         r_g, C_α, C_e = params.r_g, params.C_α, params.C_e
 
-        # forcing fields, need to be global scope?
+        # forcing fields, need to be global scope? 
         u = u_wind(x, t)
         #u = (u=u2(x, y, t), v=v2(x, y, t))
 

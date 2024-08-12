@@ -1,0 +1,131 @@
+using Pkg
+Pkg.activate("PiCLES/")
+
+using DifferentialEquations
+using Plots
+using Setfield
+using IfElse
+
+using PiCLES.ParticleSystems: particle_waves_v5 as PW
+using PiCLES.Utils: Init_Standard
+
+import PiCLES: FetchRelations, ParticleTools
+using PiCLES.Operators.core_2D: InitParticleInstance
+using Oceananigans.Units
+
+using PiCLES.Grids.TripolarGridMOM6: TripolarGridMOM6
+
+using PiCLES.Grids: SphericalPropagationCorrection
+
+plot_path_base = "plots/tests/T04_2D_single_particle/"
+mkpath(plot_path_base)
+
+# %%
+load_path = "PiCLES/src/Grids/files/";
+gridd = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 6; mask_radius=5);
+
+
+using Makie
+using PiCLES.Plotting: PlotState_DoubleGlobe, PlotState_SingleGlobe, PlotState_DoubleGlobeSeam, OrthographicTwoMaps, OrthographicTwoMapsSeam
+
+#data = SphericalPropagationCorrection.(gridd.data.y, -10.0)
+
+fig = Figure(size=(900, 500), fontsize=22)
+OrthographicTwoMapsSeam(fig, gridd.data.x[1:end, 1:end-10], gridd.data.y[1:end, 1:end-10], data[1:end, 1:end-10])
+# heatmap(gridd.data.angle_dx)
+fig
+
+# %%
+deg_x = -89.9:0.1:89.9
+Gg = SphericalPropagationCorrection.(deg_x)
+G_test = [Gg_i(10) for Gg_i in Gg]
+Plots.plot(deg_x, G_test)
+
+
+
+# define Particle Position
+
+# %%
+ij = (180, 86)
+ij_mesh, gridstats = gridd.data[ij[1], ij[2]], gridd.stats
+#ij_mesh.y = 0.0
+x_lon, y_lat = ij_mesh.x, ij_mesh.y  
+SGC = SphericalPropagationCorrection(ij_mesh, gridstats)
+
+
+Revise.retry()
+u(x::Number, y::Number, t::Number) = 0.0#(10.0 * cos(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
+v(x::Number, y::Number, t::Number) = 0.0#-(10.0 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
+
+DT = 30minutes
+
+using PiCLES.Operators.core_2D: ParticleDefaults
+
+# ParticleState, default_ODE_parameters, WindSeamin, Const_ID = Init_Standard(15.0, 00.0, 4hour)
+#FetchRelations.get_initial_windsea(15.0, 0.0, 4hour, particle_state=true)
+ParticleState = ParticleDefaults(FetchRelations.get_initial_windsea(1.0, 10.0, 4hour, particle_state=true))
+
+#particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
+
+particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q,
+    propagation=true,
+    input=false,
+    dissipation=false,
+    peak_shift=false,
+    direction=false,
+);
+
+
+# add functions to params
+used_ODE_params = (default_ODE_parameters..., x=x_lon, y=y_lat, PC=SphericalPropagationCorrection(ij_mesh, gridstats));
+# test execution
+used_ODE_params.PC(1)
+
+tand(0)
+tand(ij_mesh.y)
+
+ODE_settings = PW.ODESettings(
+    Parameters=used_ODE_params,
+    # define mininum energy threshold
+    log_energy_minimum=log(WindSeamin["E"]),
+    #maximum energy threshold
+    log_energy_maximum=log(17),  # correcsponds to Hs about 16 m
+    saving_step=10minutes,
+    timestep=DT,
+    total_time= T = 30days,
+    callbacks=cb,
+    save_everystep=false,
+    maxiters=1e4,
+    adaptive=true,
+    dt=10,#60*10, 
+    dtmin=1,#60*5, 
+    force_dtmin=true,)
+
+PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij , (ij_mesh.x, ij_mesh.y), false, true)
+
+for i in Base.Iterators.take(PI.ODEIntegrator, 600)
+    # time_step_local!(PI, DT)
+    step!(PI.ODEIntegrator, DT, true)
+end
+
+#2.6 * 20 * DT /1e3
+
+PID = ParticleTools.ParticleToDataframe(PI)
+PI.ODEIntegrator.u
+
+gr(display_type=:inline)
+# plit each row in PID and a figure
+tsub = range(start=1, stop=length(PID[:, 1]), step=10)
+p3 = plot( x_lon  .+  PID[tsub, 5] / (110e3 * cos(y_lat)), y_lat .+  PID[tsub, 6] / 110e3, marker=3, title="position on Sphere ", ylabel="lat", xlabel= "lon", label="v4") #|> display
+
+plot!(p3,  [x_lon]  , [y_lat] , marker=10, title="lon ", ylabel="lat", label="origin") #|> display
+
+p3
+# subtitle = "u$(U10)_v$(V10)_reset_to_windsea_dt$(DT)"
+# subtitle = "u10_v10_reset_to_windsea_dt$(DT)"
+# savefig(joinpath(plot_path_base, subtitle*"_continous_foreward.png"))
+
+
+
+# %%
+

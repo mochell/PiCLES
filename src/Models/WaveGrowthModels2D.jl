@@ -10,7 +10,6 @@ using ...Architectures
 using ...ParticleMesh: OneDGrid, OneDGridNotes, TwoDGrid, TwoDGridNotes
 
 using ...Operators.core_2D: ParticleDefaults as ParticleDefaults2D
-#using core_2D: SeedParticle! as SeedParticle2D!
 using ...Operators.mapping_2D
 
 using SharedArrays
@@ -24,6 +23,8 @@ using Oceananigans.TimeSteppers: Clock
 using ...FetchRelations
 
 using ...custom_structures: ParticleInstance2D
+
+using ...Grids: make_boundary_lists
 #includet("mapping_1D.jl")
 
 
@@ -79,6 +80,8 @@ mutable struct WaveGrowth2D{Grid<:AbstractGrid,
     periodic_boundary::bl_flag # If true we use a period boundary 
     boundary::bl       # List of boundary points
     boundary_defaults::bl_type # Dict{NUm, Float64} ODE defaults
+    ocean_points::Vector
+    boundary_points::Vector
 
     winds::wnds     # u, v, if needed u_x, u_y
     currents::cur      # u, v, currents
@@ -132,9 +135,9 @@ end
 """
 function init_StateArray(grid::Union{CartesianGrid2D,TripolarGrid}, Nstate, layers)
     if layers > 1
-        State = SharedArray{Float64,4}(grid.stats.Nx, grid.stats.Ny, Nstate, layers)
+        State = SharedArray{Float64,4}(grid.stats.Nx.N, grid.stats.Ny.N, Nstate, layers)
     else
-        State = SharedArray{Float64,3}(grid.stats.Nx, grid.stats.Ny, Nstate)
+        State = SharedArray{Float64,3}(grid.stats.Nx.N, grid.stats.Ny.N, Nstate)
     end
     return State
 end
@@ -163,14 +166,14 @@ function that returns list of boundary nodes (tuples of indixes)
 """
 function mark_boundary(grid::Union{CartesianGrid2D,TripolarGrid})
     #get x and y coordinates
-    xi = collect(range(1, stop=grid.stats.Nx, step=1))
-    yi = collect(range(1, stop=grid.stats.Ny, step=1))
+    xi = collect(range(1, stop=grid.stats.Nx.N, step=1))
+    yi = collect(range(1, stop=grid.stats.Ny.N, step=1))
 
     # make boundary nodes
-    a = [(xi[i], yi[j]) for j in 1:grid.stats.Ny, i in [1, grid.stats.Nx]]
-    b = [(xi[i], yi[j]) for j in [1, grid.stats.Ny], i in 1:grid.stats.Nx]
+    a = [(xi[i], yi[j]) for j in 1:grid.stats.Ny.N, i in [1, grid.stats.Nx.N]]
+    b = [(xi[i], yi[j]) for j in [1, grid.stats.Ny.N], i in 1:grid.stats.Nx.N]
     #merge a and b
-    return vcat(vec(a), vec(b)) #vec(vcat(a, b))
+    return [CartesianIndex(i) for i in vcat(vec(a), vec(b))] #vec(vcat(a, b))
 end
 
 """  
@@ -202,7 +205,7 @@ function WaveGrowth2D(; grid::GG,
     periodic_boundary=true,
     boundary_type="same", # or "minimal", "same", default is same, only used if periodic_boundary is false
     CBsets=nothing,
-    movie=false) where {PP<:Union{ParticleDefaults2D,String},GG<:Union{TwoDGrid,CartesianGrid2D}}
+    movie=false) where {PP<:Union{ParticleDefaults2D,String},GG<:AbstractGrid}
 
     # initialize state {SharedArray} given grid and layers
     # Number of state variables 
@@ -222,10 +225,11 @@ function WaveGrowth2D(; grid::GG,
     elseif ODEinit_type == "wind_sea"
         ODEdefaults = nothing
     elseif ODEinit_type == "mininmal"
-        ODEdefaults = ParticleDefaults1D(-11.0, 1e-3, 0.0)
+        ODEdefaults = ParticleDefaults2D(-11.0, 1e-3, 0.0)
     else
         error("ODEinit_type must be either 'wind_sea','mininmal', or ParticleDefaults2D instance ")
     end
+
 
     if isnothing(minimal_particle)
         @info "initalize minimum particle"
@@ -247,6 +251,24 @@ function WaveGrowth2D(; grid::GG,
     else
         boundary = []
     end
+
+    # create grid points lists.
+    Glists = make_boundary_lists(grid.data.mask)
+    if periodic_boundary
+        # all wave points to concider:
+        ocean_points = vcat(Glists.ocean, Glists.grid_boundary)
+
+        # all boundary points to concider
+        boundary_points = Glists.land_boundary
+    else
+        # all wave points to concider:
+        ocean_points= Glists.ocean
+
+        # all boundary points to concider
+        boundary_points = vcat(Glists.land_boundary, Glists.grid_boundary)
+
+    end
+
 
     if boundary_type == "wind_sea"
         boundary_defaults = nothing
@@ -270,8 +292,8 @@ function WaveGrowth2D(; grid::GG,
     end
 
 
-    if typeof(grid) <: CartesianGrid
-        Nx, Ny = grid.stats.Nx, grid.stats.Ny
+    if typeof(grid) <: MeshGrids
+        Nx, Ny = grid.stats.Nx.N, grid.stats.Ny.N
     elseif typeof(grid) <: StandardRegular2D_old
         Nx, Ny = grid.Nx, grid.Ny
         # @info "WaveGrowthModel: StandardRegular2D_old"
@@ -316,6 +338,7 @@ function WaveGrowth2D(; grid::GG,
         minimal_state,
         periodic_boundary,
         boundary, boundary_defaults,
+        ocean_points, boundary_points,
         winds,
         currents,
         Mstat)

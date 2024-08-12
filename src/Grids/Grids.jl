@@ -6,10 +6,15 @@ export TripolarGridMOM6
 export CartesianGrid
 #, TwoDCartesianGridStatistics, TwoDCartesianGridMesh
 
+include("mask_utils.jl")
+include("spherical_grid_corrections.jl")
+
 include("TripolarGridMOM6.jl")
 using .TripolarGridMOM6
 
 include("CartesianGrid.jl")
 using .CartesianGrid
+
+
 
 end # module
