@@ -15,7 +15,7 @@ using ...custom_structures: ParticleInstance1D, ParticleInstance2D, MarkedPartic
 using ..core_2D: GetParticleEnergyMomentum, GetVariablesAtVertex, Get_u_FromShared, ResetParticleValues, ParticleDefaults
 
 using ...Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance, AbstractODESettings, StateTypeL1
-using ...Architectures: Grid2D, CartesianGrid, CartesianGridStatistics, CartesianGrid2D, CartesianGrid1D, AbstractGridStatistics, AbstractGrid, StandardRegular2D_old
+using ...Architectures: Grid2D, CartesianGrid, CartesianGridStatistics, CartesianGrid2D, CartesianGrid1D, AbstractGridStatistics, AbstractGrid, StandardRegular2D_old, MeshGrids, MeshGridStatistics
 
 
 # using ...ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
@@ -56,18 +56,19 @@ function ParticleToNode!(PI::AbstractParticleInstance, S::StateTypeL1, G::TwoDGr
         nothing
 end
 
-function ParticleToNode!(PI::AbstractParticleInstance, S::StateTypeL1, G::CartesianGrid2D, periodic_boundary::Bool)
+function ParticleToNode!(PI::AbstractParticleInstance, S::StateTypeL1, G::MeshGrids, periodic_boundary::Bool)
         
         #u[4], u[5] are the x and y positions of the particle. For the CartesianGrid2D these are cooridnates relative to the particle node
         weights_and_index = PIC.compute_weights_and_index_mininal(PI.position_ij, PI.ODEIntegrator.u[4], PI.ODEIntegrator.u[5])
+        # @info PI.position_ij, weights_and_index
 
         #ui[1:2] .= PI.position_xy
-        #@show index_positions
+
         u_state = GetParticleEnergyMomentum(PI.ODEIntegrator.u)
         #@show u_state
 
         #PIC.push_to_grid!(S, u_state , index_positions,  weights, G.Nx, G.Ny , periodic_boundary)
-        PIC.push_to_grid!(S, u_state, weights_and_index, G.stats.Nx, G.stats.Ny, periodic_boundary)
+        PIC.push_to_grid!(S, u_state, weights_and_index, G.stats.Nx, G.stats.Ny)
         nothing
 end
 
@@ -117,7 +118,7 @@ end
 function advance!(PI::AbstractParticleInstance,
                         S::StateTypeL1,
                         Failed::Vector{AbstractMarkedParticleInstance},
-                        Grid::Grid2D,
+                        Grid::Union{Grid2D,MeshGrids},
                         winds::NamedTuple{(:u, :v)},
                         DT::Float64, 
                         log_energy_maximum::Float64,
@@ -133,7 +134,7 @@ function advance!(PI::AbstractParticleInstance,
         savevalues!(PI.ODEIntegrator)
         
         # set the position in particle state vector either to the node position or to the relative position in the CartesianGrid
-        if typeof(Grid) <: CartesianGrid
+        if typeof(Grid) <: MeshGrids
                 xy = (0.0,0.0)
                 # @info "advance: CartesianGrid"
         elseif typeof(Grid) <: StandardRegular2D_old
@@ -222,11 +223,13 @@ function advance!(PI::AbstractParticleInstance,
                 @info "e_max_log is reached"
                 #@show PI
 
-                winds_start = convert(Tuple{Float64,Float64},
-                                        (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
-                                        winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
+                # winds_start = convert(Tuple{Float64,Float64},
+                #                         (winds.u(PI.position_xy[1], PI.position_xy[2], t_start),
+                #                         winds.v(PI.position_xy[1], PI.position_xy[2], t_start)))::Tuple{Float64,Float64}
 
-                ui = ResetParticleValues(default_particle, xy, winds_start, DT)
+                ui = PI.ODEIntegrator.u
+                ui[1] = log_energy_maximum
+                # ui = ResetParticleValues(default_particle, xy, winds_start, DT)
                 reset_PI_u!(PI, ui=ui)
 
         end
@@ -275,7 +278,7 @@ end
 """
 function NodeToParticle!(PI::AbstractParticleInstance, S::StateTypeL1,
         wind_tuple::Tuple{Float64,Float64}, 
-        grid_stats::AbstractGridStatistics,
+        grid_stats::MeshGridStatistics,
         minimal_state::Vector{Float64},
         wind_min_squared::Float64, 
         default_particle::PP, 
@@ -285,11 +288,16 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::StateTypeL1,
         # load data from shared array
         u_state = Get_u_FromShared(PI, S)
 
-        if typeof(grid_stats) <: CartesianGridStatistics
-                xy = (0.0,0.0)
-                #@info "NodeToParticle!: CartesianGridStatistics"
+        if typeof(grid_stats) <: MeshGridStatistics
+                xy = ( 0.0, 0.0 )
+                # if (PI.position_ij == (10, 10)) | (PI.position_ij == (40, 10))
+                #         @info "NodeToParticle!: CartesianGridStatistics"
+                # end
         else
                 xy = PI.position_xy
+                # if (PI.position_ij == (10, 10)) | (PI.position_ij == (40, 10))
+                #         @info "NodeToParticle!: Standard grid"
+                # end
         end
 
         last_t = PI.ODEIntegrator.t
@@ -332,7 +340,7 @@ function NodeToParticle!(PI::AbstractParticleInstance, S::StateTypeL1,
                 ui = ResetParticleValues(default_particle, xy, wind_tuple, DT) # returns winds sea given DT and winds
                 reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)#, reinit_callbacks=true)
                 reset_PI_t!(PI, ti=last_t)
-
+                # @info default_particle, ui
                 PI.on = true
 
  

@@ -2,10 +2,14 @@ module TripolarGridMOM6
 
 using NCDatasets
 
-using ...Architectures: AbstractGrid, AbstractGridStatistics, TripolarGrid
-
+using ...Architectures: AbstractGrid, AbstractGridStatistics, TripolarGrid, TripolarGridStatistics, AbstractBoundary, BoundaryType
+using ...custom_structures: N_Periodic, N_NonPeriodic, N_TripolarNorth
 using StructArrays
 using StaticArrays
+
+using Statistics
+
+include("mask_utils.jl")
 
 
 ### ------ basic functions to create the grid -------
@@ -18,7 +22,7 @@ using StaticArrays
     # Inputs:
     - `x`: Array of longitude positions (px, py), where px and py are the dimensions of the grid.
     - `y`: Array of latitude positions (px, py), must have the same dimensions as `x`.
-    - `angle_dx`: Array of angles at dx positions (px, py), must have the same dimensions as `x`.
+    - `angle_dx`: Array of angles at dx positions (px, py), must have the same dimensions as `x`. angles clockwise from true north.
     - `k`: Integer, the stride used to sample the grid points. Determines the spacing between the points in the output. Possible options seam to be k = 2,4,6,8
     - `mask` (optional) mask array given for k =2 on the same grid as x and y. land=1, ocean==0
 
@@ -281,12 +285,12 @@ end
     - `mask_value::Int`: Value used to mask grid points.
 
 """
-struct MOM6GridStatistic <: AbstractGridStatistics
+struct MOM6GridStatistic <: TripolarGridStatistics
 
     file::String
 
-    Nx::Int
-    Ny::Int
+    Nx::BoundaryType
+    Ny::BoundaryType
     Ndx::Int
     Ndy::Int
 
@@ -300,11 +304,16 @@ struct MOM6GridStatistic <: AbstractGridStatistics
 
     mask_value::Int
 
-    function MOM6GridStatistic(Grid; mask_value=1, file="unknown")
+    function MOM6GridStatistic(Grid; mask_value=1, file="unknown", periodic_boundary::Tuple{Bool,Bool}=(true, false))
         Nx = size(Grid.Tpoint.lon)[1]
         Ny = size(Grid.Tpoint.lon)[2]
+
         Ndx = Nx - 1
         Ndy = Ny - 1
+
+        Nx = periodic_boundary[1] ? N_Periodic(Nx) : N_NonPeriodic(Nx)
+        Ny = periodic_boundary[2] ? N_Periodic(Ny) : N_TripolarNorth(Ny)
+
 
         xmin = minimum(Grid.Tpoint.lon)
         xmax = maximum(Grid.Tpoint.lon)
@@ -324,31 +333,47 @@ struct MOM6GridMesh <: TripolarGrid
 
     data::StructArray{<:Any}  # Adjust the type as necessary
     stats::MOM6GridStatistic
+    ProjetionKernel::Function
 
     # initialize with Grid and GridAreaGen objects    
-    function MOM6GridMesh(G, GA; mask=nothing, file="unknown")
+    function MOM6GridMesh(G, GA; mask=nothing, file="unknown", total_mask=nothing, mask_radius =3)
         # Extracting fields from Grid and GridAreaGen objects
 
+        stats = MOM6GridStatistic(G; file=file)
+
         if mask == nothing
-            try
-                if G.mask == nothing
-                    @info "mask is not provided, using default"
-                    # mask = Array{Union{Nothing,Float64}}(1, size(G.Tpoint.lon))
-                    mask = trues(size(G.Tpoint.lon))
-                else
-                    @info "Using provided mask"
-                    mask = G.mask
-                end
-            catch
-                # mask = Array{Union{Nothing,Float64}}(1, size(G.Tpoint.lon))
-                mask = trues(size(G.Tpoint.lon))
-            end
+
+            @info "mask is not provided, using default"
+            # mask = Array{Union{Nothing,Float64}}(1, size(G.Tpoint.lon))
+            mask = trues(size(G.Tpoint.lon))
+
+            # TripolarGrid_mask_pols!(mask, G, mask_radius)
+            TripolarGrid_mask_pols!(mask, stats.Nx, stats.Ny, G.Tpoint.lon, G.Tpoint.lat, GA.Tdist.dyCv, mask_radius)
+
+            # # south pole
+            # nsize= 10
+            # mask[:, 1:nsize] .= false
+
+            # # center pole
+            # mask[Int(floor((stats.Nx.N) / 2 - nsize)):Int(ceil((stats.Nx.N) / 2 + nsize)), end-2*nsize:end] .= false
+
+            # # corner pole
+            # mask[end-nsize:end, end-2*nsize:end] .= false
+            # mask[1:nsize, end-2*nsize:end] .= false
+
         else
+
             @info "Using provided mask"
             if size(mask) != size(G.Tpoint.lon)
                 error("Mask size must be the same as the grid size")
             end
-            mask = mask
+                mask = mask
+        end
+        
+        if isnothing(total_mask)
+            mask = make_boundaries(mask, stats.Nx, stats.Ny)
+        else
+            mask = total_mask
         end
 
         # test mask size
@@ -363,14 +388,12 @@ struct MOM6GridMesh <: TripolarGrid
             mask=mask
         )
 
-        info = MOM6GridStatistic(G; file=file)
-
         # Create and return the extended struct with Grid and GridAreaGen objects included
-        return new(data, info)
+        return new(data, stats, ProjetionKernel)
     end
 
     # initialize with Grid and GridAreaGen files
-    function MOM6GridMesh(GridFile::String, k::Int; MaskFile::Union{String,Nothing}=nothing)
+    function MOM6GridMesh(GridFile::String, k::Int; MaskFile::Union{String,Nothing}=nothing, mask_radius=5)
         # Extracting fields from Grid and GridAreaGen objects
 
         hgrd     = NCDataset(GridFile)
@@ -379,7 +402,7 @@ struct MOM6GridMesh <: TripolarGrid
         dx       = hgrd["dx"]
         dy       = hgrd["dy"]
         area     = hgrd["area"]
-        angle_dx = hgrd["angle_dx"]
+        angle_dx = hgrd["angle_dx"] #angles clockwise from true north.
 
 
         if MaskFile != nothing
@@ -399,24 +422,63 @@ struct MOM6GridMesh <: TripolarGrid
 
         # @info Grid.mask
 
-        return MOM6GridMesh(Grid, GridArea; file=GridFile)#; mask=Grid.mask)
+        return MOM6GridMesh(Grid, GridArea; mask=mask, file=GridFile, mask_radius=mask_radius)#; mask=Grid.mask)
     end
 
 end
 
 
 ## projection Kernel for this grid:
-
-function ProjetionKernel(G::TripolarGrid)
-    cosa = cos.(G.data.angle_dx * pi / 180)
-    sina = sin.(G.data.angle_dx * pi / 180)
+function ProjetionKernel(Gdata::StructArray)
+    cosa = cos.(Gdata.angle_dx * pi / 180)
+    sina = sin.(Gdata.angle_dx * pi / 180)
     #@SArray
     proj(cosa, sina, dx, dy, mask) = mask == 1 ? SMatrix{2,2}([
             cosa/dx sina/dy;
-            sina/dx cosa/dy]) : nothing
+            -sina/dx cosa/dy]) : nothing
 
-    M = map(proj, cosa, sina, G.data.dx, G.data.dy, G.data.mask)
+    M = map(proj, cosa, sina, Gdata.dx, Gdata.dy, Gdata.mask)
     return M
+end
+
+function ProjetionKernel(Gi::NamedTuple, stats::TripolarGridStatistics)
+
+    cosa = cos.(Gi.angle_dx * pi / 180)
+    sina = sin.(Gi.angle_dx * pi / 180)
+    
+    # return Gi.mask == 1 ? SMatrix{2,2}([
+    #             cosa/Gi.dx sina/Gi.dy;
+    #             sina/Gi.dx cosa/Gi.dy]) : nothing
+    return SMatrix{2,2}([
+        cosa/Gi.dx sina/Gi.dy;
+        -sina/Gi.dx cosa/Gi.dy])
+end
+
+# alias for GRid object
+ProjetionKernel(G::TripolarGrid) = ProjetionKernel(G.data)
+
+
+## Propagation Correction for Spherical Grid
+
+
+# ------- generic masking functions ------------
+function TripolarGrid_mask_pols!(mask, Nx, Ny, lons, lats, dx, radius_deg)
+
+    # loop over the two north poles
+    for pp_ij in [(1, Ny.N),
+        (Nx.N, Ny.N),
+        (Int(round(Nx.N / 2)), Ny.N)]
+
+        # mask_circle!(mask, grid, pp_ij, radius_deg)
+        mask_circle!(mask, lons, lats, pp_ij, radius_deg)
+    end
+
+    # mask south pole
+    dx_deg = mean(dx) / 110e3
+    Ny_mask = Int(ceil(radius_deg / dx_deg))
+
+    mask[:, 1:Ny_mask] .= false
+
 end
 
 end 

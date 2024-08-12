@@ -1,12 +1,12 @@
 module ParticleInCell
 
-using ..Architectures: StateTypeL1
+using ..Architectures: StateTypeL1, AbstractBoundary
 using Statistics
 
 using SharedArrays
 using StaticArrays
 
-using ..custom_structures: wni
+using ..custom_structures: wni, N_Periodic, N_NonPeriodic, N_TripolarNorth
 
 # %%
 using ..ParticleMesh
@@ -150,10 +150,10 @@ function compute_weights_and_index_mininal(ij::II, xp::Float64, yp::Float64) whe
     """
     2d wrapper for 1d function
     """
-    xi, xw = ParticleInCell.get_absolute_i_and_w(xp, ij[1])
-    yi, yw = ParticleInCell.get_absolute_i_and_w(yp, ij[2])
+    xi, xw = get_absolute_i_and_w(xp, ij[1])
+    yi, yw = get_absolute_i_and_w(yp, ij[2])
 
-    return ParticleInCell.wni(xi, xw, yi, yw)
+    return wni(xi, xw, yi, yw)
 end
 
 """
@@ -221,35 +221,10 @@ end
 
 #index_positions, weights = compute_weights_and_index(grid2d, [0.1, 11.1, 0.1, 5.234, -4.3], [0.1, 0.5, 2.9, 9.99, -3.2])
 
-# function wrap_index!(pos::Int, N::Int)
-#     if pos < 0
-#         pos = pos  % Int(N)
-#         #pos =  N
-#     elseif pos > N
-#         pos = pos % Int(N)
-#         #pos = N
-#     elseif pos == 0
-#         pos = pos + Int(N)
-#     end
-#     return pos
-# end
-
-function wrap_index!(pos::Int, N::Int)
-        pos = pos % Int(N)
-
-        if pos < 0
-                pos = pos + Int(N)
-                #pos =  N
-        elseif pos == 0
-                pos = pos + Int(N)
-        end
-    return pos
-end
-
 
 #### merging rules: ####
 
-#V1: angle and wave age
+# V1: angle and wave age
 function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -274,6 +249,7 @@ function merge!(grid_point::Vector{Float64}, charge::Vector{Float64}; verbose=fa
         grid_point = charge
     end
     return grid_point
+
 end
 
 # V0 : Who is larger
@@ -296,7 +272,7 @@ end
 #     return grid_point
 # end
 
-# 1D version
+# V0: 1D version
 function merge!(grid_point::Float64, charge::Float64; verbose=false)
 
     verbose ? (@info "grid_point = $grid_point, charge = $charge") : nothing
@@ -323,14 +299,10 @@ end
 (⊓)(g::Float64, c::Float64) = merge!(g, c, verbose=true)
 
 
-
-#wrap_index!.(collect(range(0, gridnotes.Nx+1, step=1)), gridnotes.Nx)
-#wrap_index!.(collect(range(-2, gridnotes.Ny*2, step=1)), gridnotes.Ny)
-
-#charges_grid = zeros(grid2d.Nx, grid2d.Ny)
+# ---------------------- Push to Grid 2D ------------------
 
 
-## 2D versions
+## very general verion 2D
 function push_to_grid!(grid::Matrix{Float64},
                             charge::Float64,
                             index_pos::Tuple{Int, Int},
@@ -342,55 +314,144 @@ function push_to_grid!(grid::Matrix{Float64},
 
 end
 
+## most recent version 2D - not with Boundary types 
 function push_to_grid!(grid::StateTypeL1,
                             charge::CC, 
-                            index_pos::Tuple{Int, Int},
-                            weights::Tuple{Float64, Float64},
-                            Nx::Int,  Ny::Int,
-                            periodic::Bool = true) where CC <: Union{Vector{Float64}, SVector{3, Float64}}
+                            index_pos::II,
+                            weights::WW,
+                            Nx::Int, Ny::Int,
+                            periodic::Bool=true) where {CC<:Union{Vector{Float64},SVector{3,Float64},MVector{3,AbstractFloat}},
+                                                            II<:Union{Tuple{Int,Int},SVector{2,Int64}},
+                                                            WW<:Union{Tuple{Float64,Float64},SVector{2,Float16}}}
     if periodic
         grid[ wrap_index!(index_pos[1], Nx) , wrap_index!(index_pos[2], Ny), : ] += weights[1] * weights[2] * charge
     else
-        if sum(test_domain(index_pos, Nx, Ny)) != 2
+        if sum( test_domain(index_pos, Nx, Ny) ) != 2
+            # position outside of domain
             return
         else
+            # position is inside the domain
             grid[ index_pos[1] , index_pos[2], : ] += weights[1] * weights[2] * charge
         end
     end
 
 end
 
+# Abstract Boundary Version
+function push_to_grid!(grid::StateTypeL1,
+                            charge::CC,
+                            index_pos::II,
+                            weights::WW,
+                            Nx::AbstractBoundary, 
+                            Ny::AbstractBoundary) where {CC<:Union{Vector{Float64},SVector{3,Float64},MVector{3,AbstractFloat}},
+                                                            II<:Union{Tuple{Int,Int},SVector{2,Int64}},
+                                                            WW<:Union{Tuple{Float64,Float64},SVector{2,Float16}}}
 
-## MVector and SharedVector version
-function push_to_grid!(grid::AA,
-    charge::MVector{3,TzF},
-    index_pos::SVector{2, Int64},
-    weights::SVector{2,Float16},
-    Nx::Tx, Ny::Ty,
-    periodic::Bool=true) where {AA<:StateTypeL1,Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
-    
-    if periodic
-    
-        grid[wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny), :] += weights[1] * weights[2] * charge
-        #set_to_grid!(grid, charge, [wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny)], weights)
+    # conditions where nothing should be returned
+    if  (Nx isa N_NonPeriodic) & ~test_domain(index_pos[1], Nx.N) | # non-periodic in x and y-position is out of domain
+        (Ny isa N_NonPeriodic) & ~test_domain(index_pos[2], Ny.N) | # non-periodic in y and y-position is out of domain
+        (Ny isa N_TripolarNorth) & (index_pos[2] < 1) # tripolar north and y-position is below south pole
+        # @info index_pos, " particle is not in domain, or at TripolarGrid SouthPole"
+        return
 
-    else
+    elseif (Ny isa N_TripolarNorth) & (index_pos[2] > Ny.N)  # Tripolar North boundary
 
-        if sum(test_domain(index_pos, Nx, Ny)) != 2
+        # @info index_pos, " particle is in domain, TripolarGrid make boundary condition"
+        try
+            index_pos, charge = TripolarNorthBoundary(index_pos, charge, Nx, Ny)
+        catch e
+            @error e, index_pos, charge, Nx, Ny
             return
-        else
-            grid[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
-            #set_to_grid!(grid, charge, index_pos, weights)
         end
+        grid[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+
+    else # all other boundaries
+
+        # @info index_pos, " particle is in domain, wrap if needed"
+        #@info wrap_index!(PI.position_ij[1], G.stats.Nx), wrap_index!(PI.position_ij[2], G.stats.Ny)
+        grid[wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny), :] += weights[1] * weights[2] * charge
+
+    end
+    nothing
+end
+
+
+# old version
+# ## MVector and SharedVector version
+# function push_to_grid!(grid::AA,
+#     charge::MVector{3,TzF},
+#     index_pos::SVector{2, Int64},
+#     weights::SVector{2,Float16},
+#     Nx::Tx, Ny::Ty,
+#     periodic::Bool=true) where {AA<:StateTypeL1,Tx<:Int,Ty<:Int,TzF<:AbstractFloat}
+    
+#     if periodic
+    
+#         grid[wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny), :] += weights[1] * weights[2] * charge
+#         #set_to_grid!(grid, charge, [wrap_index!(index_pos[1], Nx), wrap_index!(index_pos[2], Ny)], weights)
+
+#     else
+
+#         if sum(test_domain(index_pos, Nx, Ny)) != 2
+#             return
+#             #position outside of domain
+#         else
+#             # position is inside the domain
+#             grid[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+#             #set_to_grid!(grid, charge, index_pos, weights)
+#         end
+#     end
+
+# end
+
+# -------- grid specifica ------------
+
+function TripolarNorthBoundary(index_pos::Tuple{Int,Int}, charge, Nx::N_Periodic, Ny::N_TripolarNorth,)
+
+    # flip x position
+    if index_pos[1] < 0
+        xi_new  =  Nx.N + index_pos[1] % Int(Nx.N)
+        xi_new = Nx.N - xi_new
+    else
+        xi_new = Nx.N - index_pos[1] % Int(Nx.N)
     end
 
+    if Ny.N >= index_pos[2]
+        error("Particle does not exceed the north boundary, this function should not be called.")
+    else
+        yi_new = 2 * Ny.N - index_pos[2] + 1
+    end
+
+    # flip y velocity
+    charge_new = SVector{3,Float64}(charge[1], charge[2], charge[3])
+    return (xi_new, yi_new), charge_new
 end
 
-function set_to_grid!(S, charge, index_pos, weights)
-    S[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+# -------- helpers ------------
+
+function wrap_index!(pos::Int, N::Int)
+    pos = pos % Int(N)
+
+    if pos < 0
+        pos = pos + Int(N)
+        #pos =  N
+    elseif pos == 0
+        pos = pos + Int(N)
+    end
+    return pos
 end
 
+function wrap_index!(pos::Int, N::Union{N_Periodic,N_NonPeriodic,N_TripolarNorth})
+    pos = pos % Int(N.N)
 
+    if pos < 0
+        pos = pos + Int(N.N)
+        #pos =  N
+    elseif pos == 0
+        pos = pos + Int(N.N)
+    end
+    return pos
+end
 
 """
 test_domain(index_pos, Nx, Ny)
@@ -400,10 +461,20 @@ function test_domain(index_pos, Nx, Ny)
     return (index_pos[1] > 0 && index_pos[1] <= Nx), (index_pos[2] > 0 && index_pos[2] <= Ny)
 end
 
+function test_domain(index_pos::Int, Nx::Int)
+    return (index_pos > 0 && index_pos <= Nx)
+end
+
+
+
+# not used -- depricate
+function set_to_grid!(S, charge, index_pos, weights)
+    S[index_pos[1], index_pos[2], :] += weights[1] * weights[2] * charge
+end
 
 #push_to_grid!(charges_grid,1.0 , index_positions[1][1], weights[1][1], grid2d.Nx , grid2d.Ny )
 
-
+# ----------------------- wrappers -----------------------
 # wrapping over vectors of charges, index positions and weights
 function push_to_grid!(grid::StateTypeL1,
                             charge::Vector{Float64},
@@ -418,7 +489,6 @@ function push_to_grid!(grid::StateTypeL1,
 end
 
 #push_to_grid!(charges_grid, 1.0 , index_positions[3], weights[3] , grid2d.Nx , grid2d.Ny )
-
 ## allocation optimized:
 
 """
@@ -453,6 +523,19 @@ function push_to_grid!(grid::StateTypeL1,
 end
 
 
+"""
+wrapper over FieldVector weight&index (wni), 
+# version wihtout boundary flag for BoundaryType
+"""
+function push_to_grid!(grid::StateTypeL1,
+    charge::CC,
+    wni::FieldVector,
+    Nx::AbstractBoundary, Ny::AbstractBoundary) where {CC<:Union{Vector{Float64},SVector{3,Float64}}}
+    #@info "this is version D"
+    for (i, w) in construct_loop(wni)
+        push_to_grid!(grid, charge, i, w, Nx, Ny)
+    end
+end
 
 
 
@@ -551,6 +634,7 @@ end
 
 # end of module
 end
+
 # %%
 # charges_grid = zeros(grid2d.Nx, grid2d.Ny)
 # x_list = [5.0, 1.234, 0.5]#[0.1, 0.1, 0.5]#, 5.234, -4.3]

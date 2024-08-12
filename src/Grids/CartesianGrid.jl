@@ -1,10 +1,13 @@
 module CartesianGrid
 
-using ...Architectures: AbstractGrid, AbstractGridStatistics, CartesianGrid1D, CartesianGrid2D, CartesianGridStatistics
+using ...Architectures: AbstractGrid, AbstractGridStatistics, CartesianGrid1D, CartesianGrid2D, CartesianGridStatistics, AbstractBoundary, BoundaryType
+using ...custom_structures: N_Periodic, N_NonPeriodic, N_TripolarNorth
 
 #using LinearAlgebra
 using StructArrays
 using StaticArrays
+
+include("mask_utils.jl")
 
 
 """
@@ -21,8 +24,8 @@ using StaticArrays
 """
 struct TwoDCartesianGridStatistics <: CartesianGridStatistics
     
-    Nx::Int
-    Ny::Int
+    Nx::BoundaryType
+    Ny::BoundaryType
     Ndx::Int
     Ndy::Int
 
@@ -40,7 +43,7 @@ struct TwoDCartesianGridStatistics <: CartesianGridStatistics
     area::Float64
     angle_dx::Float64
 
-    function TwoDCartesianGridStatistics(xmin, xmax, Nx::Int, ymin, ymax, Ny::Int ; angle = 0.0)
+    function TwoDCartesianGridStatistics(xmin, xmax, Nx::Int, ymin, ymax, Ny::Int; angle=0.0, periodic_boundary::Tuple{Bool, Bool}=(false, false))
         dimx = xmax - xmin
         dimy = ymax - ymin
 
@@ -51,6 +54,9 @@ struct TwoDCartesianGridStatistics <: CartesianGridStatistics
         dy = dimy / Ndy
 
         area = dx * dy
+
+        Nx = periodic_boundary[1] ? N_Periodic(Nx) : N_NonPeriodic(Nx)
+        Ny = periodic_boundary[2] ? N_Periodic(Ny) : N_NonPeriodic(Ny)
 
         return new(Nx, Ny, Ndx, Ndy, xmin, xmax, ymin, ymax, dimx, dimy, dx, dy, area, angle)
     end
@@ -63,7 +69,7 @@ struct TwoDCartesianGridMesh <: CartesianGrid2D
     ProjetionKernel::Function
 end
     
-function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing)
+function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing, total_mask=nothing)
 
     x = collect(range(grid.xmin, stop=grid.xmax, step=grid.dx))
     y = collect(range(grid.ymin, stop=grid.ymax, step=grid.dy))
@@ -71,11 +77,18 @@ function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing)
     XX = transpose(reshape(repeat(x, inner=length(y)), length(y), length(x)))
     YY = transpose(reshape(repeat(y, outer=length(x)), length(y), length(x)))
 
-    if mask == nothing
-        mask = fill(1, size(XX))
+    if isnothing(mask)
+        mask = ones(Bool, size(XX))#fill(1, size(XX))
     else
         mask = mask
     end
+
+    if isnothing(total_mask)
+        mask = make_boundaries(mask, grid.Nx::BoundaryType, grid.Ny::BoundaryType)
+    else
+        mask = total_mask
+    end
+    # mask = make_boundaries(mask)
 
     return StructArray(
         x=XX,
@@ -86,16 +99,15 @@ function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing)
 end
 
 # initalization
-function TwoDCartesianGridMesh(xmin, xmax, Nx::Int, ymin, ymax, Ny::Int, mask=nothing; angle = 0.0)
-    GS = TwoDCartesianGridStatistics(xmin, xmax, Nx, ymin, ymax, Ny, angle = angle)
+function TwoDCartesianGridMesh(      xmin, xmax, Nx::Int, ymin, ymax, Ny::Int; mask=nothing, angle=0.0, periodic_boundary = (false, false))
+    GS = TwoDCartesianGridStatistics(xmin, xmax, Nx, ymin, ymax, Ny                        ; angle = angle, periodic_boundary = periodic_boundary)
     GMesh = TwoDCartesianGridMesh(GS, mask= mask)
     return TwoDCartesianGridMesh(GMesh, GS, ProjetionKernel)
 end
 
-# alternative short hand
-TwoDCartesianGridMesh(dimx, nx::Int, dimy, ny::Int; angle =0.0) = TwoDCartesianGridMesh(0.0, dimx, nx, 0.0, dimy, ny; angle=angle)
-
-
+# short hand for function above
+TwoDCartesianGridMesh(dimx, nx::Int, dimy, ny::Int ; angle=0.0, periodic_boundary = (false, false)) = 
+TwoDCartesianGridMesh( 0.0, dimx, nx, 0.0, dimy, ny; mask=nothing, angle=angle, periodic_boundary = periodic_boundary)
 
 
 function ProjetionKernel(stats::CartesianGridStatistics)
