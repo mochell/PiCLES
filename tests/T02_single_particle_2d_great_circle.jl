@@ -24,11 +24,10 @@ mkpath(plot_path_base)
 load_path = "PiCLES/src/Grids/files/";
 gridd = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 6; mask_radius=5);
 
-
 using Makie
 using PiCLES.Plotting: PlotState_DoubleGlobe, PlotState_SingleGlobe, PlotState_DoubleGlobeSeam, OrthographicTwoMaps, OrthographicTwoMapsSeam
 
-#data = SphericalPropagationCorrection.(gridd.data.y, -10.0)
+data = SphericalPropagationCorrection.(gridd.data.y, -10.0)
 
 fig = Figure(size=(900, 500), fontsize=22)
 OrthographicTwoMapsSeam(fig, gridd.data.x[1:end, 1:end-10], gridd.data.y[1:end, 1:end-10], data[1:end, 1:end-10])
@@ -61,7 +60,7 @@ DT = 30minutes
 
 using PiCLES.Operators.core_2D: ParticleDefaults
 
-# ParticleState, default_ODE_parameters, WindSeamin, Const_ID = Init_Standard(15.0, 00.0, 4hour)
+ParticleState, default_ODE_parameters, WindSeamin, Const_ID = Init_Standard(15.0, 00.0, 4hour)
 #FetchRelations.get_initial_windsea(15.0, 0.0, 4hour, particle_state=true)
 ParticleState = ParticleDefaults(FetchRelations.get_initial_windsea(1.0, 10.0, 4hour, particle_state=true))
 
@@ -93,7 +92,6 @@ ODE_settings = PW.ODESettings(
     saving_step=10minutes,
     timestep=DT,
     total_time= T = 30days,
-    callbacks=cb,
     save_everystep=false,
     maxiters=1e4,
     adaptive=true,
@@ -116,9 +114,9 @@ PI.ODEIntegrator.u
 gr(display_type=:inline)
 # plit each row in PID and a figure
 tsub = range(start=1, stop=length(PID[:, 1]), step=10)
-p3 = plot( x_lon  .+  PID[tsub, 5] / (110e3 * cos(y_lat)), y_lat .+  PID[tsub, 6] / 110e3, marker=3, title="position on Sphere ", ylabel="lat", xlabel= "lon", label="v4") #|> display
+p3 = Plots.plot( x_lon  .+  PID[tsub, 5] / (110e3 * cos(y_lat)), y_lat .+  PID[tsub, 6] / 110e3, marker=3, title="position on Sphere ", ylabel="lat", xlabel= "lon", label="v4") #|> display
 
-plot!(p3,  [x_lon]  , [y_lat] , marker=10, title="lon ", ylabel="lat", label="origin") #|> display
+Plots.plot!(p3,  [x_lon]  , [y_lat] , marker=10, title="lon ", ylabel="lat", label="origin") #|> display
 
 p3
 # subtitle = "u$(U10)_v$(V10)_reset_to_windsea_dt$(DT)"
