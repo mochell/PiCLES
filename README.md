@@ -61,7 +61,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    
    ```julia
    using Pkg
-   # this will be replace by the module load in the future
+   # This will be replaced by the module load in the future
    Pkg.activate("PiCLES/")  # Activate the PiCLES package 
    
    using PiCLES
@@ -96,7 +96,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    # Define particle equations
    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
    
-   # Calculate minimal windsea based on characteristic winds
+   # Calculate minimal wind sea based on characteristic winds
    WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
    
    # Define default particle
@@ -110,8 +110,8 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
      saving_step=DT,
      timestep=DT,
      total_time=T = 6days,
-     dt=1e-3, #60*10, 
-     dtmin=1e-4, #60*5, 
+     dt=1e-3, 
+     dtmin=1e-4, 
      force_dtmin=true)
    
    # Build wave model
