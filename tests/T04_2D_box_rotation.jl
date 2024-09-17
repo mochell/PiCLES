@@ -79,7 +79,7 @@ grid = TwoDGrid(100e3, 81, 100e3, 81)
 mesh = TwoDGridMesh(grid, skip=1);
 gn = TwoDGridNotes(grid);
 
-Revise.retry()
+
 # define variables based on particle equation
 
 #ProfileView.@profview 
@@ -114,7 +114,7 @@ ODE_settings    = PW.ODESettings(
 
 
 # %%
-Revise.retry()
+
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,
@@ -132,7 +132,7 @@ initialize_simulation!(wave_simulation)
 
 #reset_simulation!(wave_simulation, particle_initials=copy(wave_model.ODEdefaults))
 
-Revise.retry()
+
 #using PiCLES.Plotting.movie: init_movie_2D_box_plot
 fig, n = init_movie_2D_box_plot_small(wave_simulation, name_string="Rotating Stationary Winds")
 

@@ -49,7 +49,7 @@ v(x, y, t) = -(V10 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 
 winds = (u=u, v=v)
 
-Revise.retry()
+
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 typeof(particle_system)
 
@@ -161,10 +161,10 @@ end
 
 # %% Profiling single time step:
 using ProfileView
-Revise.retry()
+
 @time @allocated PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, (0, 0), false, true)
 @time @allocated time_step_local!(PI, DT)
-Revise.retry()
+
 DT = 10minutes
 ProfileView.@profview for i in Base.Iterators.take(PI.ODEIntegrator, 10)
     #@info "t:", PI.ODEIntegrator.t

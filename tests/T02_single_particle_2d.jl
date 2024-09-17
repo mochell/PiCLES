@@ -13,7 +13,7 @@ plot_path_base = "plots/tests/T04_2D_single_particle/"
 mkpath(plot_path_base)
 
 # %%
-Revise.retry()
+
 u(x::Number, y::Number, t::Number) = (10.0 * cos(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 v(x::Number, y::Number, t::Number) = -(10.0 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 

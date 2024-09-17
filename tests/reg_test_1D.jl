@@ -96,7 +96,7 @@ wave_model = WaveGrowthModels1D.WaveGrowth1D( ;grid = grid,
                                 ODEdefaults       = particle_defaults,  # default_ODE_parameters
                                 periodic_boundary = periodic_boundary)
 
-Revise.retry()
+
 
 ### build Simulation
 wave_simulation = Simulation(wave_model, Δt=10minutes, stop_time=4hours)

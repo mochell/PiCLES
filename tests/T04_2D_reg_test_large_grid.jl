@@ -62,7 +62,7 @@ particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 
 
-Revise.retry()
+
 # Default initial conditions based on timestep and chaeracteristic wind velocity
 WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
@@ -144,7 +144,7 @@ end
 
 #     make_reg_test(wave_model, save_path, plot_name="T02_2D_periodic" * string(periodic) * "_U" * string(U10) * "_V" * string(V10))
 # end
-Revise.retry()
+
 
 # %% half domain tests
 gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]

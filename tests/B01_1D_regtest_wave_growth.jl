@@ -68,7 +68,7 @@ mkpath(save_path)
 
 # %%
 # function to define constants 
-Revise.retry()
+
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # @info "org. gamma gamma= " Const_ID.γ

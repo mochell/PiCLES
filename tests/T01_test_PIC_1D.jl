@@ -81,7 +81,7 @@ function convert_store_to_tuple(p_collect, grid1d)
 end
 
 # %%
-Revise.retry()
+
 n_particles = 101
 eta_min, eta_max =0, 20
 grid1d = OneDGrid(eta_min, eta_max, n_particles)
@@ -167,7 +167,7 @@ animate(x_collect, p_collect, grid1d, path=plot_path_base, name="T01_PIC_1D_back
 
 
 # %% diverging sin
-Revise.retry()
+
 xp = grid1dnotes.x .+ grid1dnotes.dx * 1.5 #+ rand(n_particles)/5
 #charges_1d = rand(n_particles)* 0 .+ 1
 charges_1d = sin.(xp) *0.4 .+0.2

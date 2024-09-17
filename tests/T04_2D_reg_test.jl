@@ -1,7 +1,7 @@
 #using Plots
 
-using Pkg
-Pkg.activate("PiCLES/")
+# using Pkg
+# Pkg.activate("PiCLES/")
 
 import Plots as plt
 using Setfield, IfElse
@@ -69,7 +69,7 @@ particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 default_ODE_parameters = (r_g=0.85, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
 
-Revise.retry()
+
 # Default initial conditions based on timestep and chaeracteristic wind velocity
 WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT )
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
@@ -119,7 +119,6 @@ function make_reg_test(wave_model, save_path; plot_name="dummy", N=36)
 
 end
 
-Revise.retry()
 # %%
 # loop over U10 and V10 range
 # gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]

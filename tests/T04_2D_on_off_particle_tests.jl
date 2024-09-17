@@ -60,7 +60,7 @@ winds = (u=u, v=v)
 
 
 # define ODE system and parameters
-Revise.retry()
+
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
  
 
@@ -68,7 +68,7 @@ default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
     C_φ=Const_ID.c_β, C_e=Const_ID.C_e, g=9.81)
 
 
-Revise.retry()
+
 # Default initial conditions based on timestep and chaeracteristic wind velocity
 WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
@@ -94,7 +94,7 @@ ODE_settings =  PW.ODESettings(
 
 
 # %% half domain tests
-Revise.retry()
+
 #gridmesh = [(i, j) for i in [-10,10], j in  [0]]
 #gridmesh = [(i, j) for i in [10], j in [0]]
 
@@ -118,7 +118,7 @@ v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
 
 #winds, u, v  =convert_wind_field_functions(u_func, v_func, x, y, t)
-Revise.retry()
+
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
 
 
@@ -140,7 +140,7 @@ typeof(wave_model)
 
 # %%
 ### build Simulation
-Revise.retry()
+
 wave_simulation = Simulation(wave_model, Δt=DT/2, stop_time=4hours)
 initialize_simulation!(wave_simulation)
 
@@ -195,7 +195,7 @@ end
 #using BenchmarkTools
 using Profile
 
-Revise.retry()
+
 tt = [(i, j) for i in [-1,0, 1], j in [-1, 0, 1]]
 for (i,j) in tt
     #@show PW4.speed(i,j)
@@ -271,7 +271,7 @@ a
 
 
 # # %%
-# Revise.retry()
+# 
 # gridmesh = [(i, j) for i in [-10,0, 10], j in 0:5:5]
 # #for I in CartesianIndices(gridmesh)
 # for (U10, V10) in gridmesh
