@@ -33,7 +33,7 @@ using PiCLES.Plotting.movie: init_movie_2D_box_plot
 
 
 # %%
-save_path = "plots/tests/T04_2D_regtest/"
+save_path = "plots/test/T04_2D_regtest/"
 mkpath(save_path)
 
 ##### basic parameters
