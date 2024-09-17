@@ -96,7 +96,7 @@ gn = TwoDGridNotes(grid);
 #heatmap( v.(mesh.x, mesh.y, 0) )
 
 
-Revise.retry()
+
 
 # define variables based on particle equation
 
@@ -141,7 +141,7 @@ default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
 
 # plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(v.(mesh.x, mesh.y, 0)))
 # %% build model
-Revise.retry()
+
 
 
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,

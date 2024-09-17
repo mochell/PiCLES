@@ -52,7 +52,7 @@ DT = 30minutes
 
 # Define basic ODE parameters
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
-Revise.retry()
+
 
 function interpolate_winds(ds, multiplyer=0)
 
@@ -78,7 +78,7 @@ end
 # define ODE system and parameters
 #particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
-Revise.retry()
+
 # Default initial conditions based on timestep and chaeracteristic wind velocity
 WindSeamin = FetchRelations.MinimalWindsea(2, 2, DT)
 

@@ -91,7 +91,7 @@ gn = TwoDGridNotes(grid);
 #heatmap( v.(mesh.x, mesh.y, 0) )
 
 
-Revise.retry()
+
 
 # define variables based on particle equation
 
@@ -145,7 +145,7 @@ default_particle = ParticleDefaults(lne_local, cg_u_local, cg_v_local, 0.0, 0.0)
 
 # plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(v.(mesh.x, mesh.y, 0)))
 # %% build model
-Revise.retry()
+
 
 
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
@@ -182,7 +182,7 @@ p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
 # show all Failed particles
 using PiCLES.Utils: ParticleTools
 
-Revise.retry()
+
 DD = ParticleTools.ParticleToDataframe(wave_simulation.model.FailedCollection)
 
 DD_stats = ParticleTools.ParticleStatsToDataframe(wave_simulation.model.FailedCollection)
@@ -264,7 +264,7 @@ PF.Particle.ODEIntegrator.u
 
 # %%
 #PF.Particle.boundary
-Revise.retry()
+
 
 istate = wave_simulation.store.store[end];
 #istate = wave_simulation.store.store[5];
@@ -303,7 +303,7 @@ plt.contour(p1, gn.x / 1e3, gn.y / 1e3, u.(mesh.x, mesh.y, wave_simulation.model
 #sqrt( wave_simulation.model.winds.v.(mesh.x, mesh.y, 0.0)^2 + wave_simulation.model.winds.u.(mesh.x, mesh.y, 0.0)^2)
 
 # %%
-Revise.retry()
+
 wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=grid,
     winds=winds,
     ODEsys=particle_system,

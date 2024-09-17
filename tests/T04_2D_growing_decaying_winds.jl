@@ -61,7 +61,7 @@ winds = (u=u, v=v)
 # define ODE system and parameters
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
 
-Revise.retry()
+
 # Default initial conditions based on timestep and chaeracteristic wind velocity
 WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
 default_particle = ParticleDefaults(WindSeamin["lne"], WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0)
@@ -86,7 +86,7 @@ ODE_settings = PW.ODESettings(
 
 # %%
 
-Revise.retry()
+
 
 function make_reg_test(wave_model, save_path; plot_name="dummy", N=36, axline=0)
 
@@ -115,7 +115,7 @@ end
 
 
 # % half domain tests
-Revise.retry()
+
 gridmesh = [(i, j) for i in [-10,10], j in  [0]]
 #gridmesh = [(i, j) for i in [10], j in [0]]
 
@@ -193,7 +193,7 @@ end
 
 
 # %%
-Revise.retry()
+
 gridmesh = [(i, j) for i in [-10,0,10], j in 0:5:5]
 #for I in CartesianIndices(gridmesh)
 for (U10, V10) in gridmesh

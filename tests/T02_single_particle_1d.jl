@@ -37,7 +37,7 @@ T = 24 * 2 * 60 * 60 # seconds
 ## u must be always a function of x and t !!!
 u(x, t) = x .* 0 + t * 0 + U10
 
-Revise.retry()
+
 particle_system = PW5.particle_equations(u, γ=γ)
 
 # define variables based on particle equation
@@ -61,7 +61,7 @@ cb = ContinuousCallback(condition, affect!)
 WindSeamin = FetchRelations.get_initial_windsea(u(0, 0), 5minutes)
 #WindSeamin = FetchRelations.MinimalWindsea( u(0, 0), 5minutes)
 
-Revise.retry()
+
 
 ODE_settings = PW5.ODESettings(
     Parameters=default_ODE_parameters,
@@ -213,7 +213,7 @@ using Oceananigans.Units
 using PiCLES.Simulations
 using PiCLES.Plotting
 
-Revise.retry()
+
 
 u10 = 10
 u(x, t) = x .* 0 + t * 0 + u10
@@ -244,7 +244,7 @@ savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic
 
 # %%
 @info "experiment 1: positive winds, non-periodic \n"
-Revise.retry()
+
 
 wave_model.periodic_boundary = false
 # reset boundary array in model
@@ -275,7 +275,7 @@ Plotting.plot_results(wave_simulation, title="$u10 m/s, periodic=" * string(wave
 savefig(joinpath(plot_path_base, "PW4_u$(u10)_per_" * string(wave_model.periodic_boundary) * ".png"))
 
 # %%
-#Revise.retry()
+#
 @info "experiment 1: nagative winds, non-perodic \n"
 u10 = -10
 u(x, t) = x .* 0 + t * 0 + u10
