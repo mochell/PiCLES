@@ -35,6 +35,9 @@ OrthographicTwoMapsSeam(fig, gridd.data.x[1:end, 1:end-10], gridd.data.y[1:end, 
 fig
 
 # %%
+
+R = 6.3710E+6
+
 deg_x = -89.9:0.1:89.9
 Gg = SphericalPropagationCorrection.(deg_x)
 G_test = [Gg_i(10) for Gg_i in Gg]
@@ -44,7 +47,7 @@ Plots.plot(deg_x, G_test)
 
 # define Particle Position
 # %%
-ij = (180, 86)
+ij = (180, 126)
 ij_mesh, gridstats = gridd.data[ij[1], ij[2]], gridd.stats
 #ij_mesh.y = 0.0
 x_lon, y_lat = ij_mesh.x, ij_mesh.y  
@@ -55,15 +58,16 @@ Revise.retry()
 u(x::Number, y::Number, t::Number) = 0.0#(10.0 * cos(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 v(x::Number, y::Number, t::Number) = 0.0#-(10.0 * sin(t / (3 * 60 * 60 * 2π)) + 0.1) + x * 0 + y * 0
 
-DT = 30minutes
+DT = 3*60minutes
 
 using PiCLES.Operators.core_2D: ParticleDefaults
 
 ParticleState, default_ODE_parameters, WindSeamin, Const_ID = Init_Standard(15.0, 00.0, 4hour)
 #FetchRelations.get_initial_windsea(15.0, 0.0, 4hour, particle_state=true)
-ParticleState = ParticleDefaults(FetchRelations.get_initial_windsea(1.0, 10.0, 4hour, particle_state=true))
+ParticleState = ParticleDefaults(FetchRelations.get_initial_windsea(20.0, -5.0, 4hour, particle_state=true))
 
 #particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q)
+Revise.retry()
 
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q,
     propagation=true,
@@ -95,25 +99,27 @@ ODE_settings = PW.ODESettings(
 
 PI = InitParticleInstance(particle_system, ParticleState, ODE_settings, ij, (ij_mesh.x, ij_mesh.y), false, true)
 
+# PI.position_xy
+# M_geocoords = [
+#     1/(110e3*cos(y_lat * pi / 180)) 0;
+#     0 1/110e3
+# ]
 
-R = 6.3710E+6
-PI.position_xy
-M_geocoords = @SArray [
-    1/(R*cos(y_lat * pi / 180)) 0;
-    0 1/R
+M_geocoords = [
+    1/(R*cos(y_lat * pi / 180)*pi/180) 0;
+    0 1/ (R *  pi/ 180)
 ]
-PI.ODEIntegrator.u[4:5]
-# propagation is in meters zonal and meridinal, there is no projection
 
+# propagation is in meters zonal and meridinal, there is no projection
 
 function time_step_local!(PI, DT)
     "take 1 step over DT"
 
-    M = PI.Parameters.M
-    x_lon = PI.position_xy[1] 
-    y_lat = PI.position_xy[2]
+    x_delta = M_geocoords * PI.ODEIntegrator.u[4:5]
+    x_lon = PI.position_xy[1] + x_delta[1]
+    y_lat = PI.position_xy[2] + x_delta[2]
 
-    used_ODE_params = (default_ODE_parameters..., x=x_lon, y=y_lat, PC=SphericalPropagationCorrection(ij_mesh, gridstats))
+    used_ODE_params = (default_ODE_parameters..., x=x_lon, y=y_lat, PC=SphericalPropagationCorrection(y_lat))
 
     # test execution
     ODE_settings = PW.ODESettings(
@@ -137,39 +143,43 @@ function time_step_local!(PI, DT)
     #@info "proposed dt", get_proposed_dt(PI.ODEIntegrator) / 60
     step!(PI.ODEIntegrator, DT, true)
 
-    # #@info "u:", PI.ODEIntegrator.u
-    # #clock_time += DT
-    # last_t = PI.ODEIntegrator.t
-
-    # ## define here the particle state at time of resetting
-    # #ui = [log(exp(PI.ODEIntegrator.u[1]) * 0.5), PI.ODEIntegrator.u[2] / 2, PI.ODEIntegrator.u[3] / 2, 0.0, 0.0]
-    # #ui = [lne_local, cg_u_local, cg_v_local, 0.0, 0.0]
-    # ui = PI.ODEIntegrator.u
-
-    # #ui = [PI.ODEIntegrator.u[1], PI.ODEIntegrator.u[2], PI.ODEIntegrator.u[3], 0.0, 0.0]
-    # WindSeamin = FetchRelations.get_initial_windsea(u(0.0, 0.0, last_t), v(0.0, 0.0, last_t), DT / 2)
-    # ui = [log(WindSeamin["E"]), WindSeamin["cg_bar_x"], WindSeamin["cg_bar_y"], 0.0, 0.0]
-
-    # set_u_and_t!(PI.ODEIntegrator, ui, last_t)
-    # # #set_u!(PI.ODEIntegrator, ui)
-    # #reinit!(PI.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)
-    # #reinit!(PI3.ODEIntegrator, ui, erase_sol=false, reset_dt=true, reinit_cache=true)
-
-    # # #set_t!(PI.ODEIntegrator, last_t )
-    # u_modified!(PI.ODEIntegrator, true)
-
-    # # add_saveat!(PI.ODEIntegrator, PI.ODEIntegrator.t)
-    # # savevalues!(PI.ODEIntegrator)
-
     return PI
 end
 
+#PI = time_step_local!(PI, DT);
+PI.position_xy, PI.ODEIntegrator.u
 
-for i in Base.Iterators.take(PI.ODEIntegrator, 600)
+
+step!(PI.ODEIntegrator, DT, true)
+
+SPC = SphericalPropagationCorrection(y_lat)
+SPC(1)
+
+# %%
+x_list = []
+y_list = []
+cg_x_list = []
+cg_y_list = []
+for i in 1:100 
+    #Base.Iterators.take(PI.ODEIntegrator, 600*10)
+    # @info i
     PI = time_step_local!(PI, DT)
-    #step!(PI.ODEIntegrator, DT, true)
+    # step!(PI.ODEIntegrator, DT, true)
+    push!(x_list, PI.position_xy[1])
+    push!(y_list, PI.position_xy[2])
+    push!(cg_x_list, PI.ODEIntegrator.u[2])
+    push!(cg_y_list, PI.ODEIntegrator.u[3])
 end
 
+gr(display_type=:inline)
+Plots.plot(x_list, y_list, title="position on Sphere ", ylabel="lat", xlabel= "lon", label="v4", width=3) #|> display
+
+#add vectors of cg
+fac = 100
+# Plots.quiver!(x_list, y_list, quiver=(cg_x_list/fac, cg_y_list/fac)) #|> display
+#Plots.plot!(cg_x_list, cg_y_list, marker=3, title="cg on Sphere ", ylabel="lat", xlabel= "lon", label="v4") #|> display
+
+# %%
 #2.6 * 20 * DT /1e3
 
 PID = ParticleTools.ParticleToDataframe(PI)
