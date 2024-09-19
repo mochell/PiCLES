@@ -4,6 +4,8 @@ PiCLES is a fast and efficient wave model for Earth System Models, using Particl
 
 ![The PiCLES on a Surfboard|200px](./img/PiCLES_v0.png)
 
+10.5281/zenodo.13799205
+
 ## Quick Start
 A brief guide on how to use PiCLES.
 
