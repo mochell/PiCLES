@@ -8,7 +8,7 @@ PiCLES is a fast and efficient wave model for Earth System Models, using Particl
 PiCLES:
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13799205.svg)](https://doi.org/10.5281/zenodo.13799205)
 
-JAMES paper version:
+Paper draft version:
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13799253.svg)](https://doi.org/10.5281/zenodo.13799253)
 
 ## Quick Start
