@@ -55,8 +55,8 @@ r_g0 = 0.85
 
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
-u_func(x, y, t) = U10 #* sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
-v_func(x, y, t) = V10 #* cos(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
+# u_func(x, y, t) = U10 #* sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
+# v_func(x, y, t) = V10 #* cos(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
 # u_std = 2e3 * 1
 # v_std = 2e3 * 1
 # u_func(x, y, t) = U10 * exp(-(x - 5e3)^2 / u_std^2) * exp(-(y - 5e3)^2 / v_std^2) * sin(t * 2 / (1 * 60 * 60 * 2π))
@@ -69,8 +69,8 @@ v_func(x, y, t) = V10 #* cos(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 
 #                             0.0,
 #                             -0.0)
 
-# u_func(x, y, t) = IfElse.ifelse.(x .< 5e3, U10, 0.2) + y * 0 + t * 0
-# v_func(x, y, t) = (IfElse.ifelse.(x .< 5e3, V10, 0.2) + y * 0) .* cos(t * 3 / (1 * 60 * 60 * 2π))
+u_func(x, y, t) = IfElse.ifelse.(x .< y, U10, 0.2) + y * 0 + t * 0
+v_func(x, y, t) = IfElse.ifelse.(x .< y, V10, 0.2) + y * 0 + t * 0
 
 # this shuold hopefully work
 # u(x, y, t) = x * 0 + y * 0 + t * 0/ DT + 5.0
@@ -80,31 +80,17 @@ u(x, y, t) = u_func(x, y, t)
 v(x, y, t) = v_func(x, y, t)
 winds = (u=u, v=v)
 
-typeof(winds.u)
-typeof(winds.u(1e3, 1e3, 11))
-#typeof(u_func(1e3, 1e3, 11))
-#typeof(winds.u(x,y,t))
-
-# u2 = winds.u(x, y, t)
-# typeof(u2)
-# typeof(winds.u(x, y, t))
-# %%
 
 grid = TwoDGrid(100e3, 51, 100e3, 51)
 mesh = TwoDGridMesh(grid, skip=1);
 gn = TwoDGridNotes(grid);
 
-#heatmap( v.(mesh.x, mesh.y, 0) )
-
+# heatmap( v.(mesh.x, mesh.y, 0) )
 
 Revise.retry()
 
 # define variables based on particle equation
-
-#ProfileView.@profview 
-#ProfileView.@profview 
 particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q, input=true, dissipation=true);
-#particle_equations = PW3.particle_equations_vec5(u, v, u, v, γ=Const_ID.γ, q=Const_ID.q);
 
 # define V4 parameters absed on Const NamedTuple:
 default_ODE_parameters = (r_g=r_g0, C_α=Const_Scg.C_alpha,
@@ -172,5 +158,5 @@ initialize_simulation!(wave_simulation)
 
 
 istate = wave_simulation.store.store[end];
-p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
+p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, transpose(istate[:, :, 3]))
 

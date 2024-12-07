@@ -517,7 +517,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
 
             # apply great circle correction for spherical coorindates
             S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
-            @info haskey(params, :PC), PropagationCorrection(c̄_x)
+            #@info haskey(params, :PC), PropagationCorrection(c̄_x) # for testing projection kernal Correction
             
             #particle_equations::Vector{Number} = 
             # energy

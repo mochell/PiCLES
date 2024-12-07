@@ -441,7 +441,7 @@ function SeedParticle(
         
         gridstats::AbstractGridStatistics,
         ProjetionKernel::Function,
-        PropagationCorrection::Function,
+        # PropagationCorrection::Function,
 
         ij_mesh::NamedTuple, # local grid information
         ij_wind::Tuple,     # interp winds
@@ -471,7 +471,7 @@ function SeedParticle(
         end
 
         # set projection:
-        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats), PC = PropagationCorrection(ij_mesh, gridstats) )
+        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats) )#, PC = PropagationCorrection(ij_mesh, gridstats) )
 
         return InitParticleInstance(
                 particle_system,

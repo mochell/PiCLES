@@ -407,7 +407,7 @@ struct MOM6GridMesh <: TripolarGrid
 
         if MaskFile != nothing
             topo = NCDataset(MaskFile)
-            mask = topo["mask"]
+            mask = Bool.(topo["mask"]) # the copy() is a test, otherwise. the file cannot be closed close(topo)
         else
             mask = nothing
         end
@@ -416,6 +416,8 @@ struct MOM6GridMesh <: TripolarGrid
         GridArea = calculate_distances(area, dx, dy, Grid.k, Grid.khalf)
 
         close(hgrd)
+
+        # this leads to an error because content of topo is used in the next function, it would have to be closed later.
         if MaskFile != nothing
             close(topo)
         end

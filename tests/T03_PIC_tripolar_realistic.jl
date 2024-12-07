@@ -72,7 +72,6 @@ end
 
 u_grid, v_grid, time_rel = interpolate_winds(ds);
 
-time_rel
 # ds["lon"][:]
 # ds["lat"][:]
 # Grid.stats.xmin
@@ -101,7 +100,7 @@ v(x, y, t) = v_grid(x, y, t)
 winds = (u=u, v=v)
 
 load_path = "PiCLES/src/Grids/files/";
-Grid = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 8; MaskFile=load_path * "ocean_topo_tx2_3v2_240501.nc");
+Grid = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 2; MaskFile=load_path * "ocean_topo_tx2_3v2_240501.nc");
 
 
 heatmap( transpose(Grid.data.mask))
@@ -204,9 +203,10 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=Grid,
 #wave_model.minimal_state = 2 * wave_model.minimal_state
 
 # ### build Simulation
-wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=6day)#1hours)
+wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=2day)#1hours)
 initialize_simulation!(wave_simulation)
 plot_particle_collection(wave_simulation.model)
+
 
 #heatmap(wave_simulation.model.State[:,:,1])
 
@@ -254,14 +254,29 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=Grid,
 #wave_model.minimal_state = 2 * wave_model.minimal_state
 
 # ### build Simulation
-wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=4days)#1hours)
+wave_simulation = Simulation(wave_model, Δt=30minutes, stop_time=1.5days)#1hours)
 # wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=2hours)#1hours)
+
 
 initialize_simulation!(wave_simulation)
 plot_particle_collection(wave_model)
 
+wave_model.ParticleCollection.on[Grid.data.mask.==1] .= 1
+plot_particle_collection(wave_model)
+
+
 run!(wave_simulation, cash_store=true, debug=false)
 plot_particle_collection(wave_simulation.model)
+
+
+# %%
+
+# particles = wave_model.ParticleCollection
+# heatmap(transpose(Grid.data.mask))
+# #particles.on .=1
+# particles.on[Grid.data.mask .==1] .= 1
+# particles[1,1]
+# heatmap(transpose(particles.on))
 
 
 
@@ -270,7 +285,6 @@ using PiCLES.Plotting: PlotState_DoubleGlobe, PlotState_SingleGlobe, PlotState_D
 
 fig = PlotState_DoubleGlobe(wave_simulation.model)
 fig
-
 Revise.retry()
 
 # %%
@@ -350,3 +364,79 @@ fig = PlotState_DoubleGlobeSeam(wave_simulation.model)
 # node_pairs = [evaluate(spl,x, y) for x in xx, y in yy]
 
 # heatmap(node_pairs)
+
+
+# %% plot for proposal 
+
+mask_state = copy(wave_model.State[:, :, :]);
+#mask_state .= mask_state .* particles.on;
+particles = wave_model.ParticleCollection
+
+
+mask_state[particles.on.==0, :] .= NaN
+
+size(mask_state)
+
+e, m_x, m_y = mask_state[:, :, 1], mask_state[:, :, 2], mask_state[:, :, 3]
+m_amp = sqrt.(m_x .^ 2 + m_y .^ 2)
+
+m_amp[m_amp .< 0.005] .= 0.005
+c_x = m_x .* e ./ ( 2 .* m_amp.^2)
+c_y = m_y .* e ./ (2 .* m_amp.^2)
+#significant wave height
+hs = 4 .* sqrt.(e)
+
+theta = tan.(c_y ./ c_x)
+
+c_g_amp = sqrt.(c_x .^ 2 .+ c_y .^ 2)
+peak_period = (4 * pi * c_g_amp) / 9.81
+# %%
+
+cg_lim =12
+#function plot_particle_collection2(wave_model)
+p = plot(layout=(2, 2), size=(1000, 600))
+xx, yy = Grid.data.x[:, 1], Grid.data.y[1, :]
+# xx, yy = Grid.data.x, Grid.data.y
+
+u_speed = sqrt.(wave_model.winds.u.(Grid.data.x, Grid.data.y, wave_model.clock.time) .^ 2 + wave_model.winds.v.(Grid.data.x, Grid.data.y, wave_model.clock.time) .^ 2)
+
+u_speed[particles.on.==0] .= NaN
+heatmap!(p, xx, yy, transpose(particles.on), subplot=1, title="on | iter=" * string(wave_model.clock.iteration))
+heatmap!(p, xx, yy, transpose(u_speed), subplot=1, title="a) Wind Speed (m/sec)", clims=(0, NaN), color=:dense)
+
+#heatmap!(p, xx, yy, transpose(m_amp), subplot=2, title="boundary")
+heatmap!(p, xx, yy, transpose(m_x), subplot=2, title="b) Zonal Momentum (m/s) ", clims=(-0.25, 0.25), color=:balance)
+heatmap!(p, xx, yy, transpose(c_x), subplot=4, title="d) Zonal Group Velocity (m/s)", clims=(-cg_lim, cg_lim), color=:balance)
+
+heatmap!(p, xx, yy, transpose(hs), subplot=3, title="c) Significant Wave Height Hs (meters)", clims=(0, 10), color=:dense)
+# heatmap!(p, xx, yy, transpose(m_y), subplot=4, title="Meridional Momentum ", clims=(-0.25, 0.25), color=:balance)
+
+# heatmap!(p, xx, yy, transpose(m_amp), subplot=4, title="Zonal Group Velocity ", color=:balance)
+
+# heatmap!(p, xx, yy, transpose(c_y), subplot=4, title="Meridional Group Velocity (m/s)", clims=(-cg_lim, cg_lim), color=:balance)
+# heatmap!(p, xx, yy, transpose(peak_period), subplot=6, title="Meridional Group Velocity", clims=(0, 20), color=:balance)
+
+# title = plot!(title="Plot title", grid=false, showaxis=false, bottom_margin=-50Plots.px)
+display(p)
+# end
+
+# plot_particle_collection2(wave_simulation.model)
+
+# %%
+# Example data
+x = 1:10
+y = 1:10
+z = rand(10, 10)
+
+# Available colormaps
+colormaps = [:viridis, :plasma, :inferno, :magma, :cividis, :blues, :reds, :greens, :grays, :jet, :hsv, :rainbow]
+
+# Plot with different colormaps
+for cmap in colormaps
+    p = plot(size=(1000, 600))
+    heatmap(p, x, y, z, colormap=cmap, title=string(cmap))
+    display(p)
+end
+
+# %%
+
