@@ -30,12 +30,12 @@ function that returns total mask with
     - 3: grid boundary
 
     inputs:
-    mask: Array{Bool, 2} - ocean mask of the grid (1 ocean , 0 land)
+    mask: Array{Bool, 2} - ocean mask of the grid (1 ocean , 0 land), no Int matrix allowed! 
 
     returns:
     total_mask: Array{Int, 2} - mask with ocean, land, land boundary and grid boundary
 """
-function make_boundaries(mask::Union{Array{Bool,2},Matrix{Int},BitMatrix}, Nx::BoundaryType, Ny::BoundaryType)
+function make_boundaries(mask::Union{Array{Bool,2},BitMatrix}, Nx::BoundaryType, Ny::BoundaryType)
 
     bmask = interior_boundary(mask)
 

@@ -386,7 +386,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
     peak_shift=true,
     direction=true,
     debug_output=false,
-    static= false
+    static= false,
     )
     #t, x, y, c̄_x, c̄_y, lne, Δn, Δφ_p, r_g, C_α, C_φ, g, C_e = init_vars()
 
@@ -406,7 +406,7 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             M = haskey(params, :M) ? params.M : [1 0 ; 0 1]
             x_lat = haskey(params, :x) ? params.x : x
             y_lat = haskey(params, :y) ? params.y : y
-            PropagationCorrection = haskey(params, :PC) ? params.PC : x -> 0.0 # Great circle correction for specific grid types  <--------- test this!
+            PropagationCorrection = haskey(params, :PC) ? params.PC : x -> 0.0
 
             #u = (u=u, v=v)::NamedTuple{(:u, :v),Tuple{Number,Number}}
             u = u_wind(x_lat, y_lat, t)#::Number
@@ -434,7 +434,8 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
             # apply great circle correction for spherical coorindates
-            S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
+            #S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
+            S_sphere_tilde = PropagationCorrection(c̄_x)
 
             # propagration projections
             c̄_projected = propagation ? M * [c̄_x, c̄_y] : [0.0, 0.0]
@@ -444,8 +445,8 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
                 +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃),
 
                 # peak group velocity vector
-                -z[2] .* ωₚ .* r_g .* S_cg_tilde + z[3] .* S_dir_tilde,
-                -z[3] .* ωₚ .* r_g .* S_cg_tilde - z[2] .* S_dir_tilde,
+                -z[2] .* ωₚ .* r_g .* S_cg_tilde + z[3] .* S_dir_tilde + z[3] .* S_sphere_tilde,
+                -z[3] .* ωₚ .* r_g .* S_cg_tilde - z[2] .* S_dir_tilde + z[2] .* S_sphere_tilde,
 
                 # D(z[2]) ~ -z[2] .* ωₚ .* r_g .* S_cg_tilde + (z[3] + 0.001) .* S_dir_tilde, #* (-1),
                 # D(z[3]) ~ -z[3] .* ωₚ .* r_g .* S_cg_tilde - (z[2]  + 0.001) .* S_dir_tilde, #* (1),
@@ -516,16 +517,17 @@ function particle_equations(u_wind, v_wind; γ::Number=0.88, q::Number=-1 / 4.0,
             S_dir_tilde = direction ? S_dir(u, v, c_gp_x, c_gp_y, C_φ, Hₚ) : 0.0
 
             # apply great circle correction for spherical coorindates
-            S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
-            @info haskey(params, :PC), PropagationCorrection(c̄_x)
+            #S_dir_tilde = S_dir_tilde - PropagationCorrection(c̄_x)
+            S_sphere_tilde = PropagationCorrection(c̄_x)
+            #@info "Propagtion direction test:", haskey(params, :PC), PropagationCorrection(c̄_x) # for testing projection kernal Correction
             
             #particle_equations::Vector{Number} = 
             # energy
             dz[1] = +ωₚ .* r_g .* S_cg_tilde + ωₚ .* (Ĩ - D̃) #- c̄ .* G_n,
 
             # peak group velocity vector
-            dz[2] = -c̄_x .* ωₚ .* r_g .* S_cg_tilde + c̄_y .* S_dir_tilde #* (-1),
-            dz[3] = -c̄_y .* ωₚ .* r_g .* S_cg_tilde - c̄_x .* S_dir_tilde #* (1),
+            dz[2] = -c̄_x .* ωₚ .* r_g .* S_cg_tilde + c̄_y .* S_dir_tilde + c̄_y .* S_sphere_tilde
+            dz[3] = -c̄_y .* ωₚ .* r_g .* S_cg_tilde - c̄_x .* S_dir_tilde - c̄_x .* S_sphere_tilde
 
             # D(c̄_x) ~ -c̄_x .* ωₚ .* r_g .* S_cg_tilde + (c̄_y + 0.001) .* S_dir_tilde, #* (-1),
             # D(c̄_y) ~ -c̄_y .* ωₚ .* r_g .* S_cg_tilde - (c̄_x  + 0.001) .* S_dir_tilde, #* (1),

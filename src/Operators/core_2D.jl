@@ -470,8 +470,11 @@ function SeedParticle(
                 init_z0_to_State!(State, ij, GetParticleEnergyMomentum(z_i))
         end
 
+        # check if Propgation Correction is set in gridstats
+        # PropagationCorrection   = gridstats.PropagationCorrection != nothing ? PropagationCorrection(ij_mesh, gridstats) : x -> 0.0
+
         # set projection:
-        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats), PC = PropagationCorrection(ij_mesh, gridstats) )
+        ODE_settings.Parameters = (; ODE_settings.Parameters..., M=ProjetionKernel(ij_mesh, gridstats), PC=PropagationCorrection(ij_mesh, gridstats))
 
         return InitParticleInstance(
                 particle_system,

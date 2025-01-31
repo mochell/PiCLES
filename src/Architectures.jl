@@ -19,6 +19,11 @@ abstract type CartesianGrid1D <: CartesianGrid end
 abstract type CartesianGrid2D <: CartesianGrid end
 abstract type CartesianGridStatistics <: AbstractGridStatistics end
 
+#Spherical Grids
+abstract type SphericalGrid <: AbstractGrid end
+abstract type SphericalGrid2D <: SphericalGrid end
+abstract type SphericalGridStatistics <: AbstractGridStatistics end
+
 abstract type TripolarGrid <: AbstractGrid end
 # abstract type MOM6_2_3 <: TripolarGrid end
 abstract type TripolarGridStatistics <: AbstractGridStatistics end
@@ -26,9 +31,11 @@ abstract type TripolarGridStatistics <: AbstractGridStatistics end
 abstract type StandardRegular1D_old <: AbstractGrid end
 abstract type StandardRegular2D_old <: AbstractGrid end
 
-Grid2D = Union{CartesianGrid2D,StandardRegular2D_old}
-MeshGrids = Union{CartesianGrid2D,TripolarGrid}
-MeshGridStatistics = Union{CartesianGridStatistics,TripolarGridStatistics}
+Grid2D = Union{CartesianGrid2D,SphericalGrid2D,StandardRegular2D_old}
+
+# used for model intialization
+MeshGrids = Union{CartesianGrid2D,TripolarGrid,SphericalGrid2D}
+MeshGridStatistics = Union{CartesianGridStatistics,TripolarGridStatistics,SphericalGridStatistics}
 
 abstract type AbstractODESettings end
 abstract type AbstractParticleInstance end

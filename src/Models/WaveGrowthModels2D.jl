@@ -120,10 +120,10 @@ end
 
 
 """
-    init_StateArray(grid::Union{CartesianGrid2D,TripolarGrid}, Nstate, layers)
+    init_StateArray(grid::MeshGrids, Nstate, layers)
 
     # Arguments
-    - `grid::Union{CartesianGrid2D,TripolarGrid}`: The grid object representing the grid.
+    - `grid::MeshGrids`: The grid object representing the grid.
     - `Nstate`: The number of states in the StateArray.
     - `layers`: The number of layers in the StateArray.
 
@@ -133,7 +133,7 @@ end
     If `layers` is greater than 1, a 4-dimensional SharedArray of size (grid.stats.Nx, grid.stats.Ny, Nstate, layers) is created.
     Otherwise, a 3-dimensional SharedArray of size (grid.stats.Nx, grid.stats.Ny, Nstate) is created.
 """
-function init_StateArray(grid::Union{CartesianGrid2D,TripolarGrid}, Nstate, layers)
+function init_StateArray(grid::MeshGrids, Nstate, layers)
     if layers > 1
         State = SharedArray{Float64,4}(grid.stats.Nx.N, grid.stats.Ny.N, Nstate, layers)
     else
@@ -161,10 +161,10 @@ end
 
 
 """
-mark_boundary(grid::Union{CartesianGrid2D,TripolarGrid})
+mark_boundary(grid::MeshGrids)
 function that returns list of boundary nodes (tuples of indixes)
 """
-function mark_boundary(grid::Union{CartesianGrid2D,TripolarGrid})
+function mark_boundary(grid::MeshGrids)
     #get x and y coordinates
     xi = collect(range(1, stop=grid.stats.Nx.N, step=1))
     yi = collect(range(1, stop=grid.stats.Ny.N, step=1))

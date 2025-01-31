@@ -8,6 +8,7 @@ using StructArrays
 using StaticArrays
 
 include("mask_utils.jl")
+include("spherical_grid_corrections.jl")
 
 
 """
@@ -67,6 +68,7 @@ struct TwoDCartesianGridMesh <: CartesianGrid2D
     data::StructArray{<:Any}
     stats::TwoDCartesianGridStatistics
     ProjetionKernel::Function
+    PropagationCorrection::Function
 end
     
 function TwoDCartesianGridMesh(grid::CartesianGridStatistics; mask=nothing, total_mask=nothing)
@@ -102,7 +104,7 @@ end
 function TwoDCartesianGridMesh(      xmin, xmax, Nx::Int, ymin, ymax, Ny::Int; mask=nothing, angle=0.0, periodic_boundary = (false, false))
     GS = TwoDCartesianGridStatistics(xmin, xmax, Nx, ymin, ymax, Ny                        ; angle = angle, periodic_boundary = periodic_boundary)
     GMesh = TwoDCartesianGridMesh(GS, mask= mask)
-    return TwoDCartesianGridMesh(GMesh, GS, ProjetionKernel)
+    return TwoDCartesianGridMesh(GMesh, GS, ProjetionKernel, SphericalPropagationCorrection_dummy)
 end
 
 # short hand for function above

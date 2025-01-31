@@ -10,7 +10,7 @@ using StaticArrays
 using Statistics
 
 include("mask_utils.jl")
-
+include("spherical_grid_corrections.jl")
 
 ### ------ basic functions to create the grid -------
 
@@ -334,6 +334,7 @@ struct MOM6GridMesh <: TripolarGrid
     data::StructArray{<:Any}  # Adjust the type as necessary
     stats::MOM6GridStatistic
     ProjetionKernel::Function
+    PropagationCorrection::Function
 
     # initialize with Grid and GridAreaGen objects    
     function MOM6GridMesh(G, GA; mask=nothing, file="unknown", total_mask=nothing, mask_radius =3)
@@ -371,6 +372,7 @@ struct MOM6GridMesh <: TripolarGrid
         end
         
         if isnothing(total_mask)
+            @info typeof(mask)
             mask = make_boundaries(mask, stats.Nx, stats.Ny)
         else
             mask = total_mask
@@ -389,7 +391,7 @@ struct MOM6GridMesh <: TripolarGrid
         )
 
         # Create and return the extended struct with Grid and GridAreaGen objects included
-        return new(data, stats, ProjetionKernel)
+        return new(data, stats, ProjetionKernel, SphericalPropagationCorrection)
     end
 
     # initialize with Grid and GridAreaGen files
@@ -407,7 +409,7 @@ struct MOM6GridMesh <: TripolarGrid
 
         if MaskFile != nothing
             topo = NCDataset(MaskFile)
-            mask = topo["mask"]
+            mask = Bool.(topo["mask"]) # the copy() is a test, otherwise. the file cannot be closed close(topo)
         else
             mask = nothing
         end
@@ -416,6 +418,8 @@ struct MOM6GridMesh <: TripolarGrid
         GridArea = calculate_distances(area, dx, dy, Grid.k, Grid.khalf)
 
         close(hgrd)
+
+        # this leads to an error because content of topo is used in the next function, it would have to be closed later.
         if MaskFile != nothing
             close(topo)
         end

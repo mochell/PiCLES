@@ -1,4 +1,5 @@
-ENV["JULIA_INCREMENTAL_COMPILE"] = true
+# %%
+# ENV["JULIA_INCREMENTAL_COMPILE"] = true
 using Pkg
 Pkg.activate("PiCLES/")
 
@@ -15,7 +16,7 @@ using PiCLES.Simulations
 using PiCLES.Operators.TimeSteppers: time_step!, movie_time_step!
 
 using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
-using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, ProjetionKernel, TwoDCartesianGridStatistics
+using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, TwoDCartesianGridStatistics
 
 using PiCLES.Models.WaveGrowthModels2D
 
@@ -30,7 +31,6 @@ using PiCLES.Architectures: AbstractGridStatistics, CartesianGridStatistics
 using PiCLES.Operators.core_2D: ParticleDefaults as ParticleDefaults2D
 
 #using GLMakie
-
 using Plots
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
