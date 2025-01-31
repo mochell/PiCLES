@@ -48,6 +48,8 @@ using PiCLES.Plotting: PlotState_DoubleGlobe, PlotState_SingleGlobe, PlotState_D
 
 using Plots
 
+using GLMakie
+
 # %%
 
 Revise.retry()

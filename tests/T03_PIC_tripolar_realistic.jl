@@ -102,6 +102,7 @@ winds = (u=u, v=v)
 
 load_path = "PiCLES/src/Grids/files/";
 Grid = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 2; MaskFile=load_path * "ocean_topo_tx2_3v2_240501.nc");
+Grid = TripolarGridMOM6.MOM6GridMesh(load_path * "ocean_hgrid_221123.nc", 2; MaskFile=load_path * "ocean_topo_tx2_3v2_240501.nc");
 
 
 heatmap( transpose(Grid.data.mask))
@@ -203,8 +204,10 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=Grid,
 
 # ### build Simulation
 wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=2day)#1hours)
+wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=2day)#1hours)
 initialize_simulation!(wave_simulation)
 plot_particle_collection(wave_simulation.model)
+
 
 
 #heatmap(wave_simulation.model.State[:,:,1])
@@ -254,7 +257,9 @@ wave_model = WaveGrowthModels2D.WaveGrowth2D(; grid=Grid,
 
 # ### build Simulation
 wave_simulation = Simulation(wave_model, Δt=30minutes, stop_time=1.5days)#1hours)
+wave_simulation = Simulation(wave_model, Δt=30minutes, stop_time=1.5days)#1hours)
 # wave_simulation = Simulation(wave_model, Δt=1hour, stop_time=2hours)#1hours)
+
 
 
 initialize_simulation!(wave_simulation)

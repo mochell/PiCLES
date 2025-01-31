@@ -45,7 +45,6 @@ using PiCLES.Operators.TimeSteppers: time_step!
 using DifferentialEquations
 using PiCLES.Operators: mapping_2D
 
-
 using PiCLES.Plotting: PlotState_DoubleGlobe, PlotState_SingleGlobe, PlotState_DoubleGlobeSeam, OrthographicTwoMaps, OrthographicTwoMapsSeam
 
 
