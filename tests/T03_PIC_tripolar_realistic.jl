@@ -272,6 +272,13 @@ run!(wave_simulation, cash_store=true, debug=false)
 plot_particle_collection(wave_simulation.model)
 
 
+# surface of a sphere
+radius_earth = 6371e3  # in meters
+surface_area_earth = 4 * π * radius_earth^2  # in square meters
+surface_area_earth_km2 = surface_area_earth / 1e6  # in square kilometers
+
+sqrt( surface_area_earth_km2 / (Grid.stats.Nx.N * Grid.stats.Ny.N) )
+
 # %%
 # particles = wave_model.ParticleCollection
 # heatmap(transpose(Grid.data.mask))
@@ -291,6 +298,7 @@ Revise.retry()
 
 # %%
 
+using CairoMakie
 lons, lats = wave_simulation.model.grid.data.x, wave_simulation.model.grid.data.y;
 
 fig = Figure(size=(900, 1200), fontsize=22)
