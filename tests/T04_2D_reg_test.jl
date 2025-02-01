@@ -14,7 +14,8 @@ using PiCLES.Operators: TimeSteppers
 using PiCLES.Simulations
 using PiCLES.Operators.TimeSteppers: time_step!, movie_time_step!
 
-using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
+# using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
+using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, TwoDCartesianGridStatistics
 using PiCLES.Models.WaveGrowthModels2D
 
 using Oceananigans.TimeSteppers: Clock, tick!
@@ -27,9 +28,6 @@ using GLMakie
 
 using PiCLES.Operators.core_2D: GetGroupVelocity, speed
 using PiCLES.Plotting.movie: init_movie_2D_box_plot
-
-
-#sign.(rand(-1:1, 10, 10))
 
 
 # %%
@@ -48,11 +46,8 @@ U10, V10 = 5.0, 5.0
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 # define grid
-grid = TwoDGrid(120e3, 31, 120e3, 31)
-mesh = TwoDGridMesh(grid, skip=1);
-gn = TwoDGridNotes(grid);
+grid = TwoDCartesianGridMesh(120e3, 31, 120e3, 31)
 
-grid.dx
 # example user function
 u_func(x, y, t) = U10 + x * 0 + y * 0 + t * 0
 v_func(x, y, t) = V10 + x * 0 + y * 0 + t * 0
@@ -119,11 +114,12 @@ function make_reg_test(wave_model, save_path; plot_name="dummy", N=36)
 
 end
 
-Revise.retry()
 # %%
+Revise.retry()
+
 # loop over U10 and V10 range
 # gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false, true]]
-gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [false]]
+gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [true, false]]
 
 #for I in CartesianIndices(gridmesh)
 for (U10, V10, per) in gridmesh
@@ -156,7 +152,7 @@ end
 
 
 # %% half domain tests
-gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [true]]
+gridmesh = [(i, j, per) for i in -10:10:10, j in -10:10:10, per in [true, false]]
 #for I in CartesianIndices(gridmesh)
 for (U10, V10, per) in gridmesh
     periodic = per == true

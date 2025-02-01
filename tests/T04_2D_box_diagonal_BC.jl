@@ -51,8 +51,9 @@ r_g0 = 0.85
 # function to define constants 
 
 
-Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
+# Const_Scg = PW.get_Scg_constants(C_alpha=-1.41, C_varphi=1.81e-5)
 
+ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=0.85)
 
 u_func(x, y, t) = U10 #* sin(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)
 v_func(x, y, t) = V10 #* cos(t / (6 * 60 * 60 * 2π)) * sin(x / 50e3) * sin(y / 50e3)

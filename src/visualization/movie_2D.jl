@@ -5,6 +5,8 @@ using GLMakie
 using ...ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
 using ...Operators.core_2D: GetGroupVelocity
 
+using ...Architectures: Grid2D, CartesianGrid, CartesianGridStatistics, CartesianGrid2D, CartesianGrid1D, AbstractGridStatistics, AbstractGrid, StandardRegular2D_old
+
 import Oceananigans.Utils: prettytime
 
 function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_string="", aspect=1, axline=0)
@@ -12,8 +14,15 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     n = Observable(1) # for visualization
     # Ocean vorticity
     grid = wave_simulation.model.grid
-    mesh = TwoDGridMesh(grid, skip=1)
-    gn = TwoDGridNotes(grid)
+    if typeof(grid) <: TwoDGrid
+        mesh = TwoDGridMesh(grid, skip=1)
+        gn = TwoDGridNotes(grid)
+        dx = gn.dx
+    elseif typeof(grid) <: CartesianGrid
+        mesh =grid.data
+        gn = (x=grid.data.x[:, 1], y=grid.data.y[1, :])
+        dx = grid.stats.dx
+    end
     
     arrow_skip = 3
     arrow_skip_y =2
@@ -68,9 +77,8 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     # end
     #ax_wind = Axis(fig[1, 1], aspect=1, xlabel="x (km)", ylabel="y (km)", title="Winds")
     #hm_i = heatmap!(ax_wind, 1e-3 * x, 1e-3 * y, ice_speed_n)
-    hm_wind = heatmap!(ax_wind, 1e-3 * gn.x[1:3:end], 1e-3 * gn.y[1:3:end], ocean_wind, colormap=:dense, colorbar=true, colorrange=(0, 11))
+    hm_wind = heatmap!(ax_wind, 1e-3 * gn.x[1:3:end], 1e-3 * gn.y[1:3:end], ocean_wind, colormap=:dense, colorrange=(0, 11) )
     # colormap options for heatmap 
-
 
     #quiver!(ax_wind, 1e-3 * gn.x, 1e-3 * gn.y, quiver=(ocean_wind_u, ocean_wind_v))#, color=:red, scale_unit=:data, label="wind")
     #strength = ocean_wind_u.^2 .+ ocean_wind_v.^2
@@ -78,23 +86,24 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
                     1e-3 * gn.y[1:arrow_skip_y:end],
                     ocean_wind_u, 
                     ocean_wind_v, 
-                    arrowsize=10, lengthscale=2, length=strength, arrowcolor=:green, linecolor=:green)
+                    arrowsize=10, lengthscale=2, arrowcolor=:green, linecolor=:green)
     #scatter!(ax_wind, vec(gridmesh.* 1e-3), rotations=0, markersize=20, marker='↑')
 
 
-    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 4))
-    hm_x = heatmap!(ax_mx, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_x, colormap=:balance, colorrange=(-0.05, 0.05))
-    hm_y = heatmap!(ax_my, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_y, colormap=:balance, colorrange=(-0.05, 0.05))
+    hm_o = heatmap!(ax_o, 1e-3 * gn.x, 1e-3 * gn.y, wave_energy, colormap=:dense, colorrange=(0, 8))
+    hm_x = heatmap!(ax_mx, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_x, colormap=:balance, colorrange=(-0.1, 0.1))
+    hm_y = heatmap!(ax_my, 1e-3 * gn.x, 1e-3 * gn.y, wave_momentum_y, colormap=:balance, colorrange=(-0.1, 0.1))
 
     hm_cx = heatmap!(ax_cx, 1e-3 * gn.x, 1e-3 * gn.y, cx, colormap=:balance, colorrange=(-5, 5))
     hm_cy = heatmap!(ax_cy, 1e-3 * gn.x, 1e-3 * gn.y, cy, colormap=:balance, colorrange=(-5, 5))
     #colormaps
 
     #colorbar(ax_my)
-    cb_wind = Colorbar(fig[1, 0], hm_wind, label="winds [m/s]", tickalignmode=:right)
-    cb_wind.alignmode = Mixed(right=1)
-    #Colorbar(fig[1, 3], hm_o, label="Wave energy [m^2]")
+    # cb_wind = Colorbar(fig[1, 0], hm_wind, label="winds [m/s]", tickalignmode=:right)
+    # cb_wind.alignmode = Mixed(right=1)
+    # #Colorbar(fig[1, 3], hm_o, label="Wave energy [m^2]")
 
+    Colorbar(fig[1, 0], hm_wind, label="winds [m/s]")
     Colorbar(fig[1, 4], hm_o, label = "Wave energy [m^2]")
     Colorbar(fig[2, 4], hm_x, label = "Wave momentum x []")
     Colorbar(fig[3, 4], hm_cx, label="Group Velocity [m/s]")
@@ -112,10 +121,10 @@ function init_movie_2D_box_plot(wave_simulation; resolution=(900, 1200), name_st
     #c_xi = GetGroupVelocity(wave_simulation.model.MovieState).c_x
     #CFL = @lift ($n; round(maximum(sqrt(cx[]^2 + cx[]^2))) * DT / gn.dx)
 
-    title = @lift ($n; "DT=$DT , dx=$(round(gn.dx)), CFL= $(round( maximum(sqrt.(cx[].^2+cy[].^2)) * DT /gn.dx; digits=3 )), \ntime=" * prettytime(wave_simulation.model.clock.time) * "\n" * name_string)
+    title = @lift ($n; "DT=$DT , dx=$(round(dx)), CFL= $(round( maximum(sqrt.(cx[].^2+cy[].^2)) * DT /dx; digits=3 )), \ntime=" * prettytime(wave_simulation.model.clock.time) * "\n" * name_string)
 
     Label(fig[0, :], title)
-    display(fig)
+    #display(fig)
 
     return fig, n
 end

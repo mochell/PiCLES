@@ -87,6 +87,17 @@ function ParticleStatsToDataframe(Collection)
         return df
 end
 
+function ParticleStatsToDataframe_simple(Collection)
+        df = DataFrame()
+        df[!, "position_ij"] = [ PF.position_ij for PF in Collection][:]
+        df[!, "position_xy"] = [PF.position_xy for PF in Collection][:]
+        df[!, "boundary"] = [PF.boundary for PF in Collection][:]
+        df[!, "time"] = [PF.ODEIntegrator.t for PF in Collection][:]
+        df[!, "u"] = [PF.ODEIntegrator.u for PF in Collection][:]
+        # df[!, "errorReturnCode"] = [PF.errorReturnCode for PF in Collection]
+        return df
+end
+
 
 function PlotFailedParticles(Collection, title, DT, dx)
         energy_list = []

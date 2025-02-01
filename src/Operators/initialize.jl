@@ -5,13 +5,13 @@
 using StaticArrays
 
 """ sets node state values to S at tuple position ij to zi """
-function init_z0_to_State!(S::SharedMatrix, ij::Int, zi::TT) where TT<:Union{Vector{Float64},SVector{3,Float64}}
+function init_z0_to_State!(S::SharedMatrix, ij::Int, zi::TT) where {TT<:Union{Vector{Float64},SVector{3,Float64}}}
         S[ ij[1], :] = zi
         nothing
 end
 
 """ sets node state values to S at tuple position ij to zi """
-function init_z0_to_State!(S::StateTypeL1, ij::Tuple{Int64,Int64}, zi::TT) where TT<:Union{Vector{Float64},SVector{3,Float64}}
+function init_z0_to_State!(S::StateTypeL1, ij::II, zi::TT) where {II<:Union{Tuple{Int,Int},CartesianIndex}, TT<:Union{Vector{Float64},SVector{3,Float64}}}
         S[ij[1],ij[2], :] = zi
         nothing
 end

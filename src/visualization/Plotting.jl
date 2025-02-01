@@ -1,6 +1,6 @@
 module Plotting
 
-export movie
+export movie, PlotState_SingleGlobe, PlotState_DoubleGlobe
 
 # include("../Simulations/Simulations.jl")
 # using .Simulations
@@ -10,6 +10,7 @@ using ..ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
 
 include("plotting_1D.jl")
 include("movie_2D.jl")
+include("global.jl")
 
 using .movie
 

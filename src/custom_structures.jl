@@ -7,12 +7,13 @@ using DocStringExtensions
 using StaticArrays
 
 using ..Architectures: AbstractParticleInstance, AbstractMarkedParticleInstance
+using ..Architectures: AbstractBoundary
 
 # ParticleInstance is the Stucture that carries each particle.
 mutable struct ParticleInstance2D <: AbstractParticleInstance
         position_ij::Tuple{Int, Int}
         position_xy::Tuple{Float64, Float64}
-        ODEIntegrator::ODEIntegrator
+        ODEIntegrator::Union{ODEIntegrator,Nothing}
         boundary :: Bool
         on::Bool
 end
@@ -44,6 +45,25 @@ struct wni{TI<:SVector,TF<:SVector} <: FieldVector{4,SVector}
         yi::TI
         yw::TF
 end
+
+# Define Boundary Types:
+
+struct N_Periodic{T} <: AbstractBoundary
+        N::T
+end
+
+struct N_NonPeriodic{T} <: AbstractBoundary
+        N::T
+end
+
+struct N_TripolarNorth{T} <: AbstractBoundary
+        N::T
+end
+
+# struct N_TripolarSouth{T} <: AbstractBoundary
+#         N::T
+# end
+
 
 
 end
