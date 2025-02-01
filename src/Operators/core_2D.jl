@@ -441,7 +441,7 @@ function SeedParticle(
         
         gridstats::AbstractGridStatistics,
         ProjetionKernel::Function,
-        # PropagationCorrection::Function,
+        PropagationCorrection::Function,
 
         ij_mesh::NamedTuple, # local grid information
         ij_wind::Tuple,     # interp winds

@@ -178,24 +178,25 @@ plot_particle_collection(wave_model; lims=[0.1, 0.015, 0.015])
 #     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
 # end
 
-for PI in wave_simulation.model.ParticleCollection[170:end-4, 70:91]
+for PI in wave_simulation.model.ParticleCollection[170:end-4, 60:115]
     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
     reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(15.0, 00.0, 4hour, particle_state=true))
     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
 end
 
-for PI in wave_simulation.model.ParticleCollection[170:end-4, 105:115]
-    #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
-    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(15.0, 00.0, 4hour, particle_state=true))
-    ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
-end
+# for PI in wave_simulation.model.ParticleCollection[170:end-4, 105:115]
+#     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
+#     reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(15.0, 00.0, 4hour, particle_state=true))
+#     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
+# end
 
 
 for PI in wave_simulation.model.ParticleCollection[4:20, 25:35]
     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
-    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(15.0, 00.0, 4hour, particle_state=true))
+    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(-15.0, 00.0, 4hour, particle_state=true))
     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
 end
+
 
 # for PI in wave_simulation.model.ParticleCollection[25:35, 140:end-4]
 #     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
@@ -203,17 +204,24 @@ end
 #     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
 # end
 
-for PI in wave_simulation.model.ParticleCollection[120:130, 140:end-4]
+# for PI in wave_simulation.model.ParticleCollection[105:120, 140:end-4]
+#     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
+#     reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(0, 15.0, 4hour, particle_state=true))
+#     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
+# end
+
+
+for PI in wave_simulation.model.ParticleCollection[135:150, 140-4:end-2-4]
     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
-    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(-10, -5.0, 4hour, particle_state=true))
+    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(-15.0, 10.0, 6hour, particle_state=true))
     ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
 end
 
-for PI in wave_simulation.model.ParticleCollection[150:160, 140:end-4]
-    #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
-    reset_PI_u!(PI, ui=FetchRelations.get_initial_windsea(15.0, 10.0, 4hour, particle_state=true))
-    ParticleToNode!(PI, wave_simulation.model.State, wave_simulation.model.grid, wave_simulation.model.periodic_boundary)
-end
+#plot_particle_collection(wave_simulation.model; lims=[0.2, 0.1, 0.015])
+
+
+
+
 
 # for PI in wave_simulation.model.ParticleCollection[end-30:end-15, 10:end]
 #     #reset_PI_u!(PI, ui= [ log( (5/4)^2) , 5.0 , 10.0, 0.0, 0.0])
@@ -246,7 +254,7 @@ Gc(2.0)
 fig = PlotState_DoubleGlobeSeam(wave_simulation.model, scaled=true)
 # plot_particle_collection(wave_simulation.model; lims=[0.2, 0.1, 0.015])
 
-for i in 1:1:7
+for i in 1:1:12
     run!(wave_simulation, cash_store=true, debug=false)
     fig = PlotState_DoubleGlobeSeam(wave_simulation.model, scaled=true)
     display(fig)
