@@ -74,7 +74,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    using PiCLES.Operators.core_2D: ParticleDefaults
    using PiCLES.Models.WaveGrowthModels2D: WaveGrowth2D
    using PiCLES.Simulations
-   using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
+   using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, ProjetionKernel, TwoDCartesianGridStatistics
    
    using PiCLES.ParticleSystems: particle_waves_v5 as PW
    using Oceananigans.Units
@@ -83,7 +83,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    import Plots as plt
    
    # Parameters
-   U10, V10 = 10.0, 10.0 # m/s 
+   U10, V10 = 10.0, 10.0
    DT = 10minutes
    r_g0 = 0.85 # ratio of c / c_g (phase velocity/ group velocity).
    
@@ -93,8 +93,8 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    winds = (u=u, v=v)
    
    # Define grid
-   grid = TwoDGrid(100e3, 51, 100e3, 51) # rectangular grid, 51 grid points, 100e3 meters 
-   gn = TwoDGridNotes(grid)
+   grid = TwoDCartesianGridMesh(100e3, 51, 100e3, 51)
+   
    
    # Define ODE parameters
    ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=r_g0)
@@ -122,23 +122,23 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    
    # Build wave model
    wave_model = WaveGrowth2D(; grid=grid,
-     winds=winds,
-     ODEsys=particle_system,
-     ODEsets=ODE_settings,
-     periodic_boundary=false,
-     minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
-     movie=true)
+       winds=winds,
+       ODEsys=particle_system,
+       ODEsets=ODE_settings,
+       periodic_boundary=false,
+       minimal_particle=FetchRelations.MinimalParticle(U10, V10, DT),
+       movie=true)
    
    # Build simulation
-   wave_simulation = Simulation(wave_model, Δt=DT, stop_time=2hour)
+   wave_simulation = Simulation(wave_model, Δt=DT, stop_time=2hour)#1hours)
    
    # Run simulation
    run!(wave_simulation, cash_store=true)
    
    # Plot initial state
    istate = wave_simulation.store.store[end];
-   p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
-   
+   p1 = plt.heatmap(grid.data.x[:,1] / 1e3, grid.data.y[1,:] / 1e3, istate[:, :, 1])
+
    ```
 
 ## How to Cite
