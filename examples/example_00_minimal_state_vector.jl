@@ -6,13 +6,14 @@ using PiCLES
 using PiCLES.Operators.core_2D: ParticleDefaults
 using PiCLES.Models.WaveGrowthModels2D: WaveGrowth2D
 using PiCLES.Simulations
-using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
+using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, ProjetionKernel, TwoDCartesianGridStatistics
 
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 using Oceananigans.Units
 
 # just for simple plotting
 import Plots as plt
+
 
 # %%
 speed(x::Float64, y::Float64) = sqrt(x^2 + y^2)
@@ -37,8 +38,8 @@ function PartitionOutput(State)
     T_p = energy * 0 .+ 10.0
 
     # c_g vector
-    c_x = m_x * energy / (2 * m_amp^2)
-    c_y = m_y * energy / (2 * m_amp^2)
+    c_x = m_1 .* energy ./ (2 * m_amp^2)
+    c_y = m_2 .* energy ./ (2 * m_amp^2)
 
     # c stokes vector - dummy 
     u_stokes_x = c_x * 0.1
@@ -69,8 +70,8 @@ winds = (u=u, v=v)
 
 # ---------- initialize start ---------
 # Define grid
-grid = TwoDGrid(100e3, 51, 100e3, 51)
-gn   = TwoDGridNotes(grid)
+grid = TwoDCartesianGridMesh(100e3, 51, 100e3, 51)
+
 
 # Define ODE parameters
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=r_g0)
@@ -126,10 +127,9 @@ wave_model.State[:, :, 3] # Meridional momentum
 
 # Dimensions
 # this will we change when PiCLES updated to more advanced grid module
-gridnotes = TwoDGridNotes(wave_model.grid)
-gridnotes.x
-gridnotes.y
+grid.data.x
+grid.data.y
 
 # plot state
 istate = wave_simulation.store.store[end];
-p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, SinglePartitionOutput[:, :, 1], title="Hs (m)", xlabel="x (km)", ylabel="y (km)")
+p1 = plt.heatmap(grid.data.x[:, 1] / 1e3, grid.data.y[1, :] / 1e3, SinglePartitionOutput[:, :, 1], title="Hs (m)", xlabel="x (km)", ylabel="y (km)")

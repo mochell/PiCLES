@@ -6,7 +6,7 @@ using PiCLES
 using PiCLES.Operators.core_2D: ParticleDefaults
 using PiCLES.Models.WaveGrowthModels2D: WaveGrowth2D
 using PiCLES.Simulations
-using PiCLES.ParticleMesh: TwoDGrid, TwoDGridNotes, TwoDGridMesh
+using PiCLES.Grids.CartesianGrid: TwoDCartesianGridMesh, ProjetionKernel, TwoDCartesianGridStatistics
 
 using PiCLES.ParticleSystems: particle_waves_v5 as PW
 using Oceananigans.Units
@@ -25,8 +25,8 @@ v(x, y, t) = V10
 winds = (u=u, v=v)
 
 # Define grid
-grid = TwoDGrid(100e3, 51, 100e3, 51)
-gn = TwoDGridNotes(grid)
+grid = TwoDCartesianGridMesh(100e3, 51, 100e3, 51)
+
 
 # Define ODE parameters
 ODEpars, Const_ID, Const_Scg = PW.ODEParameters(r_g=r_g0)
@@ -68,4 +68,4 @@ run!(wave_simulation, cash_store=true)
 
 # Plot initial state
 istate = wave_simulation.store.store[end];
-p1 = plt.heatmap(gn.x / 1e3, gn.y / 1e3, istate[:, :, 1])
+p1 = plt.heatmap(grid.data.x[:,1] / 1e3, grid.data.y[1,:] / 1e3, istate[:, :, 1])
