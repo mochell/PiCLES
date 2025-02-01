@@ -1,9 +1,15 @@
-# PiCLES ![Build Status](https://github.com/mochell/PiCLES.jl/actions/workflows/CI.yml/badge.svg?branch=main)
+# Particle-in-Cell for Efficient Swell - PiCLES ![Build Status](https://github.com/mochell/PiCLES.jl/actions/workflows/CI.yml/badge.svg?branch=main)
 PiCLES is a fast and efficient wave model for Earth System Models, using Particle-in-Cell methods for better performance.
 
 
 ![The PiCLES on a Surfboard|200px](./img/PiCLES_v0.png)
 
+
+PiCLES:
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13799205.svg)](https://doi.org/10.5281/zenodo.13799205)
+
+Paper draft version:
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.13799253.svg)](https://doi.org/10.5281/zenodo.13799253)
 
 ## Quick Start
 A brief guide on how to use PiCLES.
@@ -61,7 +67,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    
    ```julia
    using Pkg
-   # this will be replace by the module load in the future
+   # This will be replaced by the module load in the future
    Pkg.activate("PiCLES/")  # Activate the PiCLES package 
    
    using PiCLES
@@ -96,7 +102,7 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    # Define particle equations
    particle_system = PW.particle_equations(u, v, γ=Const_ID.γ, q=Const_ID.q);
    
-   # Calculate minimal windsea based on characteristic winds
+   # Calculate minimal wind sea based on characteristic winds
    WindSeamin = FetchRelations.MinimalWindsea(U10, V10, DT)
    
    # Define default particle
@@ -104,14 +110,15 @@ A minimal working example is the following [examples/example_00_minimal.jl](exam
    
    # Define ODE settings
    ODE_settings = PW.ODESettings(
-       Parameters=ODEpars,
-       log_energy_minimum=WindSeamin["lne"],  # define mininum energy threshold
-       saving_step=DT,
-       timestep=DT,
-       total_time=T = 6days,
-       dt=1e-3, #60*10, 
-       dtmin=1e-4, #60*5, 
-       force_dtmin=true)
+     Parameters=ODEpars,
+     # define mininum energy threshold
+     log_energy_minimum=WindSeamin["lne"],
+     saving_step=DT,
+     timestep=DT,
+     total_time=T = 6days,
+     dt=1e-3, 
+     dtmin=1e-4, 
+     force_dtmin=true)
    
    # Build wave model
    wave_model = WaveGrowth2D(; grid=grid,
